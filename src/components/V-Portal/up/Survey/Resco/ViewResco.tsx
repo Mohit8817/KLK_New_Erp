@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import { authService } from '../../../../../services/authService';
 import {
   upSurveyService,
   getUpSurveyMediaUrl,
@@ -466,13 +467,19 @@ function ManageBosProductsModal({
   onClose: () => void;
   onSuccess: (msg: string) => void;
 }) {
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [bosData, setBosData] = useState<UpRescoBosProductData | null>(null);
-  const [requiredDate, setRequiredDate] = useState(() => {
+  const todayStr = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-  const [vendorName, setVendorName] = useState('Vendor');
+  };
+  const sessionVendorName = () => {
+    const s: any = authService.getSession();
+    return String(s?.name || s?.vendor?.name || s?.user?.name || '').trim();
+  };
+
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [bosData, setBosData] = useState<UpRescoBosProductData | null>(null);
+  const [requiredDate, setRequiredDate] = useState(todayStr);
+  const [vendorName, setVendorName] = useState(sessionVendorName);
   const [siteName, setSiteName] = useState('');
   const [remarks, setRemarks] = useState('');
   const [materials, setMaterials] = useState<Array<{ product_id: number; qty: string | number; unit: string; product_remarks: string }>>([]);
@@ -481,18 +488,28 @@ function ManageBosProductsModal({
 
   useEffect(() => {
     if (!open || !item) return;
+    let active = true;
+    const defaultDate = todayStr();
+    const defaultVendor = sessionVendorName();
     setErrorMsg('');
+    setBosData(null);
+    setRequiredDate(defaultDate);
+    setVendorName(defaultVendor);
     setSiteName(item.site_name || '');
+    setRemarks('');
+    setMaterials([]);
     setLoadingProducts(true);
 
     upSurveyService
       .fetchRescoBosProducts(item.id)
       .then((res) => {
+        if (!active) return;
         if (res) {
           setBosData(res);
+          const availableProducts = Array.isArray(res.products) ? res.products : [];
           if (res.resco_bos) {
-            setRequiredDate(res.resco_bos.req_date || requiredDate);
-            setVendorName(res.resco_bos.vendor_name || 'Vendor');
+            setRequiredDate(res.resco_bos.req_date || defaultDate);
+            setVendorName(res.resco_bos.vendor_name || defaultVendor);
             setSiteName(res.resco_bos.site_name || item.site_name || '');
             setRemarks(res.resco_bos.remarks || '');
             if (Array.isArray(res.resco_bos.materials) && res.resco_bos.materials.length > 0) {
@@ -504,28 +521,35 @@ function ManageBosProductsModal({
                   product_remarks: m.product_remarks || '',
                 }))
               );
-            } else if (res.products && res.products.length > 0) {
-              setMaterials([{ product_id: res.products[0].id, qty: 1, unit: 'Nos', product_remarks: '' }]);
+            } else if (availableProducts.length > 0) {
+              setMaterials([{ product_id: availableProducts[0].id, qty: 1, unit: 'Nos', product_remarks: '' }]);
             }
-          } else if (res.products && res.products.length > 0) {
-            setMaterials([{ product_id: res.products[0].id, qty: 1, unit: 'Nos', product_remarks: '' }]);
+          } else if (availableProducts.length > 0) {
+            setMaterials([{ product_id: availableProducts[0].id, qty: 1, unit: 'Nos', product_remarks: '' }]);
           }
         }
       })
       .catch((err) => {
+        if (!active) return;
         console.error('Error fetching BOS product data:', err);
         setErrorMsg('Failed to fetch available BOS products.');
       })
       .finally(() => {
-        setLoadingProducts(false);
+        if (active) setLoadingProducts(false);
       });
+
+    return () => {
+      active = false;
+    };
   }, [open, item]);
 
   if (!item) return null;
 
+  const availableProducts = bosData?.products || [];
+
   const handleAddMaterial = () => {
-    const firstProdId = bosData?.products?.[0]?.id || 0;
-    setMaterials([...materials, { product_id: firstProdId, qty: 1, unit: 'Nos', product_remarks: '' }]);
+    if (availableProducts.length === 0) return;
+    setMaterials([...materials, { product_id: availableProducts[0].id, qty: 1, unit: 'Nos', product_remarks: '' }]);
   };
 
   const handleRemoveMaterial = (index: number) => {
@@ -540,8 +564,16 @@ function ManageBosProductsModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (availableProducts.length === 0) {
+      setErrorMsg('No BOS products are available from the server.');
+      return;
+    }
     if (materials.length === 0) {
       setErrorMsg('Please add at least one BOS product line item.');
+      return;
+    }
+    if (materials.some((m) => !m.product_id || Number(m.product_id) <= 0)) {
+      setErrorMsg('Please select a valid product for every line item.');
       return;
     }
     const pids = materials.map((m) => m.product_id);
@@ -620,11 +652,15 @@ function ManageBosProductsModal({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <h4 style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--ax-text)' }}>BOS Product Materials</h4>
-              <button type="button" onClick={handleAddMaterial} className="ax-btn ax-btn--ghost ax-btn--sm" style={{ color: '#2563eb' }}>+ Add Product Line</button>
+              <button type="button" onClick={handleAddMaterial} disabled={loadingProducts || availableProducts.length === 0} className="ax-btn ax-btn--ghost ax-btn--sm" style={{ color: availableProducts.length === 0 ? '#94a3b8' : '#2563eb' }}>+ Add Product Line</button>
             </div>
 
             {loadingProducts ? (
               <div style={{ padding: 30, textAlign: 'center', color: 'var(--ax-text-muted)' }}><span className="ax-spinner" /> Loading product catalog...</div>
+            ) : availableProducts.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--ax-text-muted)', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8, fontSize: 13 }}>
+                No BOS products returned by the API for this site.
+              </div>
             ) : (
               <div style={{ border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
@@ -642,8 +678,7 @@ function ManageBosProductsModal({
                       <tr key={idx} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
                         <td style={{ padding: 8 }}>
                           <select value={m.product_id} onChange={(e) => handleMaterialChange(idx, 'product_id', Number(e.target.value))} style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)' }} required>
-                            {(bosData?.products || []).map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
-                            {(!bosData?.products || bosData.products.length === 0) && (<option value={m.product_id}>Product #{m.product_id}</option>)}
+                            {availableProducts.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
                           </select>
                         </td>
                         <td style={{ padding: 8 }}>
@@ -675,7 +710,7 @@ function ManageBosProductsModal({
 
         <div className="ax-modal__footer" style={{ justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} className="ax-btn ax-btn--secondary" disabled={submitting}>Cancel</button>
-          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting} style={{ background: '#16a34a', borderColor: '#16a34a' }}>
+          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting || loadingProducts || availableProducts.length === 0} style={{ background: '#16a34a', borderColor: '#16a34a' }}>
             {submitting ? 'Saving BOS...' : 'Save BOS Products'}
           </button>
         </div>

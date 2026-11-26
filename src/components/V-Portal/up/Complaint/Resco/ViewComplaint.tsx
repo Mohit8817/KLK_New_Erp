@@ -96,6 +96,7 @@ export function UP_Complaint_Resco_ViewComplaint() {
       loadingText="Loading Resco complaints…"
       emptyMessage="Resco complaints will appear here once they are registered."
       fetchData={() => upComplaintService.getRescoViewComplaints()}
+      onDeleteComplaint={(id) => upComplaintService.deleteRescoComplaint(id)}
       columns={COLUMNS}
       searchFields={(r) => [
         pick(r, ['complaint_id', 'id'], ''),

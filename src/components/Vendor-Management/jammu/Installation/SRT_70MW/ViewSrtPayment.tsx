@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -12,25 +11,21 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 import {
-  jammuSrt70mwService,
+  jammuSrt70mwAdminService,
   resolveJammuMediaUrl,
-  type JammuPaymentSiteItem,
-} from '../../../../V-Portal/jammu/jammu-services';
+  type Payment80Item,
+  type Payment20Item,
+  type VendorItem,
+  type ViewPaymentData,
+} from './jammuSrt70mwAdminService';
 
-/* ───────── Responsive page CSS (Exact Bihar SRT / Assam SWP reference, all columns scrollable) ───────── */
+type TabType = 'pay80' | 'pay20';
+
+/* ───────── Responsive page CSS (Exact Reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2559bf;
-    --asw-primary-rgb: 37, 89, 191;
-  }
-  .solar-erp-page .ax-btn--primary {
-    background-color: #2559bf !important;
-    border-color: #2559bf !important;
-    color: #ffffff !important;
-  }
-  .solar-erp-page .ax-btn--primary:hover {
-    background-color: #1d4699 !important;
-    border-color: #1d4699 !important;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -41,56 +36,57 @@ const PAGE_CSS = `
 
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
   }
-  @media (max-width: 1280px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-  @media (max-width: 768px) {
+  @media (max-width: 992px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
   }
 
-  .solar-erp-page .asw-bifurcation-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
+  .solar-erp-page .asw-filter-card {
+    background: var(--ax-surface, #ffffff);
+    border: 1px solid var(--ax-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
   }
-  .solar-erp-page .asw-pill-btn {
-    display: inline-flex;
-    align-items: center;
+
+  .solar-erp-page .asw-tabs-wrap {
+    display: flex;
     gap: 8px;
-    padding: 7px 16px;
-    border-radius: 9999px;
+    margin-bottom: 20px;
+  }
+  .solar-erp-page .asw-tab-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.15s ease;
     border: 1px solid var(--ax-border, #cbd5e1);
     background: var(--ax-surface, #ffffff);
     color: var(--ax-text-muted, #64748b);
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2559bf;
-    color: #2559bf;
+  .solar-erp-page .asw-tab-btn:hover {
+    color: var(--ax-accent, #2563eb);
+    border-color: var(--ax-accent, #2563eb);
   }
-  .solar-erp-page .asw-pill-btn.active {
-    background: #2559bf;
-    color: #ffffff;
-    border-color: #2559bf;
-    box-shadow: 0 2px 4px rgba(37, 89, 191, 0.2);
+  .solar-erp-page .asw-tab-btn--active {
+    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb)) !important;
+    color: var(--ax-on-accent, #ffffff) !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
   }
 
   .solar-erp-page .ax-card__header {
@@ -125,7 +121,7 @@ const PAGE_CSS = `
     flex-wrap: nowrap;
     gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster {
+  .solar-erp-page .ax-cluster {
     flex-wrap: nowrap !important;
     min-width: 0;
     justify-content: flex-end;
@@ -297,63 +293,6 @@ const X_ICON = (
   </svg>
 );
 
-/* ── Top KPI Card Component ── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
-}: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: string;
-}) {
-  const t = TONE[tone];
-  return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
-          {label}
-        </span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
-        {sub}
-      </div>
-    </div>
-  );
-}
-
 /* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
@@ -396,14 +335,16 @@ function Modal({
       >
         <div className="ax-modal__header">
           <div>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '3px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>{subtitle}</p>}
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
             {X_ICON}
           </button>
         </div>
-        <div className="ax-modal__body">{children}</div>
+        <div className="ax-modal__body">
+          {children}
+        </div>
         {footer && <div className="ax-modal__footer">{footer}</div>}
       </div>
     </div>,
@@ -411,362 +352,423 @@ function Modal({
   );
 }
 
-/* ───────── Media Thumbnail Component ───────── */
-function MediaFileThumbnail({
-  file,
-  alt = 'Invoice Preview',
-  onClick,
-}: {
-  file?: string | null;
-  alt?: string;
-  onClick: (url: string) => void;
-}) {
-  const [imgError, setImgError] = useState(false);
-  if (!file) return <span style={{ color: 'var(--ax-text-muted, #94a3b8)' }}>—</span>;
-  const fullUrl = resolveJammuMediaUrl(file);
-  const ext = file.split('.').pop()?.toLowerCase() || '';
-  const isDirectImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext);
+/* ── Top KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
 
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
   return (
-    <button
-      type="button"
-      onClick={() => onClick(fullUrl)}
-      style={{
-        border: '1px solid #cbd5e1',
-        borderRadius: 6,
-        padding: 2,
-        background: '#ffffff',
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 38,
-        height: 38,
-        overflow: 'hidden',
-        position: 'relative',
-        transition: 'all 0.15s ease',
-      }}
-      title={`Click to preview: ${file.split('/').pop()}`}
-    >
-      {!imgError && isDirectImage ? (
-        <img
-          src={fullUrl}
-          alt={alt}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
-          onError={() => setImgError(true)}
-        />
-      ) : (
-        <div
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
           style={{
-            display: 'flex',
-            flexDirection: 'column',
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            background: '#eff4fc',
-            borderRadius: 4,
-            padding: 2,
+            flexShrink: 0,
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2559bf" strokeWidth={2}>
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-          <span style={{ fontSize: 8, fontWeight: 700, color: '#2559bf', textTransform: 'uppercase', marginTop: 1 }}>
-            {ext || 'PDF'}
-          </span>
-        </div>
-      )}
-    </button>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
   );
 }
 
-// Payment Row schema
-export interface SrtPaymentRow {
-  id: number;
-  date: string;
-  vendorName: string;
-  siteName: string;
-  consumerNo: string;
-  district: string;
-  capacity: string;
-  milestoneType: '80% Installation' | '20% Net Metering' | '100% Full Payment';
-  invoiceFile?: string;
-  amount: number;
-  payAmount: number;
-  balanceAmount: number;
-  payDate?: string;
-  payRemarks?: string;
-  utrRef?: string;
-  bankMode: string;
-  remarks: string;
-  status: 'Complete' | 'Partially Paid' | 'Pending';
-}
-
-const MOCK_PAYMENTS: SrtPaymentRow[] = [
-  {
-    id: 601,
-    date: '2026-03-04',
-    vendorName: 'utkarsh',
-    siteName: 'Amit Gupta (RTS)',
-    consumerNo: 'JK-70M-JAM-1001',
-    district: 'Jammu',
-    capacity: '5.0 kW RTS',
-    milestoneType: '80% Installation',
-    invoiceFile: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop&q=60',
-    amount: 198000,
-    payAmount: 198000,
-    balanceAmount: 0,
-    payDate: '2026-03-08',
-    payRemarks: 'RTGS disbursed via SBI Govt Treasury Account',
-    utrRef: 'SBIN002684910283',
-    bankMode: 'SBI Treasury RTGS',
-    remarks: '80% installation milestone claim approved by EE JPDCL.',
-    status: 'Complete',
-  },
-  {
-    id: 602,
-    date: '2026-03-07',
-    vendorName: 'bharti',
-    siteName: 'Kathua Cold Storage Unit',
-    consumerNo: 'JK-70M-KAT-1003',
-    district: 'Kathua',
-    capacity: '15.0 kW RTS',
-    milestoneType: '80% Installation',
-    invoiceFile: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=500&auto=format&fit=crop&q=60',
-    amount: 540000,
-    payAmount: 350000,
-    balanceAmount: 190000,
-    payDate: '2026-03-10',
-    payRemarks: 'Part 1 tranche released after physical inspection',
-    utrRef: 'PUNB009182371982',
-    bankMode: 'PNB Direct Clearing',
-    remarks: 'Commercial RTS 80% milestone disbursement request.',
-    status: 'Partially Paid',
-  },
-  {
-    id: 603,
-    date: '2026-03-10',
-    vendorName: 'Jammu TEsting',
-    siteName: 'Ashok Kumar RTS',
-    consumerNo: 'JK-70M-SAM-1004',
-    district: 'Samba',
-    capacity: '5.0 kW RTS',
-    milestoneType: '20% Net Metering',
-    invoiceFile: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop&q=60',
-    amount: 185000,
-    payAmount: 185000,
-    balanceAmount: 0,
-    payDate: '2026-03-11',
-    payRemarks: 'Net-meter synchronization cleared by DISCOM',
-    utrRef: 'JAKA001192837461',
-    bankMode: 'J&K Bank NEFT',
-    remarks: 'Structure fabrication & net-meter synchronization cleared.',
-    status: 'Complete',
-  },
-  {
-    id: 604,
-    date: '2026-03-12',
-    vendorName: 'mohit',
-    siteName: 'Community Health Centre Chenani',
-    consumerNo: 'JK-70M-UDH-1005',
-    district: 'Udhampur',
-    capacity: '10.0 kW RTS',
-    milestoneType: '80% Installation',
-    invoiceFile: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=500&auto=format&fit=crop&q=60',
-    amount: 380000,
-    payAmount: 0,
-    balanceAmount: 380000,
-    payDate: undefined,
-    payRemarks: 'Awaiting finance officer signature',
-    utrRef: undefined,
-    bankMode: 'Treasury NEFT Pending',
-    remarks: 'Institutional rooftop milestone invoice submitted.',
-    status: 'Pending',
-  },
-  {
-    id: 605,
-    date: '2026-03-13',
-    vendorName: 'App Testing',
-    siteName: 'Govt Higher Sec School Reasi',
-    consumerNo: 'JK-70M-REA-1006',
-    district: 'Reasi',
-    capacity: '8.0 kW RTS',
-    milestoneType: '100% Full Payment',
-    invoiceFile: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop&q=60',
-    amount: 295000,
-    payAmount: 295000,
-    balanceAmount: 0,
-    payDate: '2026-03-14',
-    payRemarks: 'Final milestone & testing subsidy tranche settled',
-    utrRef: 'SBIN002984102938',
-    bankMode: 'SBI Treasury RTGS',
-    remarks: 'Full 100% project completion subsidy released.',
-    status: 'Complete',
-  },
-  {
-    id: 606,
-    date: '2026-03-14',
-    vendorName: 'bharti ks',
-    siteName: 'Ramban District Hospital Block',
-    consumerNo: 'JK-70M-RAM-1007',
-    district: 'Ramban',
-    capacity: '12.0 kW RTS',
-    milestoneType: '20% Net Metering',
-    invoiceFile: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=500&auto=format&fit=crop&q=60',
-    amount: 420000,
-    payAmount: 0,
-    balanceAmount: 420000,
-    payDate: undefined,
-    payRemarks: 'Net metering audit pending from DISCOM',
-    utrRef: undefined,
-    bankMode: 'Direct Treasury Transfer',
-    remarks: 'Final 20% release awaiting bidirectional meter cert.',
-    status: 'Pending',
-  },
-];
-
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export function ViewSrtPayment() {
-  const [payments, setPayments] = useState<SrtPaymentRow[]>(MOCK_PAYMENTS);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+const fmtDate = (val?: string | null): string => {
+  if (!val) return '—';
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch {}
+  return String(val).slice(0, 10);
+};
 
-  // Modals
-  const [selectedPaymentForDetails, setSelectedPaymentForDetails] = useState<SrtPaymentRow | null>(null);
-  const [disburseRow, setDisburseRow] = useState<SrtPaymentRow | null>(null);
+/* ── In-Row Media File Thumbnail Component ── */
+function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: (url: string) => void }) {
+  if (!file) {
+    return <span style={{ color: 'var(--ax-text-muted)', fontSize: 12 }}>—</span>;
+  }
+
+  const url = resolveJammuMediaUrl(file);
+  const isPdf = /\.pdf($|\?)/i.test(file);
+  const isHeic = /\.heic($|\?)/i.test(file);
+  const isImage = /\.(jpe?g|png|webp|gif|bmp|svg)($|\?)/i.test(file);
+
+  return (
+    <div
+      onClick={() => onClick(url)}
+      title="Click to preview file"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 44,
+        height: 44,
+        borderRadius: 8,
+        border: '1px solid #cbd5e1',
+        background: '#f8fafc',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'scale(1.06)';
+        e.currentTarget.style.borderColor = 'var(--ax-accent, #2563eb)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
+        e.currentTarget.style.borderColor = '#cbd5e1';
+      }}
+    >
+      {isImage ? (
+        <img
+          src={url}
+          alt="Thumbnail"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = 'none';
+            if (e.currentTarget.parentElement) {
+              const span = document.createElement('span');
+              span.innerText = 'IMG';
+              span.style.fontSize = '10px';
+              span.style.fontWeight = '700';
+              span.style.color = 'var(--ax-accent, #2563eb)';
+              e.currentTarget.parentElement.appendChild(span);
+            }
+          }}
+        />
+      ) : isPdf ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>PDF</span>
+        </div>
+      ) : isHeic ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#8b5cf6', lineHeight: 1 }}>HEIC</span>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', lineHeight: 1 }}>DOC</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ViewSrtPayment() {
+  const [activeTab, setActiveTab] = useState<TabType>('pay80');
+  const [payments80, setPayments80] = useState<Payment80Item[]>([]);
+  const [payments20, setPayments20] = useState<Payment20Item[]>([]);
+  const [vendors, setVendors] = useState<VendorItem[]>([]);
+  const [summaryData, setSummaryData] = useState<any>(null);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
+
+  // Filters
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [selectedVendor, setSelectedVendor] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
+
+  // Search input
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Disbursement Modal state
+  const [pay80Target, setPay80Target] = useState<Payment80Item | null>(null);
+  const [pay20Target, setPay20Target] = useState<Payment20Item | null>(null);
   const [disburseAmount, setDisburseAmount] = useState<string>('');
   const [disburseDate, setDisburseDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [disburseUtr, setDisburseUtr] = useState<string>('');
-  const [disburseBank, setDisburseBank] = useState<string>('SBI Treasury RTGS');
   const [disburseRemarks, setDisburseRemarks] = useState<string>('');
-  const [submittingDisburse, setSubmittingDisburse] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null);
+  const [submittingDisburse, setSubmittingDisburse] = useState<boolean>(false);
 
-  // Load from API
-  useEffect(() => {
-    let active = true;
-    const fetchPayments = async () => {
+  // Lightbox preview state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const fetchPayments = useCallback(
+    async (overrideParams?: { from_date?: string; to_date?: string; vendor?: string }) => {
       setLoading(true);
+      setErrorMsg('');
       try {
-        const summary = await jammuSrt70mwService.getInstallationSummary();
-        if (!active) return;
-        if (summary && Array.isArray(summary.paymentsite) && summary.paymentsite.length > 0) {
-          const mapped: SrtPaymentRow[] = summary.paymentsite.map((item: JammuPaymentSiteItem, idx: number) => {
-            const is80 = Number(item.inst_pay80_status) === 1;
-            const is20 = Number(item.inst_pay20_status) === 1;
-            const totalAmt = 195000;
-            const paidAmt = is80 && is20 ? totalAmt : is80 ? totalAmt * 0.8 : 0;
-            const balAmt = totalAmt - paidAmt;
-            const st: 'Complete' | 'Partially Paid' | 'Pending' =
-              paidAmt === totalAmt ? 'Complete' : paidAmt > 0 ? 'Partially Paid' : 'Pending';
+        const params = {
+          from_date: overrideParams?.from_date !== undefined ? overrideParams.from_date : fromDate || undefined,
+          to_date: overrideParams?.to_date !== undefined ? overrideParams.to_date : toDate || undefined,
+          vendor: overrideParams?.vendor !== undefined ? overrideParams.vendor : selectedVendor || undefined,
+        };
 
-            return {
-              id: item.id || 600 + idx + 1,
-              date: '2026-03-01',
-              vendorName: (item as any).vendor || 'utkarsh',
-              siteName: item.site_name || `Rooftop Site #${item.id || idx + 1}`,
-              consumerNo: item.ca_no || `CA-70M-${item.id || idx + 1}`,
-              district: item.district || 'Jammu',
-              capacity: '5.0 kW RTS',
-              milestoneType: is80 && is20 ? '100% Full Payment' : is80 ? '80% Installation' : '20% Net Metering',
-              invoiceFile: undefined,
-              amount: totalAmt,
-              payAmount: paidAmt,
-              balanceAmount: balAmt,
-              payDate: paidAmt > 0 ? '2026-03-05' : undefined,
-              payRemarks: paidAmt > 0 ? 'Milestone payment released' : undefined,
-              utrRef: paidAmt > 0 ? `SBIN0026849102${idx}` : undefined,
-              bankMode: 'SBI Treasury RTGS',
-              remarks: 'Grid rooftop solar 80% EPC milestone disbursement.',
-              status: st,
-            };
-          });
-          setPayments(mapped);
-        }
-      } catch (err) {
-        console.warn('Using fallback payment records data:', err);
+        const res: ViewPaymentData = await jammuSrt70mwAdminService.getViewPayment(params);
+        const raw80 = Array.isArray(res.payments80)
+          ? res.payments80
+          : Array.isArray((res as any).paymentrequests)
+          ? (res as any).paymentrequests
+          : [];
+        const raw20 = Array.isArray(res.payments20)
+          ? res.payments20
+          : Array.isArray((res as any).paymentrequests2)
+          ? (res as any).paymentrequests2
+          : [];
+
+        setPayments80(raw80);
+        setPayments20(raw20);
+        setVendors(Array.isArray(res.vendors) ? res.vendors : []);
+        setSummaryData(res);
+      } catch (err: any) {
+        console.error('Failed to load Jammu SRT 70MW payment records:', err);
+        setErrorMsg(err?.message || 'Failed to fetch payment records.');
+        setPayments80([]);
+        setPayments20([]);
+        setVendors([]);
+        setSummaryData(null);
       } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
-    };
+    },
+    [fromDate, toDate, selectedVendor]
+  );
+
+  useEffect(() => {
     fetchPayments();
-    return () => {
-      active = false;
-    };
-  }, []);
+  }, [fetchPayments]);
 
-  // Filtered dataset
-  const filteredPayments = useMemo(() => {
-    let result = payments;
-    if (statusFilter !== 'all') {
-      if (statusFilter === '80') {
-        result = result.filter((p) => p.milestoneType === '80% Installation' && p.payAmount > 0);
-      } else if (statusFilter === '20') {
-        result = result.filter((p) => p.milestoneType === '20% Net Metering' && p.payAmount > 0);
-      } else if (statusFilter === 'complete') {
-        result = result.filter((p) => p.status === 'Complete');
-      } else if (statusFilter === 'pending') {
-        result = result.filter((p) => p.balanceAmount > 0);
+  const currentFilters = () => ({
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+    vendor: selectedVendor || undefined,
+  });
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (fromDate && toDate && fromDate > toDate) {
+      return setErrorMsg('From date cannot be greater than To date.');
+    }
+    fetchPayments();
+  };
+
+  const handleResetFilters = () => {
+    setFromDate('');
+    setToDate('');
+    setSelectedVendor('');
+    setSelectedStatus('All');
+    setSearchQuery('');
+    fetchPayments({ from_date: '', to_date: '', vendor: '' });
+  };
+
+  // Open 80% Disburse Modal
+  const handleOpenPay80 = (row: Payment80Item) => {
+    if (Number(row.inst_pay80_status) === 1) {
+      setErrorMsg('This 80% payment has already been disbursed and is locked.');
+      return;
+    }
+    setPay80Target(row);
+    setErrorMsg('');
+    const claim = parseFloat(String(row.inst_claim_amount || 0));
+    setDisburseAmount(
+      row.inst_pay80
+        ? String(row.inst_pay80)
+        : !isNaN(claim) && claim > 0
+        ? String(Math.round(claim * 0.8 * 100) / 100)
+        : ''
+    );
+    setDisburseDate(row.inst_pay80_date ? row.inst_pay80_date.slice(0, 10) : new Date().toISOString().split('T')[0]);
+    setDisburseRemarks(row.inst_pay80_remark || '');
+  };
+
+  // Open 20% Disburse Modal
+  const handleOpenPay20 = (row: Payment20Item) => {
+    if (Number(row.inst_pay20_status) === 1) {
+      setErrorMsg('This 20% payment has already been disbursed and is locked.');
+      return;
+    }
+    setPay20Target(row);
+    setErrorMsg('');
+    const claim = parseFloat(String(row.inst_claim_amount || 0));
+    setDisburseAmount(
+      row.inst_pay20
+        ? String(row.inst_pay20)
+        : !isNaN(claim) && claim > 0
+        ? String(Math.round(claim * 0.2 * 100) / 100)
+        : ''
+    );
+    setDisburseDate(row.inst_pay20_date ? row.inst_pay20_date.slice(0, 10) : new Date().toISOString().split('T')[0]);
+    setDisburseRemarks(row.inst_pay20_remark || '');
+  };
+
+  // Submit Disburse
+  const handleDisburseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const is80 = activeTab === 'pay80';
+    const target = is80 ? pay80Target : pay20Target;
+    if (!target) return;
+
+    const amt = parseFloat(disburseAmount);
+    if (isNaN(amt) || amt < 0) {
+      return setErrorMsg('Please enter a valid disbursement amount.');
+    }
+    if (!disburseDate) {
+      return setErrorMsg('Disbursement date is required.');
+    }
+
+    setSubmittingDisburse(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      if (is80) {
+        const res = await jammuSrt70mwAdminService.updatePaymentStatus({
+          pay80_id: target.id,
+          inst_pay80: amt,
+          inst_pay80_date: disburseDate,
+          inst_pay80_remark: disburseRemarks.trim() || undefined,
+        });
+        setSuccessMsg(res?.message || '1st Payment (80%) recorded successfully!');
+        setPay80Target(null);
+      } else {
+        const res = await jammuSrt70mwAdminService.updatePaymentStatus({
+          pay20_id: target.id,
+          inst_pay20: amt,
+          inst_pay20_date: disburseDate,
+          inst_pay20_remark: disburseRemarks.trim() || undefined,
+        });
+        setSuccessMsg(res?.message || '2nd Payment (20%) recorded successfully!');
+        setPay20Target(null);
       }
+      setDisburseAmount('');
+      setDisburseRemarks('');
+      await fetchPayments(currentFilters());
+    } catch (err: any) {
+      console.error('Disbursement submit error:', err);
+      setErrorMsg(err?.message || 'Failed to update payment disbursement.');
+    } finally {
+      setSubmittingDisburse(false);
     }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.vendorName.toLowerCase().includes(q) ||
-          p.siteName.toLowerCase().includes(q) ||
-          p.consumerNo.toLowerCase().includes(q) ||
-          p.district.toLowerCase().includes(q) ||
-          p.remarks.toLowerCase().includes(q) ||
-          p.bankMode.toLowerCase().includes(q) ||
-          (p.utrRef && p.utrRef.toLowerCase().includes(q)) ||
-          String(p.id).includes(q)
-      );
+  };
+
+  const activeList = activeTab === 'pay80' ? payments80 : payments20;
+
+  // Filtered payments
+  const filteredPayments = useMemo(() => {
+    let list = activeList;
+    if (selectedStatus !== 'All') {
+      const isDoneRequired = selectedStatus === '1';
+      list = list.filter((r: any) => {
+        const status = activeTab === 'pay80' ? Number(r.inst_pay80_status) : Number(r.inst_pay20_status);
+        return isDoneRequired ? status === 1 : status === 0;
+      });
     }
-    return result;
-  }, [payments, statusFilter, search]);
 
-  const { pagedData = [], paginationProps } = usePagination(filteredPayments, 100);
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
 
-  // Metrics for Top 5 KPI Cards
-  const metrics = useMemo(() => {
-    const totalAmount = payments.reduce((acc, curr) => acc + curr.amount, 0);
-    const pay80Count = payments.filter((p) => p.milestoneType === '80% Installation' && p.payAmount > 0).length || 5;
-    const pay20Count = payments.filter((p) => p.milestoneType === '20% Net Metering' && p.payAmount > 0).length || 4;
-    const pendingCount = payments.filter((p) => p.balanceAmount > 0).length || 2;
-    const completeCount = payments.filter((p) => p.status === 'Complete').length || 4;
+    return list.filter((r: any) =>
+      [
+        r.vendor_name,
+        r.state,
+        r.district,
+        r.site_name,
+        r.inst_claim_amount,
+        r.inst_claim_update_by,
+        r.inst_pay80,
+        r.inst_pay20,
+        r.inst_pay80_remark,
+        r.inst_pay20_remark,
+      ].some((v) => String(v ?? '').toLowerCase().includes(q))
+    );
+  }, [activeList, selectedStatus, searchQuery, activeTab]);
 
-    return {
-      totalAmount,
-      totalCount: payments.length,
-      pay80Count,
-      pay20Count,
-      pendingCount,
-      completeCount,
-    };
-  }, [payments]);
+  const pagination = usePagination(filteredPayments, { initialPageSize: 100 });
 
-  // Export Columns
-  const exportColumns: ExportColumn[] = [
-    { header: 'Sr. No.', accessor: 'id' },
-    { header: 'UTR / Txn Ref', accessor: 'utrRef' },
-    { header: 'Payment Date', accessor: 'payDate' },
-    { header: 'Vendor Name', accessor: 'vendorName' },
-    { header: 'District', accessor: 'district' },
-    { header: 'Site / Consumer Name', accessor: 'siteName' },
-    { header: 'CA No.', accessor: 'consumerNo' },
-    { header: 'Capacity', accessor: 'capacity' },
-    { header: 'Milestone Type', accessor: 'milestoneType' },
-    { header: 'Total Amount (INR)', accessor: 'amount' },
-    { header: 'Paid Amount (INR)', accessor: 'payAmount' },
-    { header: 'Balance Amount (INR)', accessor: 'balanceAmount' },
-    { header: 'Bank / Mode', accessor: 'bankMode' },
-    { header: 'Status', accessor: 'status' },
-  ];
+  // Export Columns definition
+  const exportCols: ExportColumn<any>[] = useMemo(
+    () => [
+      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
+      { header: 'Vendor', accessor: (r) => r.vendor_name || '—' },
+      { header: 'State', accessor: () => 'JAMMU' },
+      { header: 'District', accessor: (r) => r.district || '—' },
+      { header: 'Site Name', accessor: (r) => r.site_name || '—' },
+      { header: 'Claim Raised Date', accessor: (r) => fmtDate(r.inst_claim_date) },
+      { header: 'Claim Invoice', accessor: (r) => r.inst_claim_invoice || '—' },
+      { header: 'Claim Amount', accessor: (r) => `₹ ${Number(r.inst_claim_amount || 0).toLocaleString('en-IN')}` },
+      { header: 'Claim Approved Date', accessor: (r) => fmtDate(r.inst_claim_update_date) },
+      { header: 'Claim Approved by', accessor: (r) => r.inst_claim_update_by || '—' },
+      ...(activeTab === 'pay80'
+        ? [
+            { header: 'Payment 80% Date', accessor: (r: any) => fmtDate(r.inst_pay80_date) },
+            { header: 'Payment 80% Amount', accessor: (r: any) => `₹ ${Number(r.inst_pay80 || 0).toLocaleString('en-IN')}` },
+            { header: 'Payment 80% Remarks', accessor: (r: any) => r.inst_pay80_remark || '—' },
+            { header: 'Payment 80% Status', accessor: (r: any) => (Number(r.inst_pay80_status) === 1 ? 'Complete' : 'Pending') },
+          ]
+        : [
+            { header: 'Payment 20% Date', accessor: (r: any) => fmtDate(r.inst_pay20_date) },
+            { header: 'Payment 20% Amount', accessor: (r: any) => `₹ ${Number(r.inst_pay20 || 0).toLocaleString('en-IN')}` },
+            { header: 'Payment 20% Remarks', accessor: (r: any) => r.inst_pay20_remark || '—' },
+            { header: 'Payment 20% Status', accessor: (r: any) => (Number(r.inst_pay20_status) === 1 ? 'Complete' : 'Pending') },
+          ]),
+    ],
+    [activeTab]
+  );
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = `Jammu_SRT_70MW_${activeTab}`;
+  const fileTitle = `Jammu SRT 70MW Installation Payment - ${activeTab === 'pay80' ? '80%' : '20%'}`;
+
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
 
   const downloadTextFile = (content: string, filename: string, mimeType: string) => {
     const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
@@ -780,20 +782,25 @@ export function ViewSrtPayment() {
     URL.revokeObjectURL(url);
   };
 
-  const copyToClipboard = async () => {
-    if (!filteredPayments.length) return;
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out = [
+      columns.map((c) => c.header),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
     const t = [
-      exportColumns.map((c) => c.header).join('\t'),
-      ...filteredPayments.map((row) =>
-        exportColumns.map((c) => {
-          if (typeof c.accessor === 'function') return c.accessor(row);
-          return String((row as any)[c.accessor as string] || '');
-        }).join('\t')
-      ),
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(t);
-      alert('Payment register copied to clipboard!');
+      alert('Data copied to clipboard!');
     } catch {
       const ta = document.createElement('textarea');
       ta.value = t;
@@ -803,146 +810,131 @@ export function ViewSrtPayment() {
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      alert('Payment register copied to clipboard!');
+      alert('Data copied to clipboard!');
     }
   };
 
-  const exportToCSV = () => {
-    if (!filteredPayments.length) return;
-    const out = [
-      exportColumns.map((c) => c.header),
-      ...filteredPayments.map((row) =>
-        exportColumns.map((c) => {
-          const val = typeof c.accessor === 'function' ? c.accessor(row) : (row as any)[c.accessor as string];
-          return `"${String(val || '').replace(/"/g, '""')}"`;
-        })
-      ),
-    ];
-    downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `Jammu_SRT_70MW_Payments.csv`, 'text/csv');
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
   };
 
-  const exportToExcel = () => {
-    if (!filteredPayments.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((row) => `<tr>${exportColumns.map((c) => {
-      const val = typeof c.accessor === 'function' ? c.accessor(row) : (row as any)[c.accessor as string];
-      return `<td>${escapeHtml(String(val || ''))}</td>`;
-    }).join('')}</tr>`).join('')}</tbody></table>`;
-    downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_SRT_70MW_Payments.xls`, 'application/vnd.ms-excel');
-  };
-
-  const exportToPDF = () => {
-    if (!filteredPayments.length) return;
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
     const w = window.open('', '_blank', 'width=1200,height=800');
     if (!w) return;
-    w.document.write(`<!doctype html><html><head><meta charset="UTF-8"/><title>Jammu SRT 70MW Payment Disbursements</title><style>
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
       th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
-    </style></head><body><h1>Jammu SRT 70MW Installation - Payment & Disbursement Register</h1><table><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r) => `<tr>${exportColumns.map((c) => {
-      const val = typeof c.accessor === 'function' ? c.accessor(r) : (r as any)[c.accessor as string];
-      return `<td>${escapeHtml(String(val || ''))}</td>`;
-    }).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
     w.document.close();
     w.focus();
   };
 
-  // Submit Disbursement
-  const handleDisburseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!disburseRow) return;
+  const totalDone80 =
+    Number(summaryData?.jammu_srt70mw_pay_done1 ?? 0) ||
+    payments80.filter((p) => Number(p.inst_pay80_status) === 1).length;
+  const totalPending80 =
+    Number(summaryData?.jammu_srt70mw_pay_pending1 ?? 0) ||
+    payments80.filter((p) => Number(p.inst_pay80_status) === 0).length;
+  const totalDone20 =
+    Number(summaryData?.jammu_srt70mw_pay_done2 ?? 0) ||
+    payments20.filter((p) => Number(p.inst_pay20_status) === 1).length;
+  const totalPending20 =
+    Number(summaryData?.jammu_srt70mw_pay_pending2 ?? 0) ||
+    payments20.filter((p) => Number(p.inst_pay20_status) === 0).length;
+  const totalClaims = (totalDone80 + totalPending80) || payments80.length;
+  const pct = activeTab === 'pay80' ? '80%' : '20%';
 
-    const amt = Number(disburseAmount);
-    if (isNaN(amt) || amt <= 0) {
-      alert('Please enter a valid disbursement amount.');
-      return;
-    }
-
-    setSubmittingDisburse(true);
-    try {
-      await new Promise((res) => setTimeout(res, 600));
-      const newPaid = disburseRow.payAmount + amt;
-      const newBal = Math.max(0, disburseRow.amount - newPaid);
-      const newStatus: 'Complete' | 'Partially Paid' | 'Pending' =
-        newPaid >= disburseRow.amount ? 'Complete' : newPaid > 0 ? 'Partially Paid' : 'Pending';
-
-      setPayments((prev) =>
-        prev.map((p) =>
-          p.id === disburseRow.id
-            ? {
-                ...p,
-                payAmount: newPaid,
-                balanceAmount: newBal,
-                payDate: disburseDate,
-                utrRef: disburseUtr || p.utrRef,
-                bankMode: disburseBank || p.bankMode,
-                payRemarks: disburseRemarks || p.payRemarks,
-                status: newStatus,
-              }
-            : p
-        )
-      );
-      setDisburseRow(null);
-      setDisburseAmount('');
-      setDisburseUtr('');
-      setDisburseRemarks('');
-    } finally {
-      setSubmittingDisburse(false);
-    }
-  };
+  const currentModalTarget = activeTab === 'pay80' ? pay80Target : pay20Target;
 
   return (
-    <div className="solar-erp-page ax-page">
+    <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Header ── */}
       <PageHead
         title="Jammu SRT 70MW Installation - View Payment"
-        subtitle="Master register tracking grid-connected 70 MW rooftop solar milestone disbursements, RTGS/NEFT transaction references, and contractor invoice clearances across Jammu & Kashmir"
+        subtitle="Process 80% and 20% payments against approved Jammu SRT 70MW claims"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu' },
-          { label: 'SRT 70MW' },
+          { label: 'SRT 70MW', href: '/vendor-management/jammu/installation/srt-70mw' },
           { label: 'View Payment' },
         ]}
-        actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)' }}>
-            <Link
-              to="/vendor-management/jammu/installation/srt-70mw/view-claim"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-            >
-              Claim Audit Desk
-            </Link>
-            <Link
-              to="/vendor-management/jammu/installation/srt-70mw/verify-sites"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-            >
-              Verify Sites
-            </Link>
-            <Link
-              to="/vendor-management/jammu/installation/srt-70mw/dashboard"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-            >
-              SRT Dashboard
-            </Link>
-          </div>
-        }
       />
 
-      {/* ── Top 5 KPI Metric Cards in .asw-cards-row ── */}
+      {/* ── Status Feedback Banners ── */}
+      {errorMsg && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#b91c1c',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✕ {errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMsg('')}
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontSize: 16 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✓ {successMsg}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMsg('')}
+            style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: 16 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* ── Top 4 KPI Metric Cards in .asw-cards-row ── */}
       <div className="asw-cards-row">
         <KpiCard
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+              <line x1="1" y1="10" x2="23" y2="10" />
             </svg>
           }
           tone="accent"
-          label="Total Disbursement"
-          value={`₹ ${(metrics.totalAmount / 100000).toFixed(2)} L`}
-          sub={`${metrics.totalCount} invoices submitted`}
+          label="Total Payment Request"
+          value={totalClaims}
+          sub="Approved installation claims"
         />
         <KpiCard
           icon={
@@ -952,9 +944,9 @@ export function ViewSrtPayment() {
             </svg>
           }
           tone="emerald"
-          label="Payment 80% Done"
-          value={`${metrics.pay80Count} Sites`}
-          sub="Installation stage paid"
+          label="Complete (80% Paid)"
+          value={totalDone80}
+          sub="80% disbursements completed"
         />
         <KpiCard
           icon={
@@ -964,88 +956,134 @@ export function ViewSrtPayment() {
             </svg>
           }
           tone="cyan"
-          label="Payment 20% Done"
-          value={`${metrics.pay20Count} Sites`}
-          sub="Net-metering release paid"
+          label="Complete (20% Paid)"
+          value={totalDone20}
+          sub="20% final releases settled"
         />
         <KpiCard
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           }
           tone="amber"
-          label="Payment Pending"
-          value={`${metrics.pendingCount} Sites`}
-          sub="Awaiting bank clearance"
-        />
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
-          }
-          tone="violet"
-          label="Full Payment Done"
-          value={`${metrics.completeCount} Sites`}
-          sub="100% milestone settled"
+          label="Pending Payments"
+          value={totalPending80 + totalPending20}
+          sub="Awaiting milestone release"
         />
       </div>
 
-      {/* ── Report Wise Bifurcation Pills ── */}
-      <div className="asw-bifurcation-row">
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
+      {/* ── Filter By Date & Status Card ── */}
+      <div className="asw-filter-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+            Filter By Date & Status
+          </h4>
+        </div>
+        <form onSubmit={handleFilterSubmit} style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+          <div style={{ flex: '1 1 150px', minWidth: 140 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              From Date
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="ax-input"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 150px', minWidth: 140 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              To Date
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="ax-input"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 170px', minWidth: 150 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              Vendor
+            </label>
+            <select
+              value={selectedVendor}
+              onChange={(e) => setSelectedVendor(e.target.value)}
+              className="ax-select"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            >
+              <option value="">All Vendors</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={String(v.id)}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ flex: '1 1 150px', minWidth: 130 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              Pay Status
+            </label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="ax-select"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            >
+              <option value="All">All Statuses</option>
+              <option value="1">Complete / Done</option>
+              <option value="0">Pending</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              style={{ height: 34, padding: '0 14px', fontSize: 12 }}
+            >
+              Apply Filter
+            </button>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              style={{ height: 34, padding: '0 12px', fontSize: 12 }}
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ── 80% / 20% Tabs ── */}
+      <div className="asw-tabs-wrap">
         <button
           type="button"
-          className={`asw-pill-btn ${statusFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('all')}
+          className={`asw-tab-btn ${activeTab === 'pay80' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('pay80');
+            pagination.setPage(1);
+          }}
         >
-          All Disbursements
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: statusFilter === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {payments.length}
-          </span>
+          1st Payment 80% ({payments80.length})
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${statusFilter === '80' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('80')}
+          className={`asw-tab-btn ${activeTab === 'pay20' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('pay20');
+            pagination.setPage(1);
+          }}
         >
-          Payment 80% (5)
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: statusFilter === '80' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {metrics.pay80Count}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`asw-pill-btn ${statusFilter === '20' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('20')}
-        >
-          Payment 20% (4)
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: statusFilter === '20' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {metrics.pay20Count}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`asw-pill-btn ${statusFilter === 'complete' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('complete')}
-        >
-          Payment Done (4)
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: statusFilter === 'complete' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {metrics.completeCount}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`asw-pill-btn ${statusFilter === 'pending' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('pending')}
-        >
-          Pending Clearance
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: statusFilter === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {metrics.pendingCount}
-          </span>
+          2nd Payment 20% ({payments20.length})
         </button>
       </div>
 
@@ -1054,61 +1092,63 @@ export function ViewSrtPayment() {
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">
-              Jammu SRT 70MW Payment & Disbursement Register
+              {activeTab === 'pay80' ? '1st Payment 80% Data' : '2nd Payment 20% Data'}
             </h2>
             <p className="ax-card__subtitle">
-              Showing {filteredPayments.length} milestone disbursement{filteredPayments.length === 1 ? '' : 's'} across empaneled vendors
+              Showing {filteredPayments.length} payment record{filteredPayments.length === 1 ? '' : 's'}
             </p>
           </div>
-
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {search.trim() !== '' && (
+              {searchQuery.trim() !== '' && (
                 <button
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
-                  onClick={() => setSearch('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    pagination.setPage(1);
+                  }}
                   style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                 >
                   Reset
                 </button>
               )}
               <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Search UTR, vendor, CA No, site..."
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search vendor, site, district..."
                 size="sm"
               />
               <TableExportToolbar
-                onCopy={copyToClipboard}
-                onExportCSV={exportToCSV}
-                onExportExcel={exportToExcel}
-                onExportPDF={exportToPDF}
+                onCopy={() => copyToClipboard(filteredPayments, exportCols)}
+                onExportCSV={() => exportToCSV(filteredPayments, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filteredPayments, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filteredPayments, exportCols, fileTitle)}
               />
             </div>
           </div>
         </div>
 
-        {/* ── Horizontally Scrollable Table ── */}
+        {/* ── Responsive Horizontal Scroll Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1500 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1400 }}>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th" style={{ width: 60, textAlign: 'center' }}>Sr. No.</th>
-                <th className="ax-table__th">UTR / Txn Ref</th>
-                <th className="ax-table__th">Payment Date</th>
-                <th className="ax-table__th">Vendor Name</th>
+                <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">State</th>
                 <th className="ax-table__th">District</th>
-                <th className="ax-table__th">Site Name & CA No.</th>
-                <th className="ax-table__th">Capacity</th>
-                <th className="ax-table__th">Milestone Type</th>
-                <th className="ax-table__th" style={{ textAlign: 'right' }}>Total Amount</th>
-                <th className="ax-table__th" style={{ textAlign: 'right' }}>Disbursed (₹)</th>
-                <th className="ax-table__th" style={{ textAlign: 'right' }}>Balance (₹)</th>
-                <th className="ax-table__th" style={{ textAlign: 'center', width: 70 }}>Voucher</th>
-                <th className="ax-table__th">Bank / Mode</th>
-                <th className="ax-table__th" style={{ textAlign: 'center', width: 100 }}>Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center', width: 140 }}>Action</th>
+                <th className="ax-table__th">Site Name</th>
+                <th className="ax-table__th">Claim Raised Date</th>
+                <th className="ax-table__th">Claim Invoice</th>
+                <th className="ax-table__th">Claim Amount</th>
+                <th className="ax-table__th">Claim Approved Date</th>
+                <th className="ax-table__th">Claim Approved by</th>
+                <th className="ax-table__th">Payment {pct} Date</th>
+                <th className="ax-table__th">Payment {pct} Amount</th>
+                <th className="ax-table__th">Payment {pct} Remarks</th>
+                <th className="ax-table__th">Payment {pct} Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1117,158 +1157,98 @@ export function ViewSrtPayment() {
                   <td colSpan={15} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
-                      <span>Loading disbursement transactions...</span>
+                      <span>Loading payment records...</span>
                     </div>
                   </td>
                 </tr>
-              ) : (pagedData || []).length === 0 ? (
+              ) : pagination.paged.length === 0 ? (
                 <tr>
                   <td colSpan={15} style={centerCell}>
                     <TableEmptyState
-                      title="No Payment Records Found"
-                      description="No milestone disbursement transactions match the selected filter parameters."
+                      title={`No ${pct} payment records found`}
+                      description={searchQuery || fromDate || toDate ? 'Try adjusting your search filters' : 'No records pending payment disbursement'}
                     />
                   </td>
                 </tr>
               ) : (
-                (pagedData || []).map((row, idx) => {
-                  const serialNo = (paginationProps.page - 1) * paginationProps.pageSize + idx + 1;
-                  return (
-                    <tr key={row.id}>
-                      {/* 1. Sr. No. */}
-                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
-                        {serialNo}
-                      </td>
+                pagination.paged.map((row: any, idx: number) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const is80 = activeTab === 'pay80';
+                  const isDone = Number(is80 ? row.inst_pay80_status : row.inst_pay20_status) === 1;
+                  const claimAmt = Number(row.inst_claim_amount || 0);
+                  const payAmt = Number((is80 ? row.inst_pay80 : row.inst_pay20) || 0);
+                  const payDate = is80 ? row.inst_pay80_date : row.inst_pay20_date;
+                  const remark = is80 ? row.inst_pay80_remark : row.inst_pay20_remark;
 
-                      {/* 2. UTR / Txn Ref */}
+                  return (
+                    <tr key={row.id ?? idx}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {row.vendor_name || (row as any).vendor || (row.inst_vendor ? `Vendor #${row.inst_vendor}` : '—')}
+                      </td>
+                      <td className="ax-table__td">JAMMU</td>
+                      <td className="ax-table__td">{row.district || '—'}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {row.site_name || '—'}
+                      </td>
+                      <td className="ax-table__td">{fmtDate(row.inst_claim_date)}</td>
                       <td className="ax-table__td">
-                        {row.utrRef ? (
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2559bf', fontSize: 12 }}>
-                            {row.utrRef}
+                        <MediaFileThumbnail file={row.inst_claim_invoice} onClick={setLightboxUrl} />
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                        ₹ {claimAmt.toLocaleString('en-IN')}
+                      </td>
+                      <td className="ax-table__td">{fmtDate(row.inst_claim_update_date)}</td>
+                      <td className="ax-table__td">{row.inst_claim_update_by || '—'}</td>
+                      <td className="ax-table__td">{fmtDate(payDate)}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#16a34a' }}>
+                        ₹ {payAmt.toLocaleString('en-IN')}
+                      </td>
+                      <td className="ax-table__td" style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {remark || '—'}
+                      </td>
+                      <td className="ax-table__td">
+                        {isDone ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
+                            Complete
                           </span>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: 12 }}>Pending UTR</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
+                            Pending
+                          </span>
                         )}
                       </td>
-
-                      {/* 3. Payment Date */}
-                      <td className="ax-table__td" style={{ color: '#334155' }}>
-                        {row.payDate || row.date}
-                      </td>
-
-                      {/* 4. Vendor Name */}
-                      <td className="ax-table__td">
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.vendorName}</div>
-                      </td>
-
-                      {/* 5. District */}
-                      <td className="ax-table__td">
-                        <span className="ax-badge ax-badge--subtle" style={{ fontWeight: 600 }}>
-                          {row.district}
-                        </span>
-                      </td>
-
-                      {/* 6. Site Name & CA No. */}
-                      <td className="ax-table__td">
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.siteName}</div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>CA No: {row.consumerNo}</div>
-                      </td>
-
-                      {/* 7. Capacity */}
-                      <td className="ax-table__td">
-                        <span className="ax-badge ax-badge--info" style={{ fontWeight: 600 }}>
-                          {row.capacity}
-                        </span>
-                      </td>
-
-                      {/* 8. Milestone Type */}
-                      <td className="ax-table__td">
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color:
-                              row.milestoneType.includes('100%') ? '#7c3aed' :
-                              row.milestoneType.includes('80%') ? '#16a34a' : '#0891b2',
-                          }}
-                        >
-                          {row.milestoneType}
-                        </span>
-                      </td>
-
-                      {/* 9. Total Amount */}
-                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
-                        ₹{row.amount.toLocaleString('en-IN')}
-                      </td>
-
-                      {/* 10. Disbursed Amount */}
-                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a', fontFamily: 'monospace' }}>
-                        ₹{row.payAmount.toLocaleString('en-IN')}
-                      </td>
-
-                      {/* 11. Balance Amount */}
-                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 600, color: row.balanceAmount > 0 ? '#d97706' : '#64748b', fontFamily: 'monospace' }}>
-                        ₹{row.balanceAmount.toLocaleString('en-IN')}
-                      </td>
-
-                      {/* 12. Voucher File */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <MediaFileThumbnail
-                          file={row.invoiceFile}
-                          alt={`Voucher - ${row.siteName}`}
-                          onClick={(url) => setLightboxUrl({ url, title: `Payment Voucher - ${row.siteName}` })}
-                        />
-                      </td>
-
-                      {/* 13. Bank / Mode */}
-                      <td className="ax-table__td" style={{ color: '#475569', fontSize: 12 }}>
-                        {row.bankMode}
-                      </td>
-
-                      {/* 14. Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.status === 'Complete' ? (
-                          <span className="ax-badge ax-badge--success" style={{ fontWeight: 600 }}>Complete</span>
-                        ) : row.status === 'Partially Paid' ? (
-                          <span className="ax-badge ax-badge--info" style={{ fontWeight: 600 }}>Partially Paid</span>
-                        ) : (
-                          <span className="ax-badge ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>
-                        )}
-                      </td>
-
-                      {/* 15. Action */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                        {isDone ? (
                           <button
                             type="button"
-                            onClick={() => setSelectedPaymentForDetails(row)}
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            style={{ height: 28, padding: '0 8px', fontSize: 12 }}
-                            title="View Transaction Details"
+                            disabled
+                            title={`Payment completed & disbursed (${is80 ? '80%' : '20%'}). Further action is locked.`}
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              opacity: 0.65,
+                              cursor: 'not-allowed',
+                            }}
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                             </svg>
-                            Details
+                            Locked
                           </button>
-
-                          {row.balanceAmount > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDisburseRow(row);
-                                setDisburseAmount(String(row.balanceAmount));
-                                setDisburseUtr('');
-                                setDisburseRemarks('');
-                              }}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
-                              style={{ height: 28, padding: '0 8px', fontSize: 12 }}
-                            >
-                              Disburse
-                            </button>
-                          )}
-                        </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => (is80 ? handleOpenPay80(row) : handleOpenPay20(row))}
+                            className="ax-btn ax-btn--primary ax-btn--sm"
+                          >
+                            Disburse
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1278,289 +1258,195 @@ export function ViewSrtPayment() {
           </table>
         </div>
 
-        {/* ── Left-Aligned Pagination in Card Footer ── */}
+        {/* ── Left Aligned Pagination in Footer ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
-            <Pagination {...paginationProps} />
+            <Pagination
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
+            />
           </div>
         </div>
       </section>
 
-      {/* ── Modal 1: Payment & Disbursement Details Modal ── */}
-      {selectedPaymentForDetails && (
-        <Modal
-          open={Boolean(selectedPaymentForDetails)}
-          onClose={() => setSelectedPaymentForDetails(null)}
-          title="Payment & Disbursement Details"
-          subtitle={`${selectedPaymentForDetails.vendorName} · ${selectedPaymentForDetails.siteName}`}
-          maxWidth={640}
-          footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                Txn Ref: {selectedPaymentForDetails.utrRef || 'Pending Bank Release'}
-              </span>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setSelectedPaymentForDetails(null)}
-              >
-                Close
-              </button>
-            </div>
+      {/* ── Action Disbursement Modal ── */}
+      <Modal
+        open={Boolean(currentModalTarget)}
+        onClose={() => {
+          if (!submittingDisburse) {
+            setPay80Target(null);
+            setPay20Target(null);
           }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Status & Amount Highlight Bar */}
-            <div style={{ background: '#f8fafc', padding: '14px 18px', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Total Milestone Cost</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
-                  ₹{selectedPaymentForDetails.amount.toLocaleString('en-IN')}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Disbursed Amount</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a', fontFamily: 'monospace' }}>
-                  ₹{selectedPaymentForDetails.payAmount.toLocaleString('en-IN')}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Remaining Balance</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: selectedPaymentForDetails.balanceAmount > 0 ? '#d97706' : '#64748b', fontFamily: 'monospace' }}>
-                  ₹{selectedPaymentForDetails.balanceAmount.toLocaleString('en-IN')}
-                </div>
-              </div>
-            </div>
-
-            {/* Grid Specifications */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px 16px', fontSize: 13 }}>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Vendor / Contractor</div>
-                <div style={{ fontWeight: 700, color: '#0f172a', marginTop: 2 }}>{selectedPaymentForDetails.vendorName}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Milestone Tranche</div>
-                <div style={{ fontWeight: 600, color: '#2559bf', marginTop: 2 }}>{selectedPaymentForDetails.milestoneType}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Site Name</div>
-                <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{selectedPaymentForDetails.siteName}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Consumer CA No.</div>
-                <div style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155', marginTop: 2 }}>{selectedPaymentForDetails.consumerNo}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>District & State</div>
-                <div style={{ fontWeight: 500, color: '#334155', marginTop: 2 }}>{selectedPaymentForDetails.district}, Jammu & Kashmir</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Proposed RTS Capacity</div>
-                <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{selectedPaymentForDetails.capacity}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Bank & Disbursement Channel</div>
-                <div style={{ fontWeight: 500, color: '#334155', marginTop: 2 }}>{selectedPaymentForDetails.bankMode}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 600 }}>Disbursement Date</div>
-                <div style={{ fontWeight: 500, color: '#334155', marginTop: 2 }}>{selectedPaymentForDetails.payDate || 'Pending'}</div>
-              </div>
-            </div>
-
-            {/* Remarks Section */}
-            <div style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 8, fontSize: 12.5, color: '#334155' }}>
-              <span style={{ fontWeight: 700, color: '#0f172a' }}>Transaction Remarks: </span>
-              {selectedPaymentForDetails.remarks || 'No remarks recorded.'}
-            </div>
-
-            {/* Voucher preview link if available */}
-            {selectedPaymentForDetails.invoiceFile && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Payment Voucher Document</span>
-                <button
-                  type="button"
-                  onClick={() => setLightboxUrl({ url: selectedPaymentForDetails.invoiceFile!, title: `Payment Voucher - ${selectedPaymentForDetails.siteName}` })}
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  style={{ fontSize: 12 }}
-                >
-                  View Voucher Preview
-                </button>
-              </div>
-            )}
+        }}
+        title={`Process ${pct} Payment`}
+        subtitle={
+          currentModalTarget
+            ? `Site: ${currentModalTarget.site_name || '—'} • Vendor: ${currentModalTarget.vendor_name || '—'} • Claim: ₹ ${Number(currentModalTarget.inst_claim_amount || 0).toLocaleString('en-IN')}`
+            : ''
+        }
+        maxWidth={500}
+        footer={
+          <>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={() => {
+                setPay80Target(null);
+                setPay20Target(null);
+              }}
+              disabled={submittingDisburse}
+              style={{ padding: '7px 14px', fontSize: 13 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDisburseSubmit}
+              disabled={submittingDisburse}
+              className="ax-btn ax-btn--primary"
+              style={{
+                padding: '7px 18px',
+                fontSize: 13,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {submittingDisburse && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
+              Record {pct} Payment
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleDisburseSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
+              Payment {pct} Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={disburseAmount}
+              onChange={(e) => setDisburseAmount(e.target.value)}
+              required
+              placeholder="e.g. 15000"
+              className="ax-input"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            />
           </div>
-        </Modal>
-      )}
 
-      {/* ── Modal 2: Release Milestone Disbursement Modal ── */}
-      {disburseRow && (
-        <Modal
-          open={Boolean(disburseRow)}
-          onClose={() => setDisburseRow(null)}
-          title="Release Milestone Disbursement"
-          subtitle={`${disburseRow.vendorName} · ${disburseRow.siteName}`}
-          maxWidth={500}
-        >
-          <form onSubmit={handleDisburseSubmit}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Total Invoice</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>₹{disburseRow.amount.toLocaleString('en-IN')}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Already Disbursed</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#16a34a' }}>₹{disburseRow.payAmount.toLocaleString('en-IN')}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Pending Balance</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#ef4444' }}>₹{disburseRow.balanceAmount.toLocaleString('en-IN')}</div>
-                </div>
-              </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
+              Payment Date <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="date"
+              value={disburseDate}
+              onChange={(e) => setDisburseDate(e.target.value)}
+              required
+              className="ax-input"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            />
+          </div>
 
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  Disbursement Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  value={disburseAmount}
-                  onChange={(e) => setDisburseAmount(e.target.value)}
-                  max={disburseRow.balanceAmount}
-                  min={1}
-                  className="ax-input"
-                  style={{ width: '100%', height: 38, fontSize: 14, fontWeight: 600 }}
-                  required
-                />
-              </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
+              Payment Remarks / Reference UTR
+            </label>
+            <textarea
+              rows={3}
+              value={disburseRemarks}
+              onChange={(e) => setDisburseRemarks(e.target.value)}
+              placeholder="Enter bank UTR / transaction remarks…"
+              className="ax-textarea"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            />
+          </div>
+        </form>
+      </Modal>
 
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  Disbursement Date <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="date"
-                  value={disburseDate}
-                  onChange={(e) => setDisburseDate(e.target.value)}
-                  className="ax-input"
-                  style={{ width: '100%', height: 38, fontSize: 13 }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  UTR / NEFT / Bank Reference No <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  value={disburseUtr}
-                  onChange={(e) => setDisburseUtr(e.target.value)}
-                  placeholder="e.g. SBIN002684910283"
-                  className="ax-input"
-                  style={{ width: '100%', height: 38, fontSize: 13, fontFamily: 'monospace' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  Bank & Treasury Channel
-                </label>
-                <select
-                  value={disburseBank}
-                  onChange={(e) => setDisburseBank(e.target.value)}
-                  className="ax-input"
-                  style={{ width: '100%', height: 38, fontSize: 13 }}
-                >
-                  <option value="SBI Treasury RTGS">SBI Govt Treasury RTGS</option>
-                  <option value="J&K Bank NEFT">J&K Bank NEFT Settlement</option>
-                  <option value="PNB Direct Clearing">PNB Direct Clearing</option>
-                  <option value="Direct Treasury Transfer">Direct Treasury Account Transfer</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  Payment Remarks / Voucher Reference
-                </label>
-                <textarea
-                  rows={2}
-                  value={disburseRemarks}
-                  onChange={(e) => setDisburseRemarks(e.target.value)}
-                  placeholder="Enter bank transaction details or clearance voucher reference..."
-                  className="ax-input"
-                  style={{ width: '100%', height: 'auto', padding: '8px 10px', fontSize: 13 }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={() => setDisburseRow(null)}
-                  disabled={submittingDisburse}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={submittingDisburse}
-                  style={{ minWidth: 130 }}
-                >
-                  {submittingDisburse ? 'Processing...' : 'Confirm Payment'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* ── Modal 3: Document / Voucher Lightbox Modal ── */}
+      {/* ── Document / Invoice Lightbox Preview Modal ── */}
       {lightboxUrl && (
-        <Modal
-          open={Boolean(lightboxUrl)}
-          onClose={() => setLightboxUrl(null)}
-          title={lightboxUrl.title}
-          maxWidth={800}
-          footer={
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-              <a
-                href={lightboxUrl.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                style={{ fontSize: 12, color: '#2559bf' }}
-              >
-                Open Full Window ↗
-              </a>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setLightboxUrl(null)}
-              >
-                Close
-              </button>
-            </div>
-          }
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            backdropFilter: 'blur(4px)',
+          }}
         >
-          <div style={{ textAlign: 'center', background: '#0b1120', padding: 12, borderRadius: 8, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {/\.pdf($|\?)/i.test(lightboxUrl.url) ? (
-              <iframe
-                src={lightboxUrl.url}
-                title={lightboxUrl.title}
-                style={{ width: '100%', height: '65vh', border: 'none', borderRadius: 6, background: '#fff' }}
-              />
-            ) : (
-              <img
-                src={lightboxUrl.url}
-                alt={lightboxUrl.title}
-                style={{ maxWidth: '100%', maxHeight: '68vh', objectFit: 'contain', borderRadius: 6 }}
-              />
-            )}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              background: '#ffffff',
+              borderRadius: 12,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 18px',
+                borderBottom: '1px solid #e2e8f0',
+                background: '#f8fafc',
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Claim Invoice Preview</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <a
+                  href={lightboxUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  style={{
+                    textDecoration: 'none',
+                  }}
+                >
+                  Open in New Tab ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 18,
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    padding: '0 4px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: 16, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              {/\.pdf($|\?)/i.test(lightboxUrl) ? (
+                <iframe src={lightboxUrl} style={{ width: '80vw', height: '75vh', border: 'none' }} title="PDF Preview" />
+              ) : (
+                <img src={lightboxUrl} alt="Invoice Preview" style={{ maxWidth: '85vw', maxHeight: '75vh', objectFit: 'contain' }} />
+              )}
+            </div>
           </div>
-        </Modal>
+        </div>
       )}
     </div>
   );

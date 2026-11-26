@@ -10,7 +10,7 @@ const AMC_TYPE_MAP: Record<string, string> = {
 };
 
 const normalizeAmcType = (t?: string | null) => {
-  if (!t) return 'Monthly';
+  if (!t) return '';
   const key = String(t).trim().toUpperCase();
   return AMC_TYPE_MAP[key] || String(t);
 };
@@ -24,10 +24,11 @@ export function UP_AMC_KusumC_PendingAMC() {
     const res = await upKusumCAmcApi.getYears();
     const arr = Array.isArray(res) ? res : res?.data;
     if (Array.isArray(arr) && arr.length > 0) return arr;
-    return [new Date().getFullYear()];
+    return [];
   };
 
-  const fetchSites = async (year: number) => {
+  const fetchSites = async (year?: number) => {
+    if (!year) return [];
     const res = await upKusumCAmcApi.getSites(year);
     const arr = Array.isArray(res) ? res : res?.data;
     if (Array.isArray(arr)) {
@@ -82,7 +83,7 @@ export function UP_AMC_KusumC_PendingAMC() {
 
     return {
       ...d,
-      state: d.state ? String(d.state).toUpperCase() : 'UP',
+      state: d.state ? String(d.state).toUpperCase() : '',
       district: d.f_district || d.district || '',
       village: d.f_village || d.village || '',
       beneficiary_name:
@@ -123,7 +124,6 @@ export function UP_AMC_KusumC_PendingAMC() {
       ]}
       viewLink="/v/up/kusumc/amc/completed-details"
       viewLabel="View Completed AMC"
-      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchSites={fetchSites}
       onFetchSiteDetails={fetchSiteDetails}

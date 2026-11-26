@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
+import { authService } from '../../../../../services/authService';
 import type { UpAssignedDataResponse } from '../../up-services';
 import {
   Pagination,
@@ -25,11 +26,16 @@ import {
   footerStyle,
   centerCell,
   pick,
-  DocThumb,
-  docUrlOf,
+  allDocUrlsOf,
+  StatusBadge,
   type DetailField,
   type ComplaintColumn,
 } from '../CommonSharedComplaints/UpComplaintsShared';
+import {
+  UploadDrop,
+  DetailSectionCard,
+  AttachmentCardGrid,
+} from './UpComplaintModalUI';
 
 type Tab = 'open' | 'approved' | 'close';
 const TAB_LABEL: Record<Tab, string> = { open: 'Open', approved: 'Approved', close: 'Closed' };
@@ -95,6 +101,8 @@ export interface CloseValues {
   date: string;
   file: File;
   resolvedBy: string;
+  contactPerson: string;
+  contactNumber: string;
   email: string;
   mobile: string;
   closeSms: 'Yes' | 'No';
@@ -105,6 +113,8 @@ export interface CloseConfig<T> {
   heading: string;
   /** 'resolver' adds Resolved By / Mobile / Email / Send SMS / extra file. */
   variant?: 'simple' | 'resolver';
+  /** Show editable Contact Person & Contact Number fields (pre-filled from complaint row). */
+  showContactFields?: boolean;
   summary: (item: T) => { label: string; value: string }[];
   remarksPlaceholder: string;
   fileLabel: string;
@@ -116,6 +126,41 @@ export interface CloseConfig<T> {
   smsDefault?: 'Yes' | 'No';
   file1Label?: string;
   submit: (v: CloseValues, item: T) => Promise<{ status?: boolean | number; message?: string; errors?: Record<string, unknown> }>;
+}
+
+function getLoggedInUserInfo(): { name: string; email: string; mobile: string } {
+  const session = authService.getSession() as any;
+  const raw = authService.getRawResponse() as any;
+  const userObj =
+    raw?.vendor || raw?.user || raw?.data?.vendor || raw?.data?.user || raw?.data || {};
+  const name = String(
+    session?.name ||
+      session?.vendor_name ||
+      session?.user?.name ||
+      session?.vendor?.name ||
+      userObj?.name ||
+      userObj?.vendor_name ||
+      userObj?.company_name ||
+      session?.email ||
+      ''
+  ).trim();
+  const email = String(
+    session?.email || session?.user?.email || session?.vendor?.email || userObj?.email || ''
+  ).trim();
+  const mobile = String(
+    session?.contact ||
+      session?.mobile ||
+      session?.phone ||
+      session?.contact_no ||
+      userObj?.contact ||
+      userObj?.mobile ||
+      userObj?.phone ||
+      userObj?.contact_no ||
+      ''
+  )
+    .replace(/\D/g, '')
+    .slice(0, 10);
+  return { name, email, mobile };
 }
 
 function CloseModal<T extends object>({
@@ -130,36 +175,117 @@ function CloseModal<T extends object>({
   onSuccess: (msg: string) => void;
 }) {
   const resolver = cfg.variant === 'resolver';
+  const showContact = Boolean(cfg.showContactFields);
   const [remarks, setRemarks] = useState('');
   const [date, setDate] = useState(todayStr);
   const [file, setFile] = useState<File | null>(null);
   const [file1, setFile1] = useState<File | null>(null);
   const [resolvedBy, setResolvedBy] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
-  const [closeSms, setCloseSms] = useState<'Yes' | 'No'>(cfg.smsDefault ?? 'No');
+  const [closeSms, setCloseSms] = useState<'Yes' | 'No'>(cfg.smsDefault ?? 'Yes');
+  const [attempted, setAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!item) return;
+    const logged = getLoggedInUserInfo();
     setRemarks('');
     setDate(todayStr());
     setFile(null);
     setFile1(null);
-    setResolvedBy('');
-    setEmail('');
-    setMobile('');
-    setCloseSms(cfg.smsDefault ?? 'No');
+    setResolvedBy(logged.name || 'Vendor');
+    setContactPerson(
+      pick(item, ['contact_person', 'beneficiary_name', 'site_name', 'name'], '')
+    );
+    setContactNumber(
+      pick(item, ['contact_number', 'contact_no', 'mobile_no', 'mobile', 'phone'], '')
+        .replace(/\D/g, '')
+        .slice(0, 10)
+    );
+    setEmail(logged.email || '');
+    setMobile(logged.mobile || '');
+    setCloseSms(cfg.smsDefault ?? 'Yes');
+    setAttempted(false);
     setError('');
-  }, [item]);
+  }, [item, cfg.smsDefault]);
+
+  const summaryItems = useMemo(() => {
+    if (!item) return [];
+    const logged = getLoggedInUserInfo();
+    const base = cfg.summary(item);
+    const existingKeys = new Set(
+      base.map((s) => s.label.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    );
+
+    const extras: { label: string; value: string; fullWidth?: boolean }[] = [
+      { label: 'State', value: pick(item, ['state'], 'UP') },
+      { label: 'District', value: pick(item, ['district', 'district_name', 'f_district']) },
+      {
+        label: 'Beneficiary Name',
+        value: pick(item, [
+          'beneficiary_name',
+          'farmer_name',
+          'f_name',
+          'customer_name',
+          'site_name',
+          'name',
+        ]),
+      },
+      { label: 'Order No', value: pick(item, ['wo_no', 'work_order_no', 'order_no']) },
+      {
+        label: 'Created By',
+        value: pick(item, ['created_by', 'complaint_raised_by'], logged.name || DASH),
+      },
+      { label: 'Complaint No', value: pick(item, ['complaint_id', 'id']) },
+      {
+        label: 'Complaint Date',
+        value: pick(item, ['start_date', 'complaint_date', 'created_date', 'created_at']),
+      },
+      { label: 'Complaint', value: pick(item, ['complaint']), fullWidth: true },
+    ];
+
+    const merged: { label: string; value: string; fullWidth?: boolean }[] = [...base];
+    for (const ex of extras) {
+      const norm = ex.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (
+        existingKeys.has(norm) ||
+        (norm === 'beneficiaryname' && existingKeys.has('beneficiary')) ||
+        (norm === 'orderno' && (existingKeys.has('wono') || existingKeys.has('workorderno')))
+      ) {
+        continue;
+      }
+      merged.push(ex);
+    }
+    return merged;
+  }, [item, cfg]);
+
+  const contactPersonInvalid = showContact && attempted && !contactPerson.trim();
+  const contactNumberInvalid = showContact && attempted && !/^\d{10}$/.test(contactNumber.trim());
+  const mobileInvalid = resolver && attempted && !/^\d{10}$/.test(mobile.trim());
+  const emailInvalid =
+    resolver &&
+    attempted &&
+    ((cfg.emailRequired && (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim()))) ||
+      (!cfg.emailRequired && email.trim() !== '' && !/\S+@\S+\.\S+/.test(email.trim())));
+  const dateInvalid = attempted && !date;
+  const remarksInvalid = attempted && !remarks.trim();
+  const fileInvalid = attempted && !file;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!item) return;
-    if (resolver && !resolvedBy.trim()) return setError('Resolved By name is required.');
-    if (resolver && cfg.emailRequired && !/\S+@\S+\.\S+/.test(email.trim())) return setError('A valid Resolver Email is required.');
+    setAttempted(true);
+    const activeResolvedBy = resolvedBy.trim() || getLoggedInUserInfo().name || 'Vendor';
+    if (showContact && !contactPerson.trim()) return setError('Contact person is required.');
+    if (showContact && !/^\d{10}$/.test(contactNumber.trim())) return setError('10-digit Contact number is required.');
     if (resolver && !/^\d{10}$/.test(mobile.trim())) return setError('10-digit Resolver Mobile is required.');
+    if (resolver && cfg.emailRequired && !/\S+@\S+\.\S+/.test(email.trim())) return setError('A valid Resolver Email is required.');
+    if (resolver && !cfg.emailRequired && email.trim() && !/\S+@\S+\.\S+/.test(email.trim())) return setError('Enter a valid Resolver Email.');
+    if (!date) return setError('Closing date is required.');
     if (!remarks.trim()) return setError('Resolution remarks are required.');
     if (!file) return setError('Resolution verification document / photo is required.');
 
@@ -167,7 +293,18 @@ function CloseModal<T extends object>({
     setError('');
     try {
       const res = await cfg.submit(
-        { remarks: remarks.trim(), date, file, resolvedBy: resolvedBy.trim(), email: email.trim(), mobile: mobile.trim(), closeSms, file1 },
+        {
+          remarks: remarks.trim(),
+          date,
+          file,
+          resolvedBy: activeResolvedBy,
+          contactPerson: contactPerson.trim(),
+          contactNumber: contactNumber.trim(),
+          email: email.trim(),
+          mobile: mobile.trim(),
+          closeSms,
+          file1,
+        },
         item
       );
       if (res.status) {
@@ -191,113 +328,324 @@ function CloseModal<T extends object>({
   return (
     <Modal open={!!item} onClose={close} labelledBy="up-assigned-close-title">
       {item && (
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="ax-modal__header">
-            <h2 className="ax-modal__title" id="up-assigned-close-title">
-              {cfg.heading} #{pick(item, ['complaint_id', 'id'])}
-            </h2>
+            <div>
+              <span className="up-modal__eyebrow">Vendor Close Complaints</span>
+              <h2 className="ax-modal__title" id="up-assigned-close-title">
+                Resolve Complaint {pick(item, ['complaint_id', 'id'])}
+              </h2>
+              <p className="up-modal__sub">
+                Enter resolution information, attach proof images and submit to close.
+              </p>
+            </div>
             <button type="button" className="ax-modal__close" onClick={close} disabled={submitting} aria-label="Close dialog">
               {X_ICON}
             </button>
           </div>
 
-          <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
+          <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5, 20px)' }}>
             {error && (
               <div className="ax-alert ax-alert--danger" role="alert">
-                <div className="ax-alert__text">{error}</div>
+                <span className="ax-alert__icon">
+                  <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 9v4" /><path d="M12 16v.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" />
+                  </svg>
+                </span>
+                <div className="ax-alert__content">
+                  <p className="ax-alert__message" style={{ margin: 0 }}>{error}</p>
+                </div>
               </div>
             )}
 
-            <div className="ula-m-info">
-              {cfg.summary(item).map((s) => (
-                <div key={s.label}><span>{s.label}: </span><b>{s.value}</b></div>
-              ))}
+            {/* ── Read-only Complaint Information Card ── */}
+            <div className="assigned-overview-card">
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#64748b',
+                  marginBottom: 12,
+                }}
+              >
+                Complaint Information
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px 16px', fontSize: 12 }}>
+                {summaryItems.map((s) => (
+                  <div key={s.label} style={s.fullWidth ? { gridColumn: '1 / -1' } : undefined}>
+                    <span style={{ color: '#64748b' }}>{s.label}:</span> <b>{s.value}</b>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <p className="ula-m-note">The field labels marked with * are required fields.</p>
-
-            {resolver && (
-              <div className="ula-m-two">
-                <div className="ax-field">
-                  <label className="ax-label" htmlFor="up-cl-by">Resolved By <Req /></label>
-                  <input id="up-cl-by" className="ax-input" placeholder="Technician / Engineer name" value={resolvedBy} onChange={(e) => setResolvedBy(e.target.value)} required />
-                </div>
-                <div className="ax-field">
-                  <label className="ax-label" htmlFor="up-cl-mobile">Resolver Mobile <Req /></label>
-                  <input id="up-cl-mobile" type="tel" maxLength={10} className="ax-input" placeholder="10-digit mobile" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))} required />
-                </div>
-                <div className="ax-field">
-                  <label className="ax-label" htmlFor="up-cl-email">Resolver Email {cfg.emailRequired && <Req />}</label>
-                  <input id="up-cl-email" type="email" required={cfg.emailRequired} className="ax-input" placeholder="resolver@vendor.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="ax-field">
-                  <label className="ax-label" htmlFor="up-cl-date-r">Resolution Date <Req /></label>
-                  <input id="up-cl-date-r" type="date" className="ax-input" value={date} onChange={(e) => setDate(e.target.value)} required />
-                </div>
-              </div>
-            )}
-
-            {!resolver && (
-              <div className="ax-field">
-                <label className="ax-label" htmlFor="up-cl-date">Resolution Date <Req /></label>
-                <input id="up-cl-date" type="date" className="ax-input" value={date} onChange={(e) => setDate(e.target.value)} required />
-              </div>
-            )}
-
-            <div className="ax-field">
-              <label className="ax-label" htmlFor="up-cl-remarks">Resolution Remarks <Req /></label>
-              <textarea
-                id="up-cl-remarks"
-                className="ax-input"
-                rows={3}
-                placeholder={cfg.remarksPlaceholder}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className={resolver ? 'ula-m-two' : undefined}>
-              <div className="ax-field">
-                <label className="ax-label" htmlFor="up-cl-file">{cfg.fileLabel} <Req /></label>
+            {/* ── Resolution Inputs with Floating Labels ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+              {/* Resolved By (Locked to logged-in user) */}
+              <div className="ax-float ax-float--locked">
                 <input
-                  id="up-cl-file"
-                  type="file"
-                  accept="image/*,.pdf,.doc,.docx"
-                  className="ax-input"
-                  required
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  id="up-cl-by"
+                  type="text"
+                  className="ax-input ax-float__input"
+                  placeholder=" "
+                  value={resolvedBy}
+                  readOnly
+                  disabled
+                  style={{ cursor: 'not-allowed', opacity: 0.85 }}
                 />
-                <span className="ax-help">{file ? file.name : cfg.fileHint || 'Image, PDF or document'}</span>
+                <label className="ax-float__label" htmlFor="up-cl-by">
+                  Resolved By <Req /> (Locked)
+                </label>
               </div>
+
+              {showContact && (
+                <>
+                  <div className="ax-float">
+                    <input
+                      id="up-cl-contact-person"
+                      type="text"
+                      className={`ax-input ax-float__input${contactPersonInvalid ? ' is-invalid' : ''}${attempted && !contactPersonInvalid ? ' is-valid' : ''}`}
+                      placeholder=" "
+                      value={contactPerson}
+                      onChange={(e) => {
+                        setContactPerson(e.target.value);
+                        if (error) setError('');
+                      }}
+                      disabled={submitting}
+                      required
+                    />
+                    <label className="ax-float__label" htmlFor="up-cl-contact-person">
+                      Contact Person / Incharge <Req />
+                    </label>
+                    {contactPersonInvalid && (
+                      <span className="ax-field__message ax-field__message--error" role="alert">
+                        Enter contact person name.
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="ax-float">
+                    <input
+                      id="up-cl-contact-number"
+                      type="tel"
+                      maxLength={10}
+                      className={`ax-input ax-float__input ax-num${contactNumberInvalid ? ' is-invalid' : ''}${attempted && !contactNumberInvalid ? ' is-valid' : ''}`}
+                      placeholder=" "
+                      value={contactNumber}
+                      onChange={(e) => {
+                        setContactNumber(e.target.value.replace(/\D/g, ''));
+                        if (error) setError('');
+                      }}
+                      style={{ fontFamily: 'var(--ax-font-mono)' }}
+                      disabled={submitting}
+                      required
+                    />
+                    <label className="ax-float__label" htmlFor="up-cl-contact-number">
+                      Contact Number (10 Digits) <Req />
+                    </label>
+                    {contactNumberInvalid && (
+                      <span className="ax-field__message ax-field__message--error" role="alert">
+                        Contact number must be exactly 10 digits.
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+
               {resolver && (
-                <div className="ax-field">
-                  <label className="ax-label" htmlFor="up-cl-file1">{cfg.file1Label || 'Additional File'}</label>
-                  <input id="up-cl-file1" type="file" accept="image/*,.pdf" className="ax-input" onChange={(e) => setFile1(e.target.files?.[0] || null)} />
-                  <span className="ax-help">{file1 ? file1.name : 'Optional'}</span>
+                <>
+                  <div className="ax-float">
+                    <input
+                      id="up-cl-mobile"
+                      type="tel"
+                      maxLength={10}
+                      className={`ax-input ax-float__input ax-num${mobileInvalid ? ' is-invalid' : ''}${attempted && !mobileInvalid ? ' is-valid' : ''}`}
+                      placeholder=" "
+                      value={mobile}
+                      onChange={(e) => {
+                        setMobile(e.target.value.replace(/\D/g, ''));
+                        if (error) setError('');
+                      }}
+                      style={{ fontFamily: 'var(--ax-font-mono)' }}
+                      disabled={submitting}
+                      required
+                    />
+                    <label className="ax-float__label" htmlFor="up-cl-mobile">
+                      Resolver Mobile (10 Digits) <Req />
+                    </label>
+                    {mobileInvalid && (
+                      <span className="ax-field__message ax-field__message--error" role="alert">
+                        Resolver mobile must be 10 digits.
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="ax-float">
+                    <input
+                      id="up-cl-email"
+                      type="email"
+                      className={`ax-input ax-float__input${emailInvalid ? ' is-invalid' : ''}${attempted && !emailInvalid && email.trim() ? ' is-valid' : ''}`}
+                      placeholder=" "
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (error) setError('');
+                      }}
+                      disabled={submitting}
+                      required={cfg.emailRequired}
+                    />
+                    <label className="ax-float__label" htmlFor="up-cl-email">
+                      Resolver Email {cfg.emailRequired ? <Req /> : '(Optional)'}
+                    </label>
+                    {emailInvalid && (
+                      <span className="ax-field__message ax-field__message--error" role="alert">
+                        Enter a valid email address.
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="ax-float ax-float--date">
+                <input
+                  id="up-cl-date"
+                  type="date"
+                  className={`ax-input ax-float__input${dateInvalid ? ' is-invalid' : ''}${attempted && !dateInvalid ? ' is-valid' : ''}`}
+                  placeholder=" "
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    if (error) setError('');
+                  }}
+                  disabled={submitting}
+                  required
+                />
+                <label className="ax-float__label" htmlFor="up-cl-date">
+                  Closing Date <Req />
+                </label>
+                {dateInvalid && (
+                  <span className="ax-field__message ax-field__message--error" role="alert">
+                    Select closing date.
+                  </span>
+                )}
+              </div>
+
+              {/* ── Proof Images & Documents (Dashed Dropzones) ── */}
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                  gap: 16,
+                }}
+              >
+                <UploadDrop
+                  id="up-cl-file"
+                  label={cfg.fileLabel}
+                  required
+                  file={file}
+                  accept="image/*,.pdf,.doc,.docx"
+                  hint={cfg.fileHint || 'PDF, JPG or PNG — single file'}
+                  invalid={fileInvalid}
+                  errorText="Please upload resolution document or proof image."
+                  disabled={submitting}
+                  onPick={(f) => {
+                    setFile(f);
+                    if (error) setError('');
+                  }}
+                  onClear={() => setFile(null)}
+                />
+                {resolver && (
+                  <UploadDrop
+                    id="up-cl-file1"
+                    label={cfg.file1Label || 'Resolution File 2 (Optional)'}
+                    file={file1}
+                    accept="image/*,.pdf"
+                    hint="PDF, JPG or PNG — single file (Optional)"
+                    disabled={submitting}
+                    onPick={(f) => setFile1(f)}
+                    onClear={() => setFile1(null)}
+                  />
+                )}
+              </div>
+
+              {/* ── Remarks Textarea ── */}
+              <div className="ax-float ax-float--area" style={{ gridColumn: '1 / -1' }}>
+                <textarea
+                  id="up-cl-remarks"
+                  className={`ax-textarea ax-float__input${remarksInvalid ? ' is-invalid' : ''}${attempted && !remarksInvalid ? ' is-valid' : ''}`}
+                  rows={3}
+                  placeholder=" "
+                  value={remarks}
+                  onChange={(e) => {
+                    setRemarks(e.target.value);
+                    if (error) setError('');
+                  }}
+                  disabled={submitting}
+                  required
+                />
+                <label className="ax-float__label" htmlFor="up-cl-remarks">
+                  Remarks <Req />
+                </label>
+                {remarksInvalid && (
+                  <span className="ax-field__message ax-field__message--error" role="alert">
+                    Please enter remarks / resolution notes.
+                  </span>
+                )}
+              </div>
+
+              {/* ── Send SMS Notification ── */}
+              {resolver && (
+                <div className="up-sms-bar">
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>
+                    Send SMS Notification <Req />
+                  </div>
+                  <div className="ax-cluster" style={{ gap: 20 }}>
+                    {(['Yes', 'No'] as const).map((v) => (
+                      <label
+                        key={v}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          cursor: 'pointer',
+                          fontSize: 13.5,
+                          color: '#0f172a',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          className="ax-radio"
+                          name="up-close-sms"
+                          value={v}
+                          checked={closeSms === v}
+                          onChange={() => setCloseSms(v)}
+                          disabled={submitting}
+                        />
+                        <span>{v}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-
-            {resolver && (
-              <div className="ax-field">
-                <span className="ax-label">Send Close SMS to Customer</span>
-                <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-                  {(['Yes', 'No'] as const).map((v) => (
-                    <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-                      <input type="radio" name="up-close-sms" value={v} checked={closeSms === v} onChange={() => setCloseSms(v)} />
-                      <span>{v}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="ax-modal__footer">
-            <button type="button" className="ax-btn ax-btn--ghost" onClick={close} disabled={submitting}>Cancel</button>
-            <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting}>
-              {submitting ? <span className="ax-spinner" /> : 'Submit resolution'}
+            <button type="button" className="ax-btn ax-btn--ghost" onClick={close} disabled={submitting}>
+              <span className="ax-btn__label">Cancel</span>
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submitting}
+              aria-busy={submitting}
+              style={{ minWidth: 160 }}
+            >
+              {submitting && <span className="ax-spinner ax-spinner--xs" aria-hidden="true" />}
+              <span className="ax-btn__label">{submitting ? 'Resolving…' : 'Confirm & Resolve Complaint'}</span>
             </button>
           </div>
         </form>
@@ -318,43 +666,86 @@ function DetailViewModal<T extends object>({
   eyebrow: string;
   fields: (row: T) => DetailField[];
   onClose: () => void;
-  onPreview: (url: string, title: string) => void;
+  onPreview: (url: string, title: string, candidates?: string[]) => void;
 }) {
+  const docs = row ? allDocUrlsOf(row) : [];
   return (
     <Modal open={!!row} onClose={onClose} labelledBy="up-assigned-detail-title">
       {row && (
         <>
           <div className="ax-modal__header">
             <div>
-              <p className="ula-m-field__label" style={{ margin: 0 }}>{eyebrow}</p>
+              <span className="up-modal__eyebrow">{eyebrow}</span>
               <h2 className="ax-modal__title" id="up-assigned-detail-title">
                 Complaint #{pick(row, ['complaint_id', 'id'])}
               </h2>
+              <p className="up-modal__sub">
+                Complete complaint record, site specifications and attached proof files.
+              </p>
             </div>
             <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
           </div>
 
-          <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-            <div className="ula-m-grid">
-              {fields(row).map((f) => (
-                <div key={f.label}>
-                  <div className="ula-m-field__label">{f.label}</div>
-                  <div className="ula-m-field__value">{f.value}</div>
+          <div className="ax-modal__body">
+            <div className="view-modal-wrap">
+              <div className="view-summary-strip">
+                <div className="view-summary-col">
+                  <span className="view-summary-label">Complaint ID</span>
+                  <span className="view-summary-value">#{pick(row, ['complaint_id', 'id'])}</span>
                 </div>
-              ))}
-            </div>
-
-            <div>
-              <div className="ula-m-field__label" style={{ marginBottom: 4 }}>Complaint Description</div>
-              <div className="ula-m-desc">{pick(row, ['complaint'])}</div>
-            </div>
-
-            {docUrlOf(row) && (
-              <div>
-                <div className="ula-m-field__label" style={{ marginBottom: 6 }}>Attached Document / Photo</div>
-                <DocThumb url={docUrlOf(row)} alt="Document" onPreview={onPreview} size={96} />
+                <div className="view-summary-col">
+                  <span className="view-summary-label">District</span>
+                  <span className="view-summary-value">{pick(row, ['district', 'district_name'])}</span>
+                </div>
+                <div className="view-summary-col">
+                  <span className="view-summary-label">Complaint Date</span>
+                  <span className="view-summary-value">{pick(row, ['start_date', 'complaint_date', 'created_date', 'created_at'])}</span>
+                </div>
+                <div className="view-summary-col">
+                  <span className="view-summary-label">Status</span>
+                  <div><StatusBadge row={row} /></div>
+                </div>
               </div>
-            )}
+
+              <DetailSectionCard
+                title="Complaint & Site Specifications"
+                tone="blue"
+                icon={
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <rect x="4" y="2" width="16" height="20" rx="2" />
+                    <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" />
+                  </svg>
+                }
+              >
+                <div className="view-grid-3">
+                  {fields(row).map((f) => (
+                    <div key={f.label} className="view-data-cell">
+                      <span className="view-data-label">{f.label}</span>
+                      <div className="view-data-value">{f.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </DetailSectionCard>
+
+              <DetailSectionCard
+                title="Complaint Description & Attachments"
+                tone="purple"
+                icon={
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                }
+              >
+                <div className="view-data-cell">
+                  <span className="view-data-label" style={{ marginBottom: 4 }}>Detailed Problem Description</span>
+                  <div className="view-desc-box">{pick(row, ['complaint'])}</div>
+                </div>
+
+                <AttachmentCardGrid docs={docs} onPreview={onPreview} />
+              </DetailSectionCard>
+            </div>
           </div>
 
           <div className="ax-modal__footer">
@@ -401,10 +792,10 @@ export function AssignedComplaintPage<T extends object>(props: AssignedPageProps
   const [district, setDistrict] = useState('All');
   const [closingItem, setClosingItem] = useState<T | null>(null);
   const [detailRow, setDetailRow] = useState<T | null>(null);
-  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const [preview, setPreview] = useState<{ url: string; title: string; candidates?: string[] } | null>(null);
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  const openPreview = useCallback((url: string, t: string) => setPreview({ url, title: t }), []);
+  const openPreview = useCallback((url: string, t: string, candidates?: string[]) => setPreview({ url, title: t, candidates }), []);
   const closePreview = useCallback(() => setPreview(null), []);
 
   useEffect(() => {
@@ -719,7 +1110,14 @@ export function AssignedComplaintPage<T extends object>(props: AssignedPageProps
         </div>
       </section>
 
-      {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+      {preview && (
+        <ImagePreviewModal
+          url={preview.url}
+          candidates={preview.candidates}
+          title={preview.title}
+          onClose={closePreview}
+        />
+      )}
 
       {props.detail && (
         <DetailViewModal

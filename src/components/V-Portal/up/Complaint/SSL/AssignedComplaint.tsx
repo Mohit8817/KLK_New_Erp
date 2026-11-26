@@ -112,7 +112,7 @@ export function UPComplaintSSLAssigned() {
           { label: 'Luminary No', value: pick(c, ['luminary_no']) },
           { label: 'Beneficiary', value: pick(c, ['beneficiary_name']) },
           { label: 'Contact', value: pick(c, ['contact_no', 'contact_number']) },
-          { label: 'Location', value: `${pick(c, ['district'])}, ${pick(c, ['block'])}, ${pick(c, ['panchayat'])}` },
+          { label: 'Location', value: `${pick(c, ['district'])}, ${pick(c, ['block'])}, ${pick(c, ['panchayat', 'panchyat', 'panchayt'])}` },
           { label: 'Issue', value: pick(c, ['complaint_issue', 'issue', 'complaint']) },
         ],
         remarksPlaceholder: 'Describe repairs completed (e.g. replaced battery, luminary repair, wiring fixed)…',

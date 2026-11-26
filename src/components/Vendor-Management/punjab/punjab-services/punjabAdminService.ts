@@ -36,6 +36,9 @@ export function getPunjabMediaCandidates(path?: string | null): string[] {
 
   candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/assign/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/light/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/panel/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/battery/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/pole/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/punjab/${filename}`);
@@ -44,6 +47,9 @@ export function getPunjabMediaCandidates(path?: string | null): string[] {
   candidates.push(`${BACKEND_BASE}/${normalized}`);
 
   if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/punjab/installation/ssl/light/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/punjab/installation/ssl/panel/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/punjab/installation/ssl/battery/${filename}`);
     candidates.push(`${R2_BASE}/uploads/punjab/installation/ssl/${filename}`);
     candidates.push(`${R2_BASE}/uploads/punjab/${filename}`);
     candidates.push(`${R2_BASE}/${filename}`);
@@ -269,6 +275,7 @@ export interface LightVerificationItem {
   pole_no?: string | number;
   beneficiary_name?: string;
   beneficiary_contact?: string;
+  contact_no?: string | number;
   contact_person?: string;
   contact_number?: string;
   sarpanch_name?: string;
@@ -280,8 +287,14 @@ export interface LightVerificationItem {
   uuid_no?: string;
   light_no?: string;
   battery_no?: string;
+  battery_serial_no?: string | number;
   panel_no?: string;
   light_file?: string | null;
+  light_file2?: string | null;
+  pole_image?: string | null;
+  panel_image?: string | null;
+  battery_serial_image?: string | null;
+  image?: string | null;
   file?: string;
   inst_file?: string;
   remark?: string;

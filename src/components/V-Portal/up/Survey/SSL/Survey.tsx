@@ -199,6 +199,7 @@ export function UP_Survey_SSL_Survey() {
         setImage1(null);
         setImage2(null);
       } else {
+        if (res.errors) setValidationErrors(res.errors);
         setErrorMsg(res.message || 'Failed to update survey details.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -310,7 +311,7 @@ export function UP_Survey_SSL_Survey() {
               />
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingInput id="up-ssl-fy" label="Financial Year" readOnly value={siteDetail?.fy || siteDetail?.financial_year || ''} />
-                <FloatingInput id="up-ssl-state" label="State" readOnly value={(siteDetail?.state || 'UP').toUpperCase()} />
+                <FloatingInput id="up-ssl-state" label="State" readOnly value={siteDetail?.state ? siteDetail.state.toUpperCase() : ''} />
                 <FloatingInput id="up-ssl-district" label="District" readOnly value={siteDetail?.district || ''} />
                 <FloatingInput id="up-ssl-village" label="Village" readOnly value={siteDetail?.village || ''} />
                 <FloatingInput id="up-ssl-scheme" label="Scheme" readOnly value={siteDetail?.scheme || ''} />

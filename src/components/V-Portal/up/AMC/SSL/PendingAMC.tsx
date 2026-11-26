@@ -2,10 +2,6 @@ import { UpAmcPendingForm } from '../CommonSharedAMC';
 import { upSslAmcApi } from '../../up-services';
 
 export function UP_AMC_SSL_PendingAMC() {
-  const fetchYears = async () => {
-    return [new Date().getFullYear(), new Date().getFullYear() - 1];
-  };
-
   const fetchSites = async () => {
     const res = await upSslAmcApi.getCreateLight();
     if (Array.isArray(res?.data)) {
@@ -24,7 +20,7 @@ export function UP_AMC_SSL_PendingAMC() {
     if (s) {
       return {
         ...s,
-        state: s.state || 'UP',
+        state: s.state || '',
         district: s.district || '',
         village: s.village || s.block || '',
         beneficiary_name: s.beneficiary_name || '',
@@ -33,9 +29,9 @@ export function UP_AMC_SSL_PendingAMC() {
         phase: s.phase || '',
         serial_number: s.serial_number || s.light_no || s.pole_no || s.id || '',
         address: s.address || s.location || '',
-        volume: s.volume || s.wattage || s.capacity || 'SSL',
+        volume: s.volume || s.wattage || s.capacity || '',
         contractor_name: s.contractor_name || '',
-        amc_type: res?.amc_type_name || (s.amc_type === 3 || s.amc_type === '3' ? 'Quarterly' : s.amc_type === 12 || s.amc_type === '12' ? 'Yearly' : 'Monthly'),
+        amc_type: res?.amc_type_name || s.amc_type || '',
         pending_months: res?.pending_months || s?.pending_months || [],
       };
     }
@@ -59,8 +55,6 @@ export function UP_AMC_SSL_PendingAMC() {
       ]}
       viewLink="/v/up-ssl-amc-view-light"
       viewLabel="View Completed AMC"
-      defaultAmcType="Monthly"
-      onFetchYears={fetchYears}
       onFetchSites={fetchSites}
       onFetchSiteDetails={fetchSiteDetails}
       onSubmit={submitAmc}

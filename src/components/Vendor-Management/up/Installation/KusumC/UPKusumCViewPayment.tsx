@@ -1,169 +1,213 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
-  INITIAL_PAYMENT_DATA,
-  UP_KUSUM_C_VENDORS,
-  type UPKusumCPaymentRecord,
-} from './upKusumCTypes';
+  Pagination,
+  usePagination,
+  SearchInput,
+  TableExportToolbar,
+  TableEmptyState,
+  type ExportColumn,
+} from '../../../../../common';
+import {
+  upKusumCAdminService,
+  resolveUpMediaUrl,
+  type UpKusumCPaymentRecord,
+  type UpPaymentDetailSummary,
+  type UpVendorItem,
+} from '../../up-services';
+import {
+  TABLE_PAGE_CSS,
+  OVERLAY_CSS,
+  actionsRowStyle,
+  footerStyle,
+  centerCell,
+  Modal,
+  KpiCard,
+  MediaFileThumbnail,
+  MediaLightbox,
+  StatusFeedbackBanners,
+  fmtDate,
+  fmtCurrency,
+  fmtNum,
+  DASH,
+  copyRowsToClipboard,
+  exportRowsCSV,
+  exportRowsExcel,
+  exportRowsPDF,
+} from '../upInstallationShared';
+
+function getPaidAndBalance(row: UpKusumCPaymentRecord) {
+  const claimAmt = Number(row.amount) || 0;
+  const history = row.allpayment || [];
+  const totalPaid = history.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const balance = Math.max(0, claimAmt - totalPaid);
+  const latest = history.length > 0 ? history[history.length - 1] : null;
+  return { claimAmt, totalPaid, balance, latest };
+}
 
 export function UPKusumCViewPayment() {
-  const [payments, setPayments] = useState<UPKusumCPaymentRecord[]>(INITIAL_PAYMENT_DATA);
+  const [payments, setPayments] = useState<UpKusumCPaymentRecord[]>([]);
+  const [detail, setDetail] = useState<UpPaymentDetailSummary>({ total: 0, complete: 0, partially: 0, pending: 0 });
+  const [vendors, setVendors] = useState<UpVendorItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  // Filter form states (matching specification)
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
-  const [filterVendor, setFilterVendor] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
+  // Filter Bar (matching user fields: From, To, Select Vendor, Status)
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [selectedVendor, setSelectedVendor] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Table search & pagination
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  // Update Payment Modal (#17)
+  const [payRow, setPayRow] = useState<UpKusumCPaymentRecord | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [payRemarks, setPayRemarks] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Pay Modal State
-  const [activePaymentModal, setActivePaymentModal] = useState<UPKusumCPaymentRecord | null>(null);
-  const [inputPayAmount, setInputPayAmount] = useState<number>(0);
-  const [inputPayDate, setInputPayDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [inputPayRemarks, setInputPayRemarks] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // History / Sites Modal & Lightbox
+  const [historyRow, setHistoryRow] = useState<UpKusumCPaymentRecord | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
 
-  // KPI Calculations
-  const paymentRequestCount = payments.length;
-  const paymentCompleteCount = payments.filter((p) => p.pay_status === 'Paid').length;
-  const paymentPartiallyCount = payments.filter((p) => p.pay_status === 'Partially Paid').length;
-  const paymentPendingCount = payments.filter((p) => p.pay_status === 'Pending').length;
-
-  // Filter logic
-  const filteredPayments = useMemo(() => {
-    return payments.filter((item) => {
-      // Date filters
-      if (fromDate && item.date < fromDate) return false;
-      if (toDate && item.date > toDate) return false;
-
-      // Dropdown filters
-      if (filterVendor && item.vendor !== filterVendor) return false;
-      if (filterStatus && item.pay_status !== filterStatus) return false;
-
-      // Table search term
-      if (searchTerm) {
-        const q = searchTerm.toLowerCase();
-        const matches =
-          item.vendor.toLowerCase().includes(q) ||
-          item.sites.toLowerCase().includes(q) ||
-          item.invoice.toLowerCase().includes(q) ||
-          item.remarks.toLowerCase().includes(q) ||
-          (item.pay_remarks || '').toLowerCase().includes(q) ||
-          String(item.amount).includes(q) ||
-          String(item.pay_amount).includes(q) ||
-          String(item.balance_amount).includes(q);
-        if (!matches) return false;
+  const fetchPayments = useCallback(
+    async (overrides?: { from_date?: string; to_date?: string; vendor?: string; status?: string }) => {
+      setLoading(true);
+      setErrorMsg('');
+      try {
+        const params = {
+          from_date: overrides ? overrides.from_date : fromDate || undefined,
+          to_date: overrides ? overrides.to_date : toDate || undefined,
+          vendor: overrides ? overrides.vendor : selectedVendor || undefined,
+          status: overrides ? overrides.status : selectedStatus || undefined,
+        };
+        const res = await upKusumCAdminService.getViewPayment(params);
+        setPayments(res.payments);
+        setDetail(res.payment_detail);
+        if (res.vendors.length > 0) {
+          setVendors(res.vendors);
+        }
+      } catch (err: any) {
+        setErrorMsg(err?.message || 'Failed to load Kusum C installation payments.');
+      } finally {
+        setLoading(false);
       }
+    },
+    [fromDate, toDate, selectedVendor, selectedStatus]
+  );
 
-      return true;
-    });
-  }, [payments, fromDate, toDate, filterVendor, filterStatus, searchTerm]);
+  // Load initial payments + vendor options fallback
+  useEffect(() => {
+    fetchPayments({});
+    upKusumCAdminService
+      .getAssignFormData()
+      .then((res) => {
+        if (res.vendors.length) {
+          setVendors((prev) => (prev.length ? prev : res.vendors));
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const totalItems = filteredPayments.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const pagedPayments = filteredPayments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (fromDate && toDate && fromDate > toDate) {
+      return setErrorMsg('From Date must be less than or equal to To Date.');
+    }
+    fetchPayments();
+  };
 
   const handleResetFilters = () => {
     setFromDate('');
     setToDate('');
-    setFilterVendor('');
-    setFilterStatus('');
-    setSearchTerm('');
-    setCurrentPage(1);
+    setSelectedVendor('');
+    setSelectedStatus('');
+    setSearchQuery('');
+    fetchPayments({ from_date: undefined, to_date: undefined, vendor: undefined, status: undefined });
   };
 
-  const handleOpenPayModal = (item: UPKusumCPaymentRecord) => {
-    setActivePaymentModal(item);
-    setInputPayAmount(item.balance_amount);
-    setInputPayDate(new Date().toISOString().slice(0, 10));
-    setInputPayRemarks('');
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payRow) return;
+    const amt = Number(payAmount);
+    const { balance } = getPaidAndBalance(payRow);
+    if (isNaN(amt) || amt < 0.01) {
+      return setErrorMsg('Payment amount must be at least 0.01.');
+    }
+    if (amt > balance + 0.001) {
+      return setErrorMsg('Payment amount cannot be greater than the remaining balance.');
+    }
+    if (!payDate) {
+      return setErrorMsg('Payment date is required.');
+    }
+
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await upKusumCAdminService.updatePaymentStatus({
+        id: payRow.id,
+        amount: amt,
+        date: payDate,
+        remarks: payRemarks.trim() || undefined,
+      });
+      setSuccessMsg(res.message || 'Payment successfully updated.');
+      setPayRow(null);
+      setPayAmount('');
+      setPayRemarks('');
+      fetchPayments();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to update payment.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleConfirmPayment = () => {
-    if (!activePaymentModal) return;
-    setIsProcessing(true);
+  const filteredPayments = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return payments;
+    return payments.filter((p) => {
+      const sites = (p.site_details || []).map((s) => s.f_farmer_name || '').join(' ');
+      const hay = [p.id, p.vendor_name, p.amount, p.remarks, sites].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [payments, searchQuery]);
 
-    setTimeout(() => {
-      const addedPay = Number(inputPayAmount) || 0;
-      const newPaid = activePaymentModal.pay_amount + addedPay;
-      const newBal = Math.max(0, activePaymentModal.amount - newPaid);
-      const newStatus: 'Paid' | 'Partially Paid' | 'Pending' =
-        newBal === 0 ? 'Paid' : newPaid > 0 ? 'Partially Paid' : 'Pending';
+  const pagination = usePagination(filteredPayments, { initialPageSize: 50 });
 
-      setPayments((prev) =>
-        prev.map((p) =>
-          p.id === activePaymentModal.id
-            ? {
-                ...p,
-                pay_amount: newPaid,
-                balance_amount: newBal,
-                pay_date: inputPayDate,
-                pay_remarks: inputPayRemarks || `Disbursed ₹ ${addedPay.toLocaleString('en-IN')}`,
-                pay_status: newStatus,
-              }
-            : p
-        )
-      );
+  const exportCols = useMemo<ExportColumn<UpKusumCPaymentRecord>[]>(
+    () => [
+      { header: 'S.No.', accessor: ((_r: UpKusumCPaymentRecord, idx?: number) => (idx !== undefined ? idx + 1 : '')) as any },
+      { header: 'Date', accessor: (r) => fmtDate(r.date) },
+      { header: 'Vendor', accessor: (r) => r.vendor_name || `Vendor #${r.vendor_id}` },
+      { header: 'Sites', accessor: (r) => (r.site_details || []).length },
+      { header: 'Amount', accessor: (r) => r.amount },
+      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
+      { header: 'Pay Amount', accessor: (r) => getPaidAndBalance(r).totalPaid },
+      { header: 'Balance Amount', accessor: (r) => getPaidAndBalance(r).balance },
+      { header: 'Pay Date', accessor: (r) => fmtDate(getPaidAndBalance(r).latest?.date) },
+      { header: 'Pay Remarks', accessor: (r) => getPaidAndBalance(r).latest?.pay_remarks || DASH },
+      {
+        header: 'Pay Status',
+        accessor: (r) =>
+          Number(r.pay_status) === 1 ? 'Paid' : Number(r.pay_status) === 2 ? 'Partially' : 'Pending',
+      },
+    ],
+    []
+  );
 
-      setIsProcessing(false);
-      setToastMsg(`Payment of ₹ ${addedPay.toLocaleString('en-IN')} recorded for ${activePaymentModal.vendor}!`);
-      setActivePaymentModal(null);
-      setTimeout(() => setToastMsg(null), 3000);
-    }, 500);
-  };
-
-  const handleExportCSV = () => {
-    const headers = [
-      'S.No.',
-      'Date',
-      'Vendor',
-      'Sites',
-      'Invoice',
-      'Amount',
-      'Remarks',
-      'Pay Amount',
-      'Balance Amount',
-      'Pay Date',
-      'Pay Remarks',
-      'Pay Status',
-    ];
-
-    const rows = filteredPayments.map((item, idx) => [
-      idx + 1,
-      `"${item.date}"`,
-      `"${item.vendor}"`,
-      `"${item.sites}"`,
-      `"${item.invoice}"`,
-      item.amount,
-      `"${item.remarks}"`,
-      item.pay_amount,
-      item.balance_amount,
-      `"${item.pay_date || ''}"`,
-      `"${item.pay_remarks || ''}"`,
-      `"${item.pay_status}"`,
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `UP_Kusum_C_Payments_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const stamp = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="ax-page" style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 40 }}>
-      {/* Page Head */}
+    <div className="solar-erp-page">
+      <style>{TABLE_PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
+
       <PageHead
         title="View Kusum-C Installation Payment"
-        subtitle="Track vendor installation disbursements, process payments, and verify balance dues for UP Kusum C sites"
+        subtitle="Manage approved UP Kusum C vendor payment disbursements, partial settlements, and payment history"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
@@ -173,357 +217,215 @@ export function UPKusumCViewPayment() {
         ]}
       />
 
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div
-          style={{
-            padding: '12px 18px',
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            borderRadius: 8,
-            marginBottom: 16,
-            fontSize: 13,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>✓ {toastMsg}</span>
-          <button
-            type="button"
-            onClick={() => setToastMsg(null)}
-            style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: 16 }}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      <StatusFeedbackBanners
+        errorMsg={errorMsg}
+        successMsg={successMsg}
+        onClearError={() => setErrorMsg('')}
+        onClearSuccess={() => setSuccessMsg('')}
+      />
 
-      {/* KPI Stat Cards (Matching Specification) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #3b82f6', background: '#ffffff' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>
-            Payment Request
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            {paymentRequestCount}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Invoices submitted</div>
-        </div>
-
-        <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #10b981', background: '#ffffff' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>
-            Payment Complete
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-            {paymentCompleteCount}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Fully disbursed</div>
-        </div>
-
-        <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #f59e0b', background: '#ffffff' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>
-            Payment Partially
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f59e0b', marginTop: 4 }}>
-            {paymentPartiallyCount}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Partially paid tranches</div>
-        </div>
-
-        <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #ef4444', background: '#ffffff' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>
-            Payment Pending
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#ef4444', marginTop: 4 }}>
-            {paymentPendingCount}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Awaiting disbursement</div>
-        </div>
+      {/* 4 KPI Cards */}
+      <div className="asw-cards-row">
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>}
+          tone="accent"
+          label="Payment Request"
+          value={fmtNum(detail.total)}
+          sub="Total approved claims"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+          tone="emerald"
+          label="Payment Complete"
+          value={fmtNum(detail.complete)}
+          sub="Fully settled"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
+          tone="cyan"
+          label="Payment Partially"
+          value={fmtNum(detail.partially)}
+          sub="Partially disbursed"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>}
+          tone="amber"
+          label="Payment Pending"
+          value={fmtNum(detail.pending)}
+          sub="Awaiting settlement"
+        />
       </div>
 
-      {/* Filter Card (Matching Specification: Kusum-C Installation Payment Filter) */}
-      <div className="ax-card" style={{ padding: '18px 20px', marginBottom: 20, background: '#ffffff' }}>
-        <h4 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-          Kusum-C Installation Payment
-        </h4>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-          {/* From Date */}
+      {/* Filter Bar Card */}
+      <form onSubmit={handleFilterSubmit} className="asw-filter-card">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, alignItems: 'end' }}>
           <div>
-            <label htmlFor="filter-from-date" style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>
-              From
-            </label>
-            <input
-              id="filter-from-date"
-              type="date"
-              className="ax-form-input"
-              value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="dd-mm-yyyy"
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            />
+            <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#475569', marginBottom: 4 }}>From</label>
+            <input type="date" className="ax-input ax-input--sm" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ width: '100%' }} />
           </div>
-
-          {/* To Date */}
           <div>
-            <label htmlFor="filter-to-date" style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>
-              To
-            </label>
-            <input
-              id="filter-to-date"
-              type="date"
-              className="ax-form-input"
-              value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="dd-mm-yyyy"
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            />
+            <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#475569', marginBottom: 4 }}>To</label>
+            <input type="date" className="ax-input ax-input--sm" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ width: '100%' }} />
           </div>
-
-          {/* Select Vendor */}
           <div>
-            <label htmlFor="filter-vendor-select" style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>
-              Select Vendor
-            </label>
-            <select
-              id="filter-vendor-select"
-              className="ax-form-input"
-              value={filterVendor}
-              onChange={(e) => {
-                setFilterVendor(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
+            <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Select Vendor</label>
+            <select className="ax-input ax-input--sm" value={selectedVendor} onChange={(e) => setSelectedVendor(e.target.value)} style={{ width: '100%' }}>
               <option value="">-- Select Vendor --</option>
-              {UP_KUSUM_C_VENDORS.map((v) => (
-                <option key={v.id} value={v.name}>
+              {vendors.map((v) => (
+                <option key={v.id} value={String(v.id)}>
                   {v.name}
                 </option>
               ))}
             </select>
           </div>
-
-          {/* Select Status */}
           <div>
-            <label htmlFor="filter-status-select" style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 5 }}>
-              Status
-            </label>
-            <select
-              id="filter-status-select"
-              className="ax-form-input"
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
+            <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Status</label>
+            <select className="ax-input ax-input--sm" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} style={{ width: '100%' }}>
               <option value="">-- Select Status --</option>
-              <option value="Paid">Paid</option>
-              <option value="Partially Paid">Partially Paid</option>
-              <option value="Pending">Pending</option>
+              <option value="0">Pending</option>
+              <option value="1">Paid</option>
+              <option value="2">Partially</option>
             </select>
           </div>
-        </div>
-
-        {(fromDate || toDate || filterVendor || filterStatus) && (
-          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-              onClick={handleResetFilters}
-              style={{ color: '#ef4444' }}
-            >
-              Reset Filters
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="ax-btn ax-btn--primary ax-btn--sm" style={{ flex: 1 }}>
+              Apply Filter
             </button>
-          </div>
-        )}
-      </div>
-
-      {/* Main Table Card (Matching Specification: View Kusum-C Installation Payment) */}
-      <div className="ax-card" style={{ overflow: 'hidden' }}>
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            background: 'var(--ax-surface-subtle, #f8fafc)',
-          }}
-        >
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-            View Kusum-C Installation Payment
-          </h3>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={handleExportCSV}
-            >
-              CSV Export
-            </button>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={() => window.print()}
-            >
-              Print
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={handleResetFilters}>
+              Reset
             </button>
           </div>
         </div>
+      </form>
 
-        {/* Search Input Bar */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            background: '#ffffff',
-          }}
-        >
-          <div style={{ maxWidth: 360 }}>
-            <input
-              type="text"
-              className="ax-form-input"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search: Vendor, invoice, sites, amount..."
-              style={{
-                width: '100%',
-                padding: '7px 12px',
-                fontSize: 13,
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-              }}
-            />
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">View Kusum-C Installation Payment</h2>
+            <p className="ax-card__subtitle">Showing {filteredPayments.length} approved claim payment record(s)</p>
+          </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search vendor, farmer, amount..." size="sm" />
+              <TableExportToolbar
+                onCopy={() => copyRowsToClipboard(filteredPayments, exportCols)}
+                onExportCSV={() => exportRowsCSV(filteredPayments, exportCols, `UP_KusumC_Payments_${stamp}`)}
+                onExportExcel={() => exportRowsExcel(filteredPayments, exportCols, `UP_KusumC_Payments_${stamp}`)}
+                onExportPDF={() => exportRowsPDF(filteredPayments, exportCols, 'View Kusum-C Installation Payment')}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div className="ax-table-wrap">
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1350 }}>
+            <thead className="ax-table__head">
               <tr>
-                <th style={{ padding: '10px 10px', textAlign: 'center', width: 50, fontWeight: 600, color: '#475569' }}>S.No.</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Date</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Vendor</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Sites</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Invoice</th>
-                <th style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>Amount</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Remarks</th>
-                <th style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>Pay Amount</th>
-                <th style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 600, color: '#475569' }}>Balance Amount</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Pay Date</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Pay Remarks</th>
-                <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Pay Status</th>
-                <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Action</th>
+                <th className="ax-table__th">S.No.</th>
+                <th className="ax-table__th">Date</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">Sites</th>
+                <th className="ax-table__th">Invoice</th>
+                <th className="ax-table__th">Amount</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th">Pay Amount</th>
+                <th className="ax-table__th">Balance Amount</th>
+                <th className="ax-table__th">Pay Date</th>
+                <th className="ax-table__th">Pay Remarks</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Pay Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {pagedPayments.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={13} style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b' }}>
-                    No data available in table
+                  <td colSpan={13} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading payments...
+                  </td>
+                </tr>
+              ) : pagination.paged.length === 0 ? (
+                <tr>
+                  <td colSpan={13} style={centerCell}>
+                    <TableEmptyState title="No data available in table" description="No approved payment claims match your filters." />
                   </td>
                 </tr>
               ) : (
-                pagedPayments.map((item, idx) => {
-                  const sNo = (currentPage - 1) * pageSize + idx + 1;
+                pagination.paged.map((row, idx) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const { claimAmt, totalPaid, balance, latest } = getPaidAndBalance(row);
+                  const st = Number(row.pay_status ?? 0);
+
                   return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', color: '#64748b' }}>{sNo}</td>
-                      <td style={{ padding: '10px 10px', color: '#334155' }}>{item.date}</td>
-                      <td style={{ padding: '10px 10px', fontWeight: 600, color: '#0f172a' }}>{item.vendor}</td>
-                      <td style={{ padding: '10px 10px', color: '#334155' }}>{item.sites}</td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', color: '#2563eb', fontWeight: 600 }}>{item.invoice}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                        ₹ {item.amount.toLocaleString('en-IN')}
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#64748b', maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.remarks}
-                      </td>
-                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
-                        ₹ {item.pay_amount.toLocaleString('en-IN')}
-                      </td>
-                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 700, color: item.balance_amount > 0 ? '#dc2626' : '#64748b' }}>
-                        ₹ {item.balance_amount.toLocaleString('en-IN')}
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#334155' }}>{item.pay_date || '—'}</td>
-                      <td style={{ padding: '10px 10px', color: '#64748b', maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.pay_remarks || '—'}
-                      </td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                        <span
-                          className={`ax-badge ${
-                            item.pay_status === 'Paid'
-                              ? 'ax-badge--soft ax-badge--success'
-                              : item.pay_status === 'Partially Paid'
-                              ? 'ax-badge--soft ax-badge--warning'
-                              : 'ax-badge--soft ax-badge--danger'
-                          }`}
-                          style={{ fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
+                    <tr key={row.id}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
+                      <td className="ax-table__td">{fmtDate(row.date)}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.vendor_name || `Vendor #${row.vendor_id}`}</td>
+                      <td className="ax-table__td">
+                        <button
+                          type="button"
+                          onClick={() => setHistoryRow(row)}
+                          style={{
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
+                            padding: '2px 8px',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
                         >
-                          {item.pay_status}
-                        </span>
+                          {(row.site_details || []).length} Site(s) ↗
+                        </button>
                       </td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                        {item.pay_status !== 'Paid' ? (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--primary ax-btn--sm"
-                            onClick={() => handleOpenPayModal(item)}
-                            style={{ fontSize: 11, padding: '3px 8px', fontWeight: 600 }}
-                          >
-                            Pay
-                          </button>
+                      <td className="ax-table__td">
+                        <MediaFileThumbnail
+                          url={row.file ? resolveUpMediaUrl(row.file, 'kusumc') : null}
+                          alt={`Invoice #${row.id}`}
+                          onClick={(url, title) => setLightbox({ url, title })}
+                        />
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 700 }}>{fmtCurrency(claimAmt)}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {row.remarks || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#16a34a' }}>{fmtCurrency(totalPaid)}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: balance > 0 ? '#d97706' : '#64748b' }}>
+                        {fmtCurrency(balance)}
+                      </td>
+                      <td className="ax-table__td">{fmtDate(latest?.date)}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {latest?.pay_remarks || latest?.remarks || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {st === 1 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--success">Paid</span>
+                        ) : st === 2 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--info">Partially</span>
                         ) : (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
-                            disabled
-                            style={{
-                              fontSize: 11,
-                              padding: '3px 8px',
-                              opacity: 0.85,
-                              cursor: 'not-allowed',
-                              background: '#f1f5f9',
-                              color: '#64748b',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                            title="Payment Completed & Locked"
-                          >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            Locked
-                          </button>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                         )}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', gap: 6 }}>
+                          <button type="button" className="ax-btn ax-btn--secondary ax-btn--xs" onClick={() => setHistoryRow(row)}>
+                            History
+                          </button>
+                          {st !== 1 && balance > 0 && (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--primary ax-btn--xs"
+                              onClick={() => {
+                                setPayRow(row);
+                                setPayAmount(String(balance));
+                                setPayDate(new Date().toISOString().slice(0, 10));
+                                setPayRemarks('');
+                              }}
+                            >
+                              Update Pay
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -533,233 +435,150 @@ export function UPKusumCViewPayment() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderTop: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-            background: 'var(--ax-surface-subtle, #f8fafc)',
-            fontSize: 12.5,
-            color: '#64748b',
-          }}
-        >
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Update Payment Modal (Endpoint #17) */}
+      <Modal
+        open={Boolean(payRow)}
+        onClose={() => setPayRow(null)}
+        title="Record Kusum-C Installation Payment"
+        subtitle={
+          payRow
+            ? `Claim #${payRow.id} • ${payRow.vendor_name || ''} • Remaining Balance: ${fmtCurrency(getPaidAndBalance(payRow).balance)}`
+            : ''
+        }
+        maxWidth={480}
+      >
+        <form onSubmit={handleUpdatePayment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            Showing {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              Payment Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={payRow ? getPaidAndBalance(payRow).balance : undefined}
+              className="ax-input"
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+              style={{ width: '100%' }}
+              required
+            />
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Show</span>
-              <select
-                className="ax-form-input"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                style={{ padding: '3px 6px', fontSize: 12, borderRadius: 4 }}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <span>entries</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                style={{ padding: '3px 8px', fontSize: 11 }}
-              >
-                Previous
-              </button>
-              <span style={{ padding: '4px 8px', fontWeight: 600, color: '#1e293b' }}>
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                style={{ padding: '3px 8px', fontSize: 11 }}
-              >
-                Next
-              </button>
-            </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              Payment Date <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="date"
+              className="ax-input"
+              value={payDate}
+              onChange={(e) => setPayDate(e.target.value)}
+              style={{ width: '100%' }}
+              required
+            />
           </div>
-        </div>
-      </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Payment Remarks / UTR</label>
+            <textarea
+              className="ax-input"
+              rows={3}
+              value={payRemarks}
+              onChange={(e) => setPayRemarks(e.target.value)}
+              placeholder="UTR number, NEFT reference, or payment notes..."
+              style={{ width: '100%', padding: 10 }}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setPayRow(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting}>
+              {submitting ? 'Saving...' : 'Submit Payment'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
-      {/* ── Process Payment Modal ── */}
-      {activePaymentModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 1050,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-          onClick={() => setActivePaymentModal(null)}
-        >
-          <div
-            className="ax-card"
-            style={{
-              width: '100%',
-              maxWidth: 520,
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: '#f8fafc',
-              }}
-            >
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-                  Disburse Payment
-                </h3>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                  Vendor: <strong>{activePaymentModal.vendor}</strong> · Invoice: <strong>{activePaymentModal.invoice}</strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => setActivePaymentModal(null)}
-                style={{ fontSize: 18, lineHeight: 1 }}
-              >
-                ×
-              </button>
+      {/* Payment History & Sites Modal */}
+      <Modal
+        open={Boolean(historyRow)}
+        onClose={() => setHistoryRow(null)}
+        title={`Claim #${historyRow?.id} — Payment Ledger & Sites`}
+        subtitle={historyRow ? `Vendor: ${historyRow.vendor_name || ''} • Claim Amount: ${fmtCurrency(historyRow.amount)}` : ''}
+        maxWidth={740}
+        footer={
+          <button type="button" className="ax-btn ax-btn--primary" onClick={() => setHistoryRow(null)}>
+            Close
+          </button>
+        }
+      >
+        {historyRow && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>Disbursement Installments</h4>
+              <table className="ax-table" style={{ width: '100%', fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th className="ax-table__th">#</th>
+                    <th className="ax-table__th">Date</th>
+                    <th className="ax-table__th">Paid Amount</th>
+                    <th className="ax-table__th">Balance</th>
+                    <th className="ax-table__th">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(historyRow.allpayment || []).length > 0 ? (
+                    (historyRow.allpayment || []).map((p, i) => (
+                      <tr key={p.id || i}>
+                        <td className="ax-table__td">{i + 1}</td>
+                        <td className="ax-table__td">{fmtDate(p.date)}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 700, color: '#16a34a' }}>{fmtCurrency(p.amount)}</td>
+                        <td className="ax-table__td">{fmtCurrency(p.balance)}</td>
+                        <td className="ax-table__td">{p.pay_remarks || p.remarks || DASH}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: 14, color: '#64748b' }}>
+                        No payments recorded yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div style={{ padding: 20 }}>
-              <div
-                style={{
-                  padding: 12,
-                  background: '#f8fafc',
-                  borderRadius: 8,
-                  marginBottom: 16,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 8,
-                  fontSize: 12.5,
-                }}
-              >
-                <div>
-                  <span style={{ color: '#64748b' }}>Total Invoice:</span>{' '}
-                  <strong>₹ {activePaymentModal.amount.toLocaleString('en-IN')}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Already Paid:</span>{' '}
-                  <strong style={{ color: '#16a34a' }}>₹ {activePaymentModal.pay_amount.toLocaleString('en-IN')}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Current Balance:</span>{' '}
-                  <strong style={{ color: '#dc2626' }}>₹ {activePaymentModal.balance_amount.toLocaleString('en-IN')}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Sites:</span> <strong>{activePaymentModal.sites}</strong>
-                </div>
+            <div>
+              <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>
+                Included Sites ({(historyRow.site_details || []).length})
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(historyRow.site_details || []).map((s) => (
+                  <span key={s.id} style={{ padding: '4px 10px', borderRadius: 6, background: '#f1f5f9', fontSize: 12, fontWeight: 600 }}>
+                    #{s.id} — {s.f_farmer_name || DASH}
+                  </span>
+                ))}
               </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label htmlFor="inputPayAmountField" style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 5 }}>
-                  Disbursement Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  id="inputPayAmountField"
-                  type="number"
-                  className="ax-form-input"
-                  value={inputPayAmount}
-                  max={activePaymentModal.balance_amount}
-                  onChange={(e) => setInputPayAmount(Math.min(activePaymentModal.balance_amount, Number(e.target.value)))}
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1', fontWeight: 600 }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label htmlFor="inputPayDateField" style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 5 }}>
-                  Payment Date <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  id="inputPayDateField"
-                  type="date"
-                  className="ax-form-input"
-                  value={inputPayDate}
-                  onChange={(e) => setInputPayDate(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <label htmlFor="inputPayRemarksField" style={{ fontSize: 12.5, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 5 }}>
-                  Payment Remarks (UTR / Cheque / Bank Details)
-                </label>
-                <textarea
-                  id="inputPayRemarksField"
-                  className="ax-form-input"
-                  rows={2}
-                  value={inputPayRemarks}
-                  onChange={(e) => setInputPayRemarks(e.target.value)}
-                  placeholder="e.g. Disbursed via RTGS UTR# HDFC0098231"
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px 20px',
-                borderTop: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 10,
-                background: '#f8fafc',
-              }}
-            >
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={() => setActivePaymentModal(null)}
-                disabled={isProcessing}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="ax-btn ax-btn--primary"
-                onClick={handleConfirmPayment}
-                disabled={isProcessing || inputPayAmount <= 0}
-                style={{ minWidth: 140, fontWeight: 700 }}
-              >
-                {isProcessing ? 'Processing...' : 'Record Payment'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
-      {/* Footer copyright */}
+      <MediaLightbox url={lightbox?.url || null} title={lightbox?.title} onClose={() => setLightbox(null)} />
     </div>
   );
 }

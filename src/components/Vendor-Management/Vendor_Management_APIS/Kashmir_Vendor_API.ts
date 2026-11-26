@@ -1,7 +1,7 @@
 import { API_BASE_URL } from '../../../services/authService';
 
-const RAW_BASE = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
-const API_ROOT = RAW_BASE.endsWith('/api') ? RAW_BASE : `${RAW_BASE}/api`;
+export const RAW_BASE = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
+export const API_ROOT = RAW_BASE.endsWith('/api') ? RAW_BASE : `${RAW_BASE}/api`;
 export const BASE_URL = `${API_ROOT}/admin`;
 export const ROOT_URL = RAW_BASE.replace(/\/api\/?$/, '');
 
@@ -64,6 +64,12 @@ export const KASHMIR_ADMIN_SRT_API = {
     `${API_ROOT}/kashmir/srt70mw/installation/approval-assign/${encodeURIComponent(id)}`,
   APPROVE_ASSIGN_DIRECT: (id: string | number) =>
     `${RAW_BASE}/kashmir/srt70mw/installation/approval-assign/${encodeURIComponent(id)}`,
+  APPROVE_ASSIGN_LEGACY: (id: string | number) =>
+    `${BASE_URL}/kashmir/srt70mw/installation/approvel-assign/${encodeURIComponent(id)}`,
+  APPROVE_ASSIGN_LEGACY_ALT: (id: string | number) =>
+    `${API_ROOT}/kashmir/srt70mw/installation/approvel-assign/${encodeURIComponent(id)}`,
+  APPROVE_ASSIGN_LEGACY_DIRECT: (id: string | number) =>
+    `${RAW_BASE}/kashmir/srt70mw/installation/approvel-assign/${encodeURIComponent(id)}`,
 
   // ── Installation and verification ──
   // 10. GET /view-installation

@@ -356,7 +356,7 @@ export function UP_AMC_Resco_PendingAMC() {
 
   // ── Section 1: Dropdown & Selection States ──
   const [years, setYears] = useState<number[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [months, setMonths] = useState<{ id: string | number; label: string }[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [sites, setSites] = useState<any[]>([]);
@@ -478,14 +478,24 @@ export function UP_AMC_Resco_PendingAMC() {
           (Array.isArray(res?.data) ? res.data : null) ||
           (Array.isArray(res) ? res : null);
         if (active && Array.isArray(arr) && arr.length > 0) {
-          const numYears = arr.map(Number);
+          const numYears = arr.map(Number).filter((n: number) => !Number.isNaN(n) && n > 0);
           setYears(numYears);
-          const curY = new Date().getFullYear();
-          if (numYears.includes(curY)) setSelectedYear(curY);
-          else setSelectedYear(numYears[0]);
+          if (numYears.length > 0) {
+            const curY = new Date().getFullYear();
+            setSelectedYear(numYears.includes(curY) ? curY : numYears[0]);
+          } else {
+            setSelectedYear('');
+          }
+        } else if (active) {
+          setYears([]);
+          setSelectedYear('');
         }
       } catch (err) {
         console.error('Error fetching Resco AMC years:', err);
+        if (active) {
+          setYears([]);
+          setSelectedYear('');
+        }
       } finally {
         if (active) setLoadingYears(false);
       }
@@ -495,7 +505,11 @@ export function UP_AMC_Resco_PendingAMC() {
 
   // ── 2. Fetch Months when Year changes ──
   useEffect(() => {
-    if (!selectedYear) return;
+    if (!selectedYear) {
+      setMonths([]);
+      setSelectedMonth('');
+      return;
+    }
     let active = true;
     (async () => {
       setLoadingMonths(true);
@@ -511,11 +525,6 @@ export function UP_AMC_Resco_PendingAMC() {
         else if (Array.isArray(res?.data?.amc_months)) list = res.data.amc_months;
         else if (Array.isArray(res?.data)) list = res.data;
 
-        if (list.length === 0) {
-          // Fallback to all 12 months
-          list = Object.keys(MONTH_NAMES);
-        }
-
         const normalized = list.map((m: any) => {
           const val = typeof m === 'object' && m !== null ? (m.month ?? m.months ?? m.id ?? m.value ?? m) : m;
           const strVal = String(val);
@@ -525,16 +534,19 @@ export function UP_AMC_Resco_PendingAMC() {
 
         if (active) {
           setMonths(normalized);
-          const curM = String(new Date().getMonth() + 1);
-          const match = normalized.find((m) => m.id === curM || m.label.toLowerCase() === MONTH_NAMES[curM]?.toLowerCase());
-          setSelectedMonth(match ? String(match.id) : String(normalized[0]?.id || '11'));
+          if (normalized.length > 0) {
+            const curM = String(new Date().getMonth() + 1);
+            const match = normalized.find((m) => m.id === curM || m.label.toLowerCase() === MONTH_NAMES[curM]?.toLowerCase());
+            setSelectedMonth(match ? String(match.id) : String(normalized[0].id));
+          } else {
+            setSelectedMonth('');
+          }
         }
       } catch (err) {
         console.error('Error fetching Resco AMC months:', err);
         if (active) {
-          const fallback = Object.entries(MONTH_NAMES).map(([id, label]) => ({ id, label }));
-          setMonths(fallback);
-          setSelectedMonth(String(new Date().getMonth() + 1));
+          setMonths([]);
+          setSelectedMonth('');
         }
       } finally {
         if (active) setLoadingMonths(false);
@@ -545,13 +557,15 @@ export function UP_AMC_Resco_PendingAMC() {
 
   // ── 3. Fetch Sites when Year or Month changes ──
   useEffect(() => {
-    if (!selectedYear) return;
+    if (!selectedYear || !selectedMonth) {
+      setSites([]);
+      return;
+    }
     let active = true;
     (async () => {
       setLoadingSites(true);
       try {
-        const m = selectedMonth || new Date().getMonth() + 1;
-        const res: any = await upRescoAmcApi.getSiteName(selectedYear, m);
+        const res: any = await upRescoAmcApi.getSiteName(selectedYear, selectedMonth);
         let list: any[] = [];
         if (Array.isArray(res)) list = res;
         else if (Array.isArray(res?.srtsite)) list = res.srtsite;
@@ -615,7 +629,7 @@ export function UP_AMC_Resco_PendingAMC() {
           const info = {
             ...d,
             id: d.id ?? selectedSiteId,
-            state: d.state || 'UP',
+            state: d.state || '',
             district: d.district || d.f_district || '—',
             dept_name: d.dept_name || d.department || d.department_name || '—',
             site_name: d.site_name || d.name || '—',
@@ -625,15 +639,11 @@ export function UP_AMC_Resco_PendingAMC() {
             plant_sc: d.plant_sc || d.plan_sc || d.plant_capacity || '—',
             beneficiary_name: d.beneficiary_name || d.contact_person || d.name || '',
             beneficiary_contact: d.beneficiary_contact || d.contact || d.mobile || d.contact_person_number || '',
-            amc_type: d.amc_type || 'Monthly',
+            amc_type: d.amc_type || '',
           };
           setSiteDetail(info);
-          if (info.beneficiary_name && !beneficiaryName) {
-            setBeneficiaryName(info.beneficiary_name);
-          }
-          if (info.beneficiary_contact && !beneficiaryContact) {
-            setBeneficiaryContact(info.beneficiary_contact);
-          }
+          setBeneficiaryName(info.beneficiary_name || '');
+          setBeneficiaryContact(info.beneficiary_contact || '');
         }
       } catch (err) {
         console.error('Error fetching Resco AMC site details:', err);
@@ -1203,7 +1213,7 @@ export function UP_AMC_Resco_PendingAMC() {
                       className={`ax-float__input ${errors.year ? 'is-invalid' : ''}`}
                       value={selectedYear}
                       onChange={(e) => {
-                        setSelectedYear(Number(e.target.value));
+                        setSelectedYear(e.target.value ? Number(e.target.value) : '');
                         setSelectedMonth('');
                         setSelectedSiteId('');
                         clearError('year');
@@ -1281,7 +1291,7 @@ export function UP_AMC_Resco_PendingAMC() {
                 <div className="resco-info-box">
                   <div className="resco-info-cell">
                     <span className="resco-info-label">State</span>
-                    <span className="resco-info-val">{siteDetail.state || 'UP'}</span>
+                    <span className="resco-info-val">{siteDetail.state || '—'}</span>
                   </div>
                   <div className="resco-info-cell">
                     <span className="resco-info-label">District</span>

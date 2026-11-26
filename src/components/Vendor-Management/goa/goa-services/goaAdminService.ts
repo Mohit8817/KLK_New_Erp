@@ -636,7 +636,11 @@ class GoaAdminService {
     const candidateList: string[] = [];
     const inputs = Array.isArray(endpointOrCandidates) ? endpointOrCandidates : [endpointOrCandidates];
     for (const item of inputs) {
-      buildCandidateUrls(item).forEach((u) => candidateList.push(u));
+      if (typeof item === 'string' && (item.startsWith('http://') || item.startsWith('https://') || item.startsWith('/'))) {
+        candidateList.push(item);
+      } else {
+        buildCandidateUrls(item).forEach((u) => candidateList.push(u));
+      }
     }
 
     let lastError: any = null;
@@ -1415,31 +1419,17 @@ class GoaAdminService {
     return this.getAMCDashboard();
   }
 
-  // Backwards compatibility / Drilldown
+  // Backwards compatibility / Drilldown (derived from authentic AMC routes)
   async getAMCViewData(): Promise<any[]> {
     try {
       const res = await this.getAMCVerifyView();
       return [...(res.srt || []), ...(res.coms || [])];
     } catch {
-      const res = await this.request(GOA_ADMIN_AMC_API.VIEW_DATA_CANDIDATES(), { method: 'GET' });
-      const payload = res?.data || res;
-      if (Array.isArray(payload?.totalsite)) return payload.totalsite;
-      if (Array.isArray(payload)) return payload;
       return [];
     }
   }
 
   async getAMCDrilldown(status: string): Promise<any[]> {
-    try {
-      const res = await this.request(GOA_ADMIN_AMC_API.DRILLDOWN_CANDIDATES(status), { method: 'GET' });
-      const payload = res?.data || res;
-      if (Array.isArray(payload?.totalsite)) return payload.totalsite;
-      if (Array.isArray(payload?.data)) return payload.data;
-      if (Array.isArray(payload)) return payload;
-    } catch {
-      // Fallback: derive drilldown from verify view or view-assign
-    }
-
     try {
       const verifyData = await this.getAMCVerifyView();
       const allVerify = [
@@ -1454,11 +1444,10 @@ class GoaAdminService {
       if (s === 'verify-pending') return allVerify.filter((x) => Number(x.verify_status) === 0);
       if (s === 'verify-reject' || s === 'rejected') return allVerify.filter((x) => Number(x.verify_status) === 2);
       if (s === 'total-site' || s === 'all') return allVerify;
+      return allVerify;
     } catch {
-      // ignore
+      return [];
     }
-
-    return [];
   }
 }
 

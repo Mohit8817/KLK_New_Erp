@@ -22,7 +22,10 @@ export function UP_AMC_PowerPack_CompletedAMC() {
     amcTextCol('Contact', ['beneficiary_contact']),
     amcTextCol('Period', ['report_month'], { fallback: '—' }),
     amcTextCol('AMC Date', ['amc_date']),
-    amcMediaCol('Maintenance Photo', (r: any) => resolveUpMediaUrl(r.image1)),
+    amcMediaCol('Image 1', (r: any) => resolveUpMediaUrl(r.image1)),
+    amcMediaCol('Image 2', (r: any) => resolveUpMediaUrl(r.image2)),
+    amcMediaCol('Image 3', (r: any) => resolveUpMediaUrl(r.image3)),
+    amcMediaCol('Image 4', (r: any) => resolveUpMediaUrl(r.image4)),
     amcStatusCol('Status'),
   ];
 

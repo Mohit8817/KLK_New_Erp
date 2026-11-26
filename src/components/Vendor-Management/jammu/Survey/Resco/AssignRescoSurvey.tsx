@@ -1,10 +1,14 @@
-import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { JAMMU_API } from '../../../../V-Portal/V_Portal_APIS/Jammu_API';
-import { getAuthHeaders } from '../../../../V-Portal/jammu/jammu-services/jammuSrt70mwService';
+import {
+  jammuSurveyAdminService,
+  type JKRescoSurveyVendorOption,
+  type JKRescoSurveyVolumeOption,
+  type JKRescoSurveySiteItem,
+} from '../jammuSurveyAdminService';
 
-/* ───────── Unified Single-Card Layout with Floating Labels & Section Nav Pills ───────── */
+/* ───────────────── Unified Single-Card Layout with Floating Labels & Section Nav Pills ───────────────── */
 const SINGLE_CARD_FORM_CSS = `
 .solar-erp-page {
   --asw-primary: #2563eb;
@@ -133,46 +137,41 @@ const SINGLE_CARD_FORM_CSS = `
   font-weight: 500;
   color: var(--ax-text-muted, #64748b);
 }
+
+.sites-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--ax-border, #cbd5e1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.site-check-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.site-check-card:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.site-check-card.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
 `;
 
-const JAMMU_DISTRICTS = [
-  'Jammu',
-  'Samba',
-  'Kathua',
-  'Udhampur',
-  'Reasi',
-  'Rajouri',
-  'Poonch',
-  'Ramban',
-  'Doda',
-  'Kishtwar',
-];
-
-const JAMMU_DEPARTMENTS = [
-  'PDD (Power Development Department)',
-  'Education Department',
-  'Health & Family Welfare',
-  'Police Department',
-  'Revenue Department',
-  'Agriculture & Farmers Welfare',
-  'Public Works Department (PWD)',
-  'Jal Shakti Department',
-  'Urban Local Bodies / Municipal Corp',
-  'Forest, Ecology & Environment',
-  'Higher Education / Colleges',
-  'Social Welfare Department',
-  'Other Government Department',
-];
-
-const DEFAULT_VENDORS = [
-  { id: 'utkarsh', name: 'utkarsh' },
-  { id: 'bharti', name: 'bharti' },
-  { id: 'Jammu TEsting', name: 'Jammu TEsting' },
-  { id: 'mohit', name: 'mohit' },
-  { id: 'App Testing', name: 'App Testing' },
-];
-
-/* ───────── Modern Upload Dropzone ───────── */
+/* ───────────────── Modern Upload Dropzone ───────────────── */
 interface UploadDropzoneProps {
   id: string;
   label: string;
@@ -385,15 +384,22 @@ function UploadDropzone({
 export function AssignRescoSurvey() {
   const navigate = useNavigate();
 
+  // Master Data from API (Strictly Live)
+  const [vendors, setVendors] = useState<JKRescoSurveyVendorOption[]>([]);
+  const [volumes, setVolumes] = useState<JKRescoSurveyVolumeOption[]>([]);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [sites, setSites] = useState<JKRescoSurveySiteItem[]>([]);
+
+  // Loading states
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingSites, setLoadingSites] = useState(false);
+
   // Form State
-  const [vendorName, setVendorName] = useState('');
-  const [volume, setVolume] = useState('1');
-  const [district, setDistrict] = useState('');
-  const [department, setDepartment] = useState('');
-  const [siteName, setSiteName] = useState('');
-  const [caNo, setCaNo] = useState('');
-  const [capacity, setCapacity] = useState('');
-  const [deadlineDate, setDeadlineDate] = useState('');
+  const [vendorId, setVendorId] = useState<string>('');
+  const [volume, setVolume] = useState<string>('');
+  const [district, setDistrict] = useState<string>('');
+  const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [remarks, setRemarks] = useState('');
 
@@ -401,7 +407,7 @@ export function AssignRescoSurvey() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  // Section Refs for Nav Pills
+  // Section Refs for Quick Nav Pills
   const sec1 = useRef<HTMLDivElement>(null);
   const sec2 = useRef<HTMLDivElement>(null);
   const sec3 = useRef<HTMLDivElement>(null);
@@ -411,15 +417,122 @@ export function AssignRescoSurvey() {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // 1. Initial Load: Form Data (vendors & volumes from Live API)
+  const loadInitialFormData = useCallback(async () => {
+    setLoadingInitial(true);
+    try {
+      const data = await jammuSurveyAdminService.getRescoSurveyAssignFormData();
+      setVendors(data.vendor || []);
+      setVolumes(data.volumes || []);
+
+      if (data.volumes && data.volumes.length > 0) {
+        const firstVol = String(data.volumes[0].volume);
+        setVolume(firstVol);
+      }
+    } catch (err: any) {
+      console.error('[AssignRescoSurvey] initial form data load error:', err);
+      setFeedback({
+        type: 'danger',
+        text: err?.message || 'Failed to fetch vendors and volumes from server.',
+      });
+    } finally {
+      setLoadingInitial(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInitialFormData();
+  }, [loadInitialFormData]);
+
+  // 2. When Volume changes, fetch Districts from Live API
+  useEffect(() => {
+    if (!volume) {
+      setDistricts([]);
+      setDistrict('');
+      return;
+    }
+
+    let active = true;
+    const fetchDistricts = async () => {
+      setLoadingDistricts(true);
+      try {
+        const dList = await jammuSurveyAdminService.fetchRescoSurveyDistrict(volume);
+        if (active) {
+          setDistricts(dList || []);
+          if (dList && dList.length > 0) {
+            setDistrict(dList[0]);
+          } else {
+            setDistrict('');
+          }
+        }
+      } catch (err: any) {
+        if (active) {
+          console.warn('[AssignRescoSurvey] fetch districts error:', err);
+          setDistricts([]);
+          setDistrict('');
+        }
+      } finally {
+        if (active) setLoadingDistricts(false);
+      }
+    };
+
+    fetchDistricts();
+    return () => {
+      active = false;
+    };
+  }, [volume]);
+
+  // 3. When District changes, fetch unassigned Sites from Live API
+  useEffect(() => {
+    if (!district) {
+      setSites([]);
+      setSelectedSiteIds([]);
+      return;
+    }
+
+    let active = true;
+    const fetchSitesForDistrict = async () => {
+      setLoadingSites(true);
+      try {
+        const sList = await jammuSurveyAdminService.fetchRescoSurveySite(district);
+        if (active) {
+          setSites(sList || []);
+          setSelectedSiteIds([]);
+        }
+      } catch (err: any) {
+        if (active) {
+          console.warn('[AssignRescoSurvey] fetch sites error:', err);
+          setSites([]);
+          setSelectedSiteIds([]);
+        }
+      } finally {
+        if (active) setLoadingSites(false);
+      }
+    };
+
+    fetchSitesForDistrict();
+    return () => {
+      active = false;
+    };
+  }, [district]);
+
+  const handleToggleSite = (id: number) => {
+    setSelectedSiteIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllSites = () => {
+    if (selectedSiteIds.length === sites.length) {
+      setSelectedSiteIds([]);
+    } else {
+      setSelectedSiteIds(sites.map((s) => s.id));
+    }
+  };
+
   const handleReset = () => {
-    setVendorName('');
-    setVolume('1');
-    setDistrict('');
-    setDepartment('');
-    setSiteName('');
-    setCaNo('');
-    setCapacity('');
-    setDeadlineDate('');
+    setVendorId('');
+    setSelectedSiteIds([]);
     setSelectedFile(null);
     setRemarks('');
     setFeedback(null);
@@ -429,23 +542,23 @@ export function AssignRescoSurvey() {
     e.preventDefault();
     setFeedback(null);
 
-    if (!vendorName.trim()) {
-      setFeedback({ type: 'danger', text: 'Please select or enter a Vendor Name.' });
+    if (!vendorId) {
+      setFeedback({ type: 'danger', text: 'Please select an authorized Vendor.' });
       scrollTo(sec1);
       return;
     }
-    if (!volume.trim()) {
-      setFeedback({ type: 'danger', text: 'Please select Volume.' });
+    if (!volume) {
+      setFeedback({ type: 'danger', text: 'Please select a Volume.' });
       scrollTo(sec1);
       return;
     }
-    if (!district.trim()) {
+    if (!district) {
       setFeedback({ type: 'danger', text: 'Please select a District.' });
       scrollTo(sec2);
       return;
     }
-    if (!siteName.trim()) {
-      setFeedback({ type: 'danger', text: 'Site Name is required for RESCO survey allocation.' });
+    if (!selectedSiteIds.length) {
+      setFeedback({ type: 'danger', text: 'Please select at least one site to allocate for survey.' });
       scrollTo(sec3);
       return;
     }
@@ -453,33 +566,26 @@ export function AssignRescoSurvey() {
     try {
       setSubmitting(true);
       const fd = new FormData();
-      fd.append('vendor_name', vendorName.trim());
+      fd.append('vendor', vendorId);
       fd.append('volume', volume);
       fd.append('district', district);
-      if (department.trim()) fd.append('department', department.trim());
-      fd.append('site_name', siteName.trim());
-      if (caNo.trim()) fd.append('ca_no', caNo.trim());
-      if (capacity.trim()) fd.append('capacity', capacity.trim());
-      if (deadlineDate) fd.append('deadline_date', deadlineDate);
+      selectedSiteIds.forEach((sId) => {
+        fd.append('site[]', String(sId));
+      });
       if (selectedFile) fd.append('file', selectedFile);
       if (remarks.trim()) fd.append('remarks', remarks.trim());
 
-      const endpoint = `${JAMMU_API.BASE_URL}/jk/resco-survey-assign-store`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: getAuthHeaders(true),
-        body: fd,
-      }).catch(() => null);
-
-      if (res && !res.ok && res.status !== 404) {
-        const json = await res.json().catch(() => null);
-        throw new Error(json?.message || `Failed to assign survey (HTTP ${res.status})`);
-      }
+      const res = await jammuSurveyAdminService.storeRescoSurveyAssign(fd);
 
       setFeedback({
         type: 'success',
-        text: `RESCO Survey assignment for site "${siteName}" allocated successfully to vendor "${vendorName}".`,
+        text: res.message || `Successfully allocated ${selectedSiteIds.length} site(s) to vendor.`,
       });
+
+      // Clear site selection
+      setSelectedSiteIds([]);
+      setSelectedFile(null);
+      setRemarks('');
 
       setTimeout(() => {
         navigate('/vendor-management/jammu/survey/resco/view-assign');
@@ -488,7 +594,7 @@ export function AssignRescoSurvey() {
       console.error('[AssignRescoSurvey] submit error:', err);
       setFeedback({
         type: 'danger',
-        text: err?.message || 'Failed to submit RESCO survey assignment. Please try again.',
+        text: err?.message || 'Failed to submit RESCO survey assignment. Please check inputs and try again.',
       });
     } finally {
       setSubmitting(false);
@@ -504,7 +610,8 @@ export function AssignRescoSurvey() {
         title="Jammu RESCO Assign Survey"
         subtitle="Allocate rooftop solar feasibility surveys to registered vendors across Jammu & Kashmir districts and government departments."
         breadcrumbs={[
-          { label: 'Home', href: '/vendor-management' },
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'Resco Survey', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'Assign Survey' },
@@ -550,9 +657,10 @@ export function AssignRescoSurvey() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: feedback.type === 'success' ? '#065f46' : '#b91c1c',
+                color: 'inherit',
                 cursor: 'pointer',
-                fontSize: 16,
+                fontWeight: 700,
+                fontSize: 14,
               }}
             >
               &times;
@@ -560,326 +668,305 @@ export function AssignRescoSurvey() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="ax-card">
-          {/* Card Header with Section Navigation Pills */}
+        <div className="ax-card">
+          {/* Header with Quick Navigation Pills */}
           <div className="ax-card__header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
-                  Assign Jammu RESCO Solar Survey
-                </h2>
-                <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: '#ef4444', margin: '4px 0 0' }}>
-                  The field labels marked with * are required input fields.
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                  New RESCO Survey Allocation Form
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Controller: JKRescoSurveyController &bull; Real-time unassigned survey sites allocation
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
-                  State: Jammu and Kashmir
-                </span>
-              </div>
-            </div>
 
-            {/* Quick Section Nav Pills */}
-            <div className="resco-section-pills">
-              <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec1)}>
-                <span className="pill-num">1</span> Vendor &amp; Volume
-              </button>
-              <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec2)}>
-                <span className="pill-num">2</span> District &amp; Department
-              </button>
-              <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec3)}>
-                <span className="pill-num">3</span> Site &amp; Capacity Specs
-              </button>
-              <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec4)}>
-                <span className="pill-num">4</span> Timeline &amp; Work Order
-              </button>
+              <div className="resco-section-pills">
+                <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec1)}>
+                  <span className="pill-num">1</span> Vendor &amp; Volume
+                </button>
+                <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec2)}>
+                  <span className="pill-num">2</span> District Scope
+                </button>
+                <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec3)}>
+                  <span className="pill-num">3</span> Site Selection ({selectedSiteIds.length})
+                </button>
+                <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec4)}>
+                  <span className="pill-num">4</span> Work Order &amp; Submit
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* Form Body */}
           <div className="ax-card__body">
-            {/* ── Section 1: Vendor & Volume Allocation ── */}
-            <div ref={sec1} className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Vendor &amp; Volume Allocation</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Select or enter authorized survey vendor and project phase volume
+            <form onSubmit={handleSubmit}>
+              {/* ──────────────── SECTION 1: VENDOR & VOLUME ──────────────── */}
+              <div ref={sec1} className="resco-section-block">
+                <div className="resco-section-header">
+                  <div className="resco-section-title-wrap">
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
+                      Step 1 of 4
+                    </span>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                      Vendor &amp; Project Volume
+                    </h4>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    Permissions: JK RESCO Survey Registered Parent Vendors
                   </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+                  {/* Vendor Dropdown */}
+                  <div className="ax-float">
+                    <select
+                      id="vendor_id"
+                      value={vendorId}
+                      onChange={(e) => setVendorId(e.target.value)}
+                      required
+                      disabled={loadingInitial || submitting}
+                      className="ax-float__input"
+                    >
+                      <option value="">-- Select Vendor --</option>
+                      {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} (ID: #{v.id})
+                        </option>
+                      ))}
+                    </select>
+                    <label htmlFor="vendor_id" className="ax-float__label floating">
+                      Assign To Vendor <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                  </div>
+
+                  {/* Volume Dropdown */}
+                  <div className="ax-float">
+                    <select
+                      id="volume"
+                      value={volume}
+                      onChange={(e) => setVolume(e.target.value)}
+                      required
+                      disabled={loadingInitial || submitting}
+                      className="ax-float__input"
+                    >
+                      <option value="">-- Select Volume --</option>
+                      {volumes.map((vol, idx) => (
+                        <option key={idx} value={vol.volume}>
+                          Volume {vol.volume}
+                        </option>
+                      ))}
+                    </select>
+                    <label htmlFor="volume" className="ax-float__label floating">
+                      Project Volume <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                {/* Vendor Name */}
-                <div className="ax-float">
-                  <select
-                    id="vendor_select"
-                    className="ax-float__input"
-                    value={vendorName}
-                    onChange={(e) => setVendorName(e.target.value)}
-                    required
+              <hr className="resco-section-divider" />
+
+              {/* ──────────────── SECTION 2: DISTRICT SCOPE ──────────────── */}
+              <div ref={sec2} className="resco-section-block">
+                <div className="resco-section-header">
+                  <div className="resco-section-title-wrap">
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
+                      Step 2 of 4
+                    </span>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                      District Geographic Scope
+                    </h4>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    {loadingDistricts ? 'Fetching available districts...' : `${districts.length} District(s) found for Volume ${volume || '1'}`}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+                  {/* District Dropdown */}
+                  <div className="ax-float">
+                    <select
+                      id="district"
+                      value={district}
+                      onChange={(e) => setDistrict(e.target.value)}
+                      required
+                      disabled={loadingDistricts || submitting || !districts.length}
+                      className="ax-float__input"
+                    >
+                      <option value="">-- Select District --</option>
+                      {districts.map((d, idx) => (
+                        <option key={idx} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                    <label htmlFor="district" className="ax-float__label floating">
+                      District <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="resco-section-divider" />
+
+              {/* ──────────────── SECTION 3: SITE SELECTION ──────────────── */}
+              <div ref={sec3} className="resco-section-block">
+                <div className="resco-section-header">
+                  <div className="resco-section-title-wrap">
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
+                      Step 3 of 4
+                    </span>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                      Available Unassigned Survey Sites ({sites.length})
+                    </h4>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#2563eb' }}>
+                      {selectedSiteIds.length} of {sites.length} Selected
+                    </span>
+                    {sites.length > 0 && (
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--ghost ax-btn--sm"
+                        onClick={handleSelectAllSites}
+                      >
+                        {selectedSiteIds.length === sites.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {loadingSites ? (
+                  <div style={{ padding: 30, textAlign: 'center', color: '#64748b' }}>
+                    <div className="ax-spinner" style={{ margin: '0 auto 10px' }} />
+                    Loading available sites for district &quot;{district}&quot;...
+                  </div>
+                ) : sites.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 30,
+                      textAlign: 'center',
+                      background: '#f8fafc',
+                      borderRadius: 8,
+                      border: '1px dashed #cbd5e1',
+                      color: '#64748b',
+                    }}
                   >
-                    <option value="">-- Select Vendor --</option>
-                    {DEFAULT_VENDORS.map((v) => (
-                      <option key={v.id} value={v.name}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor="vendor_select" className="ax-float__label floating">
-                    Vendor Name <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-
-                {/* State (Read only) */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="state_input"
-                    className="ax-float__input"
-                    value="Jammu and Kashmir"
-                    readOnly
-                    disabled
-                  />
-                  <label htmlFor="state_input" className="ax-float__label floating">
-                    State <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-
-                {/* Volume */}
-                <div className="ax-float">
-                  <select
-                    id="volume_select"
-                    className="ax-float__input"
-                    value={volume}
-                    onChange={(e) => setVolume(e.target.value)}
-                    required
-                  >
-                    <option value="1">Volume 1 (Phase 1)</option>
-                    <option value="2">Volume 2 (Phase 2)</option>
-                    <option value="3">Volume 3 (Phase 3)</option>
-                    <option value="4">Volume 4 (Special Drive)</option>
-                  </select>
-                  <label htmlFor="volume_select" className="ax-float__label floating">
-                    Volume <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 2: District & Department ── */}
-            <div ref={sec2} className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. District &amp; Department</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Specify operational territory and institutional department
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                {/* District */}
-                <div className="ax-float">
-                  <select
-                    id="district_select"
-                    className="ax-float__input"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Select District --</option>
-                    {JAMMU_DISTRICTS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor="district_select" className="ax-float__label floating">
-                    District <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-
-                {/* Department */}
-                <div className="ax-float">
-                  <select
-                    id="department_select"
-                    className="ax-float__input"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  >
-                    <option value="">-- Select Department (Optional) --</option>
-                    {JAMMU_DEPARTMENTS.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor="department_select" className="ax-float__label floating">
-                    Department
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 3: Site & Capacity Specs ── */}
-            <div ref={sec3} className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Site &amp; Capacity Specifications</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Enter building site name, consumer account number, and target solar PV capacity
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                {/* Site Name */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="site_name"
-                    className="ax-float__input"
-                    value={siteName}
-                    onChange={(e) => setSiteName(e.target.value)}
-                    placeholder="e.g. Government Degree College Kathua"
-                    required
-                  />
-                  <label htmlFor="site_name" className="ax-float__label floating">
-                    Site Name <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-
-                {/* Consumer / CA No */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="ca_no"
-                    className="ax-float__input"
-                    value={caNo}
-                    onChange={(e) => setCaNo(e.target.value)}
-                    placeholder="e.g. CA-JM-98214"
-                  />
-                  <label htmlFor="ca_no" className="ax-float__label floating">
-                    Consumer / CA No.
-                  </label>
-                </div>
-
-                {/* Proposed Capacity */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="capacity"
-                    className="ax-float__input"
-                    value={capacity}
-                    onChange={(e) => setCapacity(e.target.value)}
-                    placeholder="e.g. 50 KW"
-                  />
-                  <label htmlFor="capacity" className="ax-float__label floating">
-                    Proposed Capacity (KW)
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 4: Timeline & Work Order Document ── */}
-            <div ref={sec4} className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Timeline &amp; Work Order Document</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Set survey completion deadline, upload official sanction letter / PO, and enter notes
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 20 }}>
-                {/* Deadline Date */}
-                <div className="ax-float">
-                  <input
-                    type="date"
-                    id="deadline_date"
-                    className="ax-float__input"
-                    value={deadlineDate}
-                    onChange={(e) => setDeadlineDate(e.target.value)}
-                  />
-                  <label htmlFor="deadline_date" className="ax-float__label floating">
-                    Deadline Date
-                  </label>
-                </div>
-
-                {/* Remarks */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="remarks"
-                    className="ax-float__input"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Special instructions or field access notes"
-                  />
-                  <label htmlFor="remarks" className="ax-float__label floating">
-                    Remarks / Scope Notes
-                  </label>
-                </div>
-              </div>
-
-              {/* Work Order File Dropzone */}
-              <div style={{ maxWidth: 560 }}>
-                <UploadDropzone
-                  id="resco_assign_file"
-                  label="Work Order / Allocation Document"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  disabled={submitting}
-                  file={selectedFile}
-                  onSelect={(file) => setSelectedFile(file)}
-                  onRemove={() => setSelectedFile(null)}
-                />
-              </div>
-            </div>
-
-            {/* Submit Footer */}
-            <div
-              style={{
-                marginTop: 32,
-                paddingTop: 20,
-                borderTop: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: 12,
-              }}
-            >
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={handleReset}
-                disabled={submitting}
-              >
-                Reset
-              </button>
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary"
-                disabled={submitting}
-                style={{ minWidth: 190, fontWeight: 700 }}
-              >
-                {submitting ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <span className="ax-spinner" /> Assigning Survey...
-                  </span>
+                    {district
+                      ? `No unassigned survey sites found in "${district}". All sites may already be assigned or surveyed.`
+                      : 'Please select a district above to view unassigned survey sites.'}
+                  </div>
                 ) : (
-                  'Assign RESCO Survey'
+                  <div className="sites-checkbox-grid">
+                    {sites.map((site) => {
+                      const isChecked = selectedSiteIds.includes(site.id);
+                      return (
+                        <div
+                          key={site.id}
+                          className={`site-check-card ${isChecked ? 'selected' : ''}`}
+                          onClick={() => handleToggleSite(site.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleSite(site.id)}
+                            style={{ marginTop: 3, cursor: 'pointer' }}
+                          />
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                              {site.site_name}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                              <span>ID: #{site.id}</span>
+                              {site.ca_no && <span>CA: {site.ca_no}</span>}
+                              {site.connected && <span>Conn: {site.connected}</span>}
+                              {site.dept_name && <span>Dept: {site.dept_name}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
-              </button>
-            </div>
+              </div>
+
+              <hr className="resco-section-divider" />
+
+              {/* ──────────────── SECTION 4: ATTACHMENT & REMARKS ──────────────── */}
+              <div ref={sec4} className="resco-section-block">
+                <div className="resco-section-header">
+                  <div className="resco-section-title-wrap">
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
+                      Step 4 of 4
+                    </span>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                      Work Order Document &amp; Remarks
+                    </h4>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  {/* File Upload Dropzone */}
+                  <UploadDropzone
+                    id="assign_file"
+                    label="Sanction Letter / Allocation Document (Optional)"
+                    file={selectedFile}
+                    onSelect={(f) => setSelectedFile(f)}
+                    onRemove={() => setSelectedFile(null)}
+                    disabled={submitting}
+                  />
+
+                  {/* Remarks Input */}
+                  <div className="ax-float">
+                    <textarea
+                      id="remarks"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      disabled={submitting}
+                      placeholder="Special instructions or survey deadline notes..."
+                      rows={4}
+                      style={{ height: 'auto', minHeight: 110, padding: '16px 14px 8px' }}
+                      className="ax-float__input"
+                    />
+                    <label htmlFor="remarks" className={`ax-float__label ${remarks ? 'has-val' : ''}`}>
+                      Assignment Remarks (Optional)
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Action Buttons */}
+              <div
+                style={{
+                  marginTop: 32,
+                  paddingTop: 20,
+                  borderTop: '1px solid #e2e8f0',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary"
+                  onClick={handleReset}
+                  disabled={submitting}
+                >
+                  Reset Form
+                </button>
+                <button
+                  type="submit"
+                  className="ax-btn ax-btn--primary"
+                  disabled={submitting || !selectedSiteIds.length || !vendorId}
+                  style={{ fontWeight: 600 }}
+                >
+                  {submitting ? 'Assigning Survey Sites...' : `Allocate ${selectedSiteIds.length} Site(s) to Vendor`}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -91,6 +91,16 @@ export function getTodayFormatted(): string {
   return `${year}-${month}-${day}`;
 }
 
+export function formatDateForInput(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  const s = String(val).trim();
+  if (!s || s.toLowerCase() === 'null' || s === '0000-00-00' || s === '—') return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const dmy = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  return '';
+}
+
 export function opts(list: string[]): { value: string; label: string }[] {
   if (!Array.isArray(list)) return [];
   return list

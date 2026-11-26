@@ -12,16 +12,17 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 import {
-  jammuRescoSurveyService,
+  jammuSurveyAdminService,
   resolveJammuSurveyMediaUrl,
-  type JammuRescoAssignedSurveyItem,
-} from '../../../../V-Portal/jammu/jammu-services';
+  type JKRescoSurveyAssignRecord,
+  type JKRescoSurveyStats,
+} from '../jammuSurveyAdminService';
 
-/* ───────── Responsive Page CSS (Exact Assam/Bihar Reference Standard) ───────── */
+/* ───────── Responsive page CSS (Exact Bihar SRT / Jammu SRT 70MW reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -36,47 +37,15 @@ const PAGE_CSS = `
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
   }
-  @media (max-width: 1200px) {
+  @media (max-width: 992px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 540px) {
+  @media (max-width: 520px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
-  }
-
-  .solar-erp-page .asw-bifurcation-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-  .solar-erp-page .asw-pill-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 16px;
-    border-radius: 9999px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    border: 1px solid var(--ax-border, #cbd5e1);
-    background: var(--ax-surface, #ffffff);
-    color: var(--ax-text-muted, #64748b);
-  }
-  .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2563eb;
-    color: #2563eb;
-  }
-  .solar-erp-page .asw-pill-btn.active {
-    background: #2563eb;
-    color: #ffffff;
-    border-color: #2563eb;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
   }
 
   .solar-erp-page .ax-card__header {
@@ -136,7 +105,7 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* All table columns fully scrollable horizontally */
+  /* All table columns fully scrollable horizontally - no sticky/fixed columns */
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -204,6 +173,21 @@ const PAGE_CSS = `
       justify-content: flex-start;
       gap: 6px;
     }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
@@ -268,20 +252,7 @@ const X_ICON = (
   </svg>
 );
 
-const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-const fmtDate = (val?: string | null): string => {
-  if (!val) return '—';
-  try {
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    }
-  } catch {}
-  return String(val).slice(0, 10);
-};
-
-/* ───────── Modal Shell Component ───────── */
+/* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
   onClose,
@@ -289,7 +260,7 @@ function Modal({
   subtitle,
   children,
   footer,
-  maxWidth = 720,
+  maxWidth = 780,
 }: {
   open: boolean;
   onClose: () => void;
@@ -323,8 +294,8 @@ function Modal({
       >
         <div className="ax-modal__header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>{subtitle}</p>}
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
             {X_ICON}
@@ -340,8 +311,8 @@ function Modal({
   );
 }
 
-/* ───────── Top KPI Card Component ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'rose';
+/* ── Top KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
@@ -349,7 +320,6 @@ const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
   violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
-  rose: { bg: 'rgba(239, 68, 68, 0.12)', fg: '#dc2626' },
 };
 
 function KpiCard({
@@ -384,28 +354,42 @@ function KpiCard({
         >
           <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
       <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
         {sub}
       </div>
     </div>
   );
 }
 
-/* ── Media File Thumbnail Component ── */
+const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const fmtDate = (val?: string | null): string => {
+  if (!val) return '—';
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch {}
+  return String(val).slice(0, 10);
+};
+
+/* ── In-Row Media File Thumbnail Component ── */
 function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: (url: string) => void }) {
   if (!file) {
-    return <span style={{ color: 'var(--ax-text-muted, #94a3b8)', fontSize: 12 }}>—</span>;
+    return <span style={{ color: 'var(--ax-text-muted)', fontSize: 12 }}>—</span>;
   }
 
   const url = resolveJammuSurveyMediaUrl(file, 'resco_doc');
   const isPdf = /\.pdf($|\?)/i.test(file);
+  const isHeic = /\.heic($|\?)/i.test(file);
   const isImage = /\.(jpe?g|png|webp|gif|bmp|svg)($|\?)/i.test(file);
 
   return (
@@ -416,8 +400,8 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         borderRadius: 8,
         border: '1px solid #cbd5e1',
         background: '#f8fafc',
@@ -428,7 +412,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
         transition: 'all 0.15s ease',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'scale(1.05)';
+        e.currentTarget.style.transform = 'scale(1.06)';
         e.currentTarget.style.borderColor = '#2563eb';
       }}
       onMouseLeave={(e) => {
@@ -439,7 +423,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
       {isImage ? (
         <img
           src={url}
-          alt="File"
+          alt="Thumbnail"
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = 'none';
@@ -447,15 +431,24 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
         />
       ) : isPdf ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2} style={{ width: 16, height: 16 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2} style={{ width: 18, height: 18 }}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
           <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>PDF</span>
         </div>
+      ) : isHeic ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#8b5cf6', lineHeight: 1 }}>HEIC</span>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} style={{ width: 16, height: 16 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} style={{ width: 18, height: 18 }}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
@@ -466,328 +459,191 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
   );
 }
 
-/* ───────── Fallback realistic datasets for Jammu RESCO ───────── */
-const FALLBACK_ASSIGNED_SURVEYS: JammuRescoAssignedSurveyItem[] = [
-  {
-    id: 101,
-    vendor: 'utkarsh',
-    vendors: { id: 1, name: 'utkarsh', vendor_name: 'utkarsh' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-1',
-    district: 'Jammu',
-    site_name: 'DC Office Complex Jammu',
-    sitecount: 3,
-    sites: ['DC Office Main Block', 'DC Revenue Complex', 'DC Meeting Hall'],
-    assign_date: '2026-08-15',
-    created_at: '2026-08-15T09:30:00Z',
-    file: '/uploads/jammu/survey/resco/wo_101.pdf',
-    status: 1, // Approved
-    remarks: 'Priority rooftop solar assessment for administrative building',
-  },
-  {
-    id: 102,
-    vendor: 'bharti',
-    vendors: { id: 2, name: 'bharti', vendor_name: 'bharti' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-1',
-    district: 'Kathua',
-    site_name: 'District Hospital Kathua',
-    sitecount: 2,
-    sites: ['OPD Building Rooftop', 'Trauma Centre Wing'],
-    assign_date: '2026-08-18',
-    created_at: '2026-08-18T11:00:00Z',
-    file: '/uploads/jammu/survey/resco/wo_102.pdf',
-    status: 2, // Complete
-    remarks: 'Critical healthcare load with continuous grid backup',
-  },
-  {
-    id: 103,
-    vendor: 'Jammu TEsting',
-    vendors: { id: 3, name: 'Jammu TEsting', vendor_name: 'Jammu TEsting' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-2',
-    district: 'Samba',
-    site_name: 'Govt Higher Secondary School Samba',
-    sitecount: 1,
-    sites: ['Main School Academic Block'],
-    assign_date: '2026-08-20',
-    created_at: '2026-08-20T14:15:00Z',
-    file: '/uploads/jammu/survey/resco/wo_103.jpg',
-    status: 0, // Pending
-    remarks: 'Verify RCC roof structural strength and LTDB access',
-  },
-  {
-    id: 104,
-    vendor: 'utkarsh',
-    vendors: { id: 1, name: 'utkarsh', vendor_name: 'utkarsh' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-1',
-    district: 'Udhampur',
-    site_name: 'PWD Divisional Office Udhampur',
-    sitecount: 2,
-    sites: ['Executive Engineer Office', 'Sub-Divisional Store'],
-    assign_date: '2026-08-22',
-    created_at: '2026-08-22T10:45:00Z',
-    file: '/uploads/jammu/survey/resco/wo_104.pdf',
-    status: 2, // Complete
-    remarks: 'Completed field survey and submitted feasibility dossier',
-  },
-  {
-    id: 105,
-    vendor: 'bharti',
-    vendors: { id: 2, name: 'bharti', vendor_name: 'bharti' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-2',
-    district: 'Rajouri',
-    site_name: 'Govt Polytechnic College Rajouri',
-    sitecount: 4,
-    sites: ['Workshop Block A', 'Academic Block', 'Boys Hostel', 'Girls Hostel'],
-    assign_date: '2026-08-24',
-    created_at: '2026-08-24T12:00:00Z',
-    file: '/uploads/jammu/survey/resco/wo_105.pdf',
-    status: 1, // Approved
-    remarks: 'Educational campus large-scale solar feasibility',
-  },
-  {
-    id: 106,
-    vendor: 'mohit',
-    vendors: { id: 4, name: 'mohit', vendor_name: 'mohit' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-3',
-    district: 'Reasi',
-    site_name: 'Mini Secretariat Reasi',
-    sitecount: 2,
-    sites: ['Block 1 Main Building', 'Block 2 Conference Hall'],
-    assign_date: '2026-08-26',
-    created_at: '2026-08-26T16:20:00Z',
-    file: '/uploads/jammu/survey/resco/wo_106.jpg',
-    status: 0, // Pending
-    remarks: 'Inspect electrical room cable distance to LT panel',
-  },
-  {
-    id: 107,
-    vendor: 'App Testing',
-    vendors: { id: 5, name: 'App Testing', vendor_name: 'App Testing' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-2',
-    district: 'Poonch',
-    site_name: 'District Police Lines Poonch',
-    sitecount: 3,
-    sites: ['Admin Headquarters', 'Mess Hall', 'Barracks Rooftop'],
-    assign_date: '2026-08-28',
-    created_at: '2026-08-28T09:00:00Z',
-    file: '/uploads/jammu/survey/resco/wo_107.pdf',
-    status: 1, // Approved
-    remarks: 'Security institution with dedicated earth pit required',
-  },
-];
-
-/* ───────── Main Component ───────── */
 export function AssignViewSurvey() {
-  // Data states
-  const [records, setRecords] = useState<JammuRescoAssignedSurveyItem[]>([]);
+  const [assigns, setAssigns] = useState<JKRescoSurveyAssignRecord[]>([]);
+  const [stats, setStats] = useState<JKRescoSurveyStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
-
-  // Bifurcation tab: 'all' | 'pending' | 'approved' | 'complete'
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'complete'>('all');
-
-  // Search & Filter
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [districtFilter, setDistrictFilter] = useState<string>('all');
-
-  // Modals state
-  const [selectedRecordForSites, setSelectedRecordForSites] = useState<JammuRescoAssignedSurveyItem | null>(null);
-  const [approvingRecord, setApprovingRecord] = useState<JammuRescoAssignedSurveyItem | null>(null);
-  const [isApproving, setIsApproving] = useState<boolean>(false);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // Search, Status and District filters
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+
+  // Selected assign for site allocation details modal
+  const [selectedAssignForSites, setSelectedAssignForSites] = useState<JKRescoSurveyAssignRecord | null>(null);
+
   // Helper to resolve vendor name
-  const getVendorName = useCallback((r?: Partial<JammuRescoAssignedSurveyItem> | null): string => {
+  const getVendorName = useCallback((r?: Partial<JKRescoSurveyAssignRecord> | null): string => {
     if (!r) return '—';
     if (r.vendors && typeof r.vendors === 'object') {
       if (r.vendors.name) return String(r.vendors.name).trim();
-      if (r.vendors.vendor_name) return String(r.vendors.vendor_name).trim();
     }
-    if (r.vendor && String(r.vendor).trim()) return String(r.vendor).trim();
+    if (r.vendor_name && String(r.vendor_name).trim()) return String(r.vendor_name).trim();
+    if (r.vendor !== undefined && r.vendor !== null && String(r.vendor).trim()) {
+      const vStr = String(r.vendor).trim();
+      return /^\d+$/.test(vStr) ? `Vendor #${vStr}` : vStr;
+    }
     return '—';
   }, []);
 
-  // Helper to parse site breakdown array
-  const formatSitesList = (r: JammuRescoAssignedSurveyItem): string[] => {
-    if (r.sites && Array.isArray(r.sites) && r.sites.length > 0) {
-      return r.sites.map((s) => String(s).trim()).filter(Boolean);
-    }
-    if (r.site_name && String(r.site_name).trim()) {
-      return [String(r.site_name).trim()];
-    }
-    return [`Batch #${r.id}`];
-  };
-
-  // Load Data from API or fallback
-  const loadData = useCallback(async () => {
+  // Fetch View Assign
+  const fetchAssignments = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
-      const list = await jammuRescoSurveyService.getAssignedSurveys();
-      if (Array.isArray(list) && list.length > 0) {
-        setRecords(list);
-      } else {
-        setRecords(FALLBACK_ASSIGNED_SURVEYS);
-      }
+      const res = await jammuSurveyAdminService.viewRescoSurveyAssign();
+      const list = res.srtRecords || res.assign_surveys || [];
+      setAssigns(Array.isArray(list) ? list : []);
+      setStats(res.resco || null);
     } catch (err: any) {
-      console.warn('[AssignViewSurvey] API fetch failed, loading fallback data:', err);
-      setRecords(FALLBACK_ASSIGNED_SURVEYS);
+      console.error('Failed to load Jammu RESCO assignments:', err);
+      setErrorMsg(err?.message || 'Failed to fetch assigned surveys.');
+      setAssigns([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchAssignments();
+  }, [fetchAssignments]);
 
-  // Derived Summary Counts matching user requirements
-  const totalAssignSites = useMemo(() => {
-    return records.reduce((acc, r) => acc + (Number(r.sitecount ?? r.site_count ?? 1) || 1), 0);
-  }, [records]);
+  // Approve assign
+  const handleApprove = async (id: number) => {
+    setApprovingId(id);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await jammuSurveyAdminService.approvalAssign(id);
+      if (res.success) {
+        setSuccessMsg(res.message || `Assignment #${id} approved successfully!`);
+        setAssigns((prev) => prev.map((a) => (a.id === id ? { ...a, status: 1 } : a)));
+      } else {
+        setErrorMsg(res.message || `Failed to approve assignment #${id}.`);
+      }
+    } catch (err: any) {
+      console.error(`Approval failed for #${id}:`, err);
+      setErrorMsg(err?.message || `Failed to approve assignment #${id}.`);
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
-  const pendingAssignSites = useMemo(() => {
-    return records
-      .filter((r) => !r.status || Number(r.status) === 0)
-      .reduce((acc, r) => acc + (Number(r.sitecount ?? r.site_count ?? 1) || 1), 0);
-  }, [records]);
-
-  const approvedSitesCount = useMemo(() => {
-    return records
-      .filter((r) => Number(r.status) === 1)
-      .reduce((acc, r) => acc + (Number(r.sitecount ?? r.site_count ?? 1) || 1), 0);
-  }, [records]);
-
-  const completeSurveys = useMemo(() => {
-    return records
-      .filter((r) => Number(r.status) === 2)
-      .reduce((acc, r) => acc + (Number(r.sitecount ?? r.site_count ?? 1) || 1), 0);
-  }, [records]);
-
-  // District options
-  const districtOptions = useMemo(() => {
+  // Extract distinct districts
+  const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    records.forEach((r) => {
-      const d = (r.district || '').trim();
-      if (d) set.add(d);
+    assigns.forEach((r) => {
+      if (r.district !== undefined && r.district !== null && String(r.district).trim() !== '') {
+        set.add(String(r.district).trim());
+      }
     });
     return Array.from(set).sort();
-  }, [records]);
+  }, [assigns]);
 
-  // Filtered rows
-  const filteredRows = useMemo(() => {
-    let list = records;
-
-    // 1. Bifurcation Tab Filter
-    if (activeTab === 'pending') {
-      list = list.filter((r) => !r.status || Number(r.status) === 0);
-    } else if (activeTab === 'approved') {
-      list = list.filter((r) => Number(r.status) === 1);
-    } else if (activeTab === 'complete') {
-      list = list.filter((r) => Number(r.status) === 2);
+  // Filtered assigns
+  const filteredAssigns = useMemo(() => {
+    let list = assigns;
+    if (statusFilter !== 'all') {
+      list = list.filter((r) => String(r.status ?? 0) === String(statusFilter));
     }
-
-    // 2. District Filter
     if (districtFilter !== 'all') {
-      list = list.filter((r) => (r.district || '').toLowerCase() === districtFilter.toLowerCase());
+      list = list.filter((r) => String(r.district ?? '').trim() === districtFilter);
     }
 
-    // 3. Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((r) => {
-        const idStr = String(r.id || '').toLowerCase();
-        const vName = getVendorName(r).toLowerCase();
-        const dist = (r.district || '').toLowerCase();
-        const sName = (r.site_name || '').toLowerCase();
-        const vol = String(r.volume || '').toLowerCase();
-        const rem = (r.remarks || r.remark || '').toLowerCase();
-        const sites = formatSitesList(r).join(' ').toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((row) => {
+      const vName = getVendorName(row).toLowerCase();
+      const dist = (row.district || '').toLowerCase();
+      const state = (row.state || '').toLowerCase();
+      const remarks = (row.remarks || row.remark || '').toLowerCase();
+      const sites = (row.sites || []).map((s) => s.site_name?.toLowerCase()).join(' ');
+      const rawSites = typeof row.site_name === 'string' ? row.site_name.toLowerCase() : '';
+      const siteDetails = (row.site_details || []).map((s) => s.site_name?.toLowerCase()).join(' ');
+      const idStr = String(row.id);
+      return (
+        vName.includes(q) ||
+        dist.includes(q) ||
+        state.includes(q) ||
+        remarks.includes(q) ||
+        sites.includes(q) ||
+        rawSites.includes(q) ||
+        siteDetails.includes(q) ||
+        idStr.includes(q)
+      );
+    });
+  }, [assigns, searchQuery, statusFilter, districtFilter, getVendorName]);
 
-        return (
-          idStr.includes(q) ||
-          vName.includes(q) ||
-          dist.includes(q) ||
-          sName.includes(q) ||
-          vol.includes(q) ||
-          rem.includes(q) ||
-          sites.includes(q)
-        );
-      });
+  const pagination = usePagination(filteredAssigns, { initialPageSize: 100 });
+
+  // Helper to format site list
+  const getSiteDisplayString = (row: JKRescoSurveyAssignRecord): string => {
+    if (row.sites && row.sites.length > 0) {
+      const names = row.sites.map((s) => s.site_name).filter(Boolean);
+      if (names.length > 0) {
+        const head = names.slice(0, 2).join(', ');
+        const extra = names.length - 2;
+        return head + (extra > 0 ? ` +${extra} more` : '');
+      }
     }
-
-    return [...list].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
-  }, [records, activeTab, districtFilter, searchQuery, getVendorName]);
-
-  // Pagination
-  const pagination = usePagination(filteredRows, { initialPageSize: 10 });
-
-  useEffect(() => {
-    pagination.setPage(1);
-  }, [activeTab, searchQuery, districtFilter]);
+    if (row.site_details && row.site_details.length > 0) {
+      const names = row.site_details.map((s) => s.site_name).filter(Boolean);
+      if (names.length > 0) {
+        const head = names.slice(0, 2).join(', ');
+        const extra = names.length - 2;
+        return head + (extra > 0 ? ` +${extra} more` : '');
+      }
+    }
+    if (row.site_names && row.site_names.length > 0) {
+      const names = row.site_names.map((s) => String(s)).filter(Boolean);
+      if (names.length > 0) {
+        const head = names.slice(0, 2).join(', ');
+        const extra = names.length - 2;
+        return head + (extra > 0 ? ` +${extra} more` : '');
+      }
+    }
+    if (typeof row.site_name === 'string' && row.site_name.trim()) {
+      return row.site_name.replace(/[[\]"]/g, '').trim();
+    }
+    return `Batch #${row.id}`;
+  };
 
   // Export Columns definition
-  const exportCols: ExportColumn<JammuRescoAssignedSurveyItem>[] = useMemo(
+  const exportCols: ExportColumn<JKRescoSurveyAssignRecord>[] = useMemo(
     () => [
+      { header: 'Sr. No.', accessor: (_r: JKRescoSurveyAssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Vendor', accessor: (r: JKRescoSurveyAssignRecord) => getVendorName(r) },
+      { header: 'Assign Date', accessor: (r: JKRescoSurveyAssignRecord) => fmtDate(r.assign_date || r.created_at) },
+      { header: 'State', accessor: (r: JKRescoSurveyAssignRecord) => r.state || 'JAMMU' },
+      { header: 'District', accessor: (r: JKRescoSurveyAssignRecord) => r.district || '—' },
       {
-        header: 'Sr. No.',
-        accessor: (_r: JammuRescoAssignedSurveyItem, idx?: number) => (idx !== undefined ? idx + 1 : 1),
-      } as any,
-      {
-        header: 'Batch ID',
-        accessor: (r: JammuRescoAssignedSurveyItem) => String(r.id),
+        header: 'Site / Building Name',
+        accessor: (r: JKRescoSurveyAssignRecord) => getSiteDisplayString(r),
       },
+      { header: 'Count', accessor: (r: JKRescoSurveyAssignRecord) => r.sitecount || r.site_count || (r.sites ? r.sites.length : 1) },
       {
-        header: 'Vendor Name',
-        accessor: (r: JammuRescoAssignedSurveyItem) => getVendorName(r),
+        header: 'Deadline Date',
+        accessor: (r: JKRescoSurveyAssignRecord) => fmtDate(r.deadline_date || (r.sites && r.sites[0]?.inst_deadline)),
       },
-      {
-        header: 'Assign Date',
-        accessor: (r: JammuRescoAssignedSurveyItem) => fmtDate(r.assign_date || r.created_at),
-      },
-      {
-        header: 'State',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.state || 'Jammu & Kashmir',
-      },
-      {
-        header: 'Volume',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.volume || 'VOL-1',
-      },
-      {
-        header: 'District',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.district || '—',
-      },
-      {
-        header: 'Site Name',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.site_name || formatSitesList(r).join(', '),
-      },
-      {
-        header: 'Allocated Sites Count',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.sitecount ?? r.site_count ?? 1,
-      },
-      {
-        header: 'Remarks',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.remarks || r.remark || '—',
-      },
+      { header: 'File', accessor: (r: JKRescoSurveyAssignRecord) => r.file || r.document || '—' },
+      { header: 'Remarks', accessor: (r: JKRescoSurveyAssignRecord) => r.remarks || r.remark || '—' },
       {
         header: 'Status',
-        accessor: (r: JammuRescoAssignedSurveyItem) =>
-          Number(r.status) === 2 ? 'Complete Survey' : Number(r.status) === 1 ? 'Approved' : 'Pending Assign',
+        accessor: (r: JKRescoSurveyAssignRecord) =>
+          Number(r.status) === 2 ? 'Complete' : Number(r.status) === 1 ? 'Approved' : 'Pending',
       },
     ],
     [getVendorName]
   );
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const fileBase = `Jammu_RESCO_Assigned_Surveys_${activeTab}`;
-  const fileTitle = `Jammu RESCO Assigned Surveys (${activeTab.toUpperCase()})`;
+  const fileBase = 'Jammu_RESCO_View_Assign_Survey';
+  const fileTitle = 'Jammu RESCO Assigned Survey Register';
 
   const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
     if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
@@ -811,7 +667,7 @@ export function AssignViewSurvey() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => String(c.header ?? '')),
+      columns.map((c) => c.header),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -821,12 +677,12 @@ export function AssignViewSurvey() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => String(c.header ?? '')).join('\t'),
+      columns.map((c) => c.header).join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(t);
-      setSuccessMsg('Assigned survey records copied to clipboard!');
+      alert('Data copied to clipboard!');
     } catch {
       const ta = document.createElement('textarea');
       ta.value = t;
@@ -836,7 +692,7 @@ export function AssignViewSurvey() {
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      setSuccessMsg('Assigned survey records copied to clipboard!');
+      alert('Data copied to clipboard!');
     }
   };
 
@@ -861,32 +717,21 @@ export function AssignViewSurvey() {
     w.focus();
   };
 
-  // Handle Approve Action
-  const handleConfirmApprove = async () => {
-    if (!approvingRecord) return;
-    setIsApproving(true);
-    try {
-      setRecords((prev) =>
-        prev.map((r) => (r.id === approvingRecord.id ? { ...r, status: 1 } : r))
-      );
-      setSuccessMsg(`Survey Batch ID: #${approvingRecord.id} approved successfully and vendor notified.`);
-      setApprovingRecord(null);
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to approve survey allocation');
-    } finally {
-      setIsApproving(false);
-    }
-  };
+  // KPI Calculations
+  const totalSites = stats?.totalsite ?? stats?.total ?? assigns.reduce((acc, r) => acc + (r.sitecount || r.site_count || (r.sites ? r.sites.length : 1)), 0);
+  const assignedSites = stats?.assignsite ?? stats?.assigned ?? totalSites;
+  const completeSurveys = stats?.complete_survey ?? stats?.survey_done ?? assigns.filter((a) => Number(a.status) === 2).reduce((acc, r) => acc + (r.sitecount || r.site_count || 1), 0);
+  const pendingSurveys = stats?.pending_survey ?? stats?.survey_pending ?? assigns.filter((a) => !a.status || Number(a.status) === 0).reduce((acc, r) => acc + (r.sitecount || r.site_count || 1), 0);
+  const notAssignedSites = stats?.not_assign ?? stats?.not_assigned ?? Math.max(0, totalSites - assignedSites);
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Header & Breadcrumbs ── */}
       <PageHead
         title="View Assigned JK Resco Survey"
-        subtitle="Track and manage assigned JK RESCO rooftop solar feasibility surveys, institutional site allocations, and vendor assignments across Jammu region"
+        subtitle="Manage assigned vendor work orders, view institutional rooftop site allocations, and authorize dispatches"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
@@ -899,7 +744,7 @@ export function AssignViewSurvey() {
             <button
               type="button"
               className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={loadData}
+              onClick={fetchAssignments}
               disabled={loading}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 14, height: 14, marginRight: 6 }}>
@@ -968,48 +813,8 @@ export function AssignViewSurvey() {
         </div>
       )}
 
-      {/* ── Top 4 Key KPI Metric Cards (Standard Unified Reference Pattern) ── */}
+      {/* ── Top 4 KPI Metric Cards in .asw-cards-row ── */}
       <div className="asw-cards-row">
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-          }
-          tone="accent"
-          label="Total Assign Sites"
-          value={totalAssignSites}
-          sub={`${records.length} survey batches allocated`}
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-          tone="amber"
-          label="Pending Assign Site"
-          value={pendingAssignSites}
-          sub="Awaiting authorization / approval"
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          }
-          tone="emerald"
-          label="Complete Survey"
-          value={completeSurveys}
-          sub="Feasibility reports conducted"
-        />
-
         <KpiCard
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1018,97 +823,76 @@ export function AssignViewSurvey() {
               <polyline points="7 3 7 8 15 8" />
             </svg>
           }
-          tone="cyan"
-          label="Pending Survey"
-          value={approvedSitesCount}
-          sub="Authorized & awaiting field visit"
+          tone="accent"
+          label="Total Sites"
+          value={totalSites}
+          sub={`Assigned: ${assignedSites} / Unassigned: ${notAssignedSites}`}
         />
-      </div>
-
-      {/* ── Report Wise Bifurcation Pills ── */}
-      <div className="asw-bifurcation-row">
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted, #64748b)' }}>Report Wise Bifurcation:</span>
-        <button
-          type="button"
-          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveTab('all')}
-        >
-          All Allocations
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {records.length}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pending')}
-        >
-          Pending Assign
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {records.filter((r) => !r.status || Number(r.status) === 0).length}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`asw-pill-btn ${activeTab === 'approved' ? 'active' : ''}`}
-          onClick={() => setActiveTab('approved')}
-        >
-          Approved
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {records.filter((r) => Number(r.status) === 1).length}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`asw-pill-btn ${activeTab === 'complete' ? 'active' : ''}`}
-          onClick={() => setActiveTab('complete')}
-        >
-          Complete Survey
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'complete' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {records.filter((r) => Number(r.status) === 2).length}
-          </span>
-        </button>
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <polyline points="16 11 18 13 22 9" />
+            </svg>
+          }
+          tone="cyan"
+          label="Assigned Sites"
+          value={assignedSites}
+          sub="Dispatched to registered vendors"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
+          tone="emerald"
+          label="Completed Survey"
+          value={completeSurveys}
+          sub="Feasibility reports conducted"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+          tone="amber"
+          label="Pending Survey"
+          value={pendingSurveys}
+          sub="Awaiting field completion"
+        />
       </div>
 
       {/* ── Main Data Card ── */}
       <section className="ax-card ax-col--12">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">
-              {activeTab === 'pending'
-                ? 'Pending Assign JK Resco Surveys'
-                : activeTab === 'approved'
-                ? 'Approved JK Resco Surveys'
-                : activeTab === 'complete'
-                ? 'Completed JK Resco Surveys'
-                : 'All Assigned JK Resco Surveys'}
-            </h2>
+            <h2 className="ax-card__title">View Assigned JK Resco Survey Data</h2>
             <p className="ax-card__subtitle">
-              Showing {filteredRows.length} batch record{filteredRows.length === 1 ? '' : 's'} across Jammu &amp; Kashmir region
+              <span className="ax-num">{filteredAssigns.length}</span> of <span className="ax-num">{assigns.length}</span> allocations
+              {' '}· Approved <b className="ax-num">{assigns.filter((a) => Number(a.status) === 1).length}</b> · Pending <b className="ax-num">{assigns.filter((a) => !a.status || Number(a.status) === 0).length}</b>
             </p>
           </div>
-
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {/* District Filter Dropdown */}
-              {districtOptions.length > 0 && (
+              {availableDistricts.length > 0 && (
                 <select
+                  id="assign_district_filter"
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={districtFilter}
-                  onChange={(e) => setDistrictFilter(e.target.value)}
-                  aria-label="Filter assignments by district"
-                  style={{
-                    height: 32,
-                    fontSize: 12,
-                    padding: '0 10px',
-                    borderRadius: 6,
-                    border: '1px solid var(--ax-border, #cbd5e1)',
-                    background: '#ffffff',
-                    color: '#334155',
-                    fontWeight: 500,
+                  onChange={(e) => {
+                    setDistrictFilter(e.target.value);
+                    pagination.setPage(1);
                   }}
+                  aria-label="Filter by district"
                 >
-                  <option value="all">All Districts ({districtOptions.length})</option>
-                  {districtOptions.map((d) => (
+                  <option value="all">All Districts</option>
+                  {availableDistricts.map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>
@@ -1116,35 +900,65 @@ export function AssignViewSurvey() {
                 </select>
               )}
 
-              {/* Reset Button */}
-              {(searchQuery.trim() !== '' || districtFilter !== 'all' || activeTab !== 'all') && (
+              <select
+                id="assign_status_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  pagination.setPage(1);
+                }}
+                aria-label="Filter by approval status"
+              >
+                <option value="all">All Status</option>
+                <option value="0">Pending (0)</option>
+                <option value="1">Approved (1)</option>
+              </select>
+
+              {(searchQuery.trim() !== '' || statusFilter !== 'all' || districtFilter !== 'all') && (
                 <button
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
                   onClick={() => {
                     setSearchQuery('');
+                    setStatusFilter('all');
                     setDistrictFilter('all');
-                    setActiveTab('all');
                     pagination.setPage(1);
                   }}
-                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs, 12px)' }}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                 >
                   Reset
                 </button>
               )}
 
+              <Link
+                to="/vendor-management/jammu/survey/resco/assign"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 32,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                + Assign New Survey
+              </Link>
               <SearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
                 placeholder="Search vendor, district, site..."
                 size="sm"
               />
-
               <TableExportToolbar
-                onCopy={() => copyToClipboard(filteredRows, exportCols)}
-                onExportCSV={() => exportToCSV(filteredRows, exportCols, `${fileBase}_${stamp}`)}
-                onExportExcel={() => exportToExcel(filteredRows, exportCols, `${fileBase}_${stamp}`)}
-                onExportPDF={() => exportToPDF(filteredRows, exportCols, fileTitle)}
+                onCopy={() => copyToClipboard(filteredAssigns, exportCols)}
+                onExportCSV={() => exportToCSV(filteredAssigns, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filteredAssigns, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filteredAssigns, exportCols, fileTitle)}
               />
             </div>
           </div>
@@ -1152,238 +966,233 @@ export function AssignViewSurvey() {
 
         {/* ── Responsive Horizontal Scroll Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1420 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1100 }}>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th" style={{ width: 60 }}>Sr. No.</th>
-                <th className="ax-table__th" style={{ width: 90 }}>Batch ID</th>
-                <th className="ax-table__th" style={{ minWidth: 160 }}>Vendor</th>
-                <th className="ax-table__th" style={{ width: 120 }}>Assign Date</th>
-                <th className="ax-table__th" style={{ width: 130 }}>State</th>
-                <th className="ax-table__th" style={{ width: 90 }}>Volume</th>
-                <th className="ax-table__th" style={{ width: 120 }}>District</th>
-                <th className="ax-table__th" style={{ minWidth: 260 }}>Site Name</th>
-                <th className="ax-table__th" style={{ textAlign: 'right', width: 100 }}>Site Count</th>
-                <th className="ax-table__th" style={{ textAlign: 'center', width: 90 }}>File</th>
-                <th className="ax-table__th" style={{ minWidth: 180 }}>Remarks</th>
-                <th className="ax-table__th" style={{ textAlign: 'center', width: 120 }}>Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center', width: 170 }}>Action</th>
+                <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">Assign Date</th>
+                <th className="ax-table__th">State</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th">Site / Building Name</th>
+                <th className="ax-table__th">Count</th>
+                <th className="ax-table__th">Deadline Date</th>
+                <th className="ax-table__th">File</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th">Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={13} style={centerCell}>
+                  <td colSpan={12} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
-                      <span>Loading assigned RESCO survey records...</span>
+                      <span>Loading assigned survey records...</span>
                     </div>
                   </td>
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={13} style={centerCell}>
+                  <td colSpan={12} style={centerCell}>
                     <TableEmptyState
-                      title="No assigned surveys found"
-                      description={searchQuery ? 'Try adjusting your search criteria' : 'No survey allocations match this view'}
+                      title="No assignments found"
+                      description={searchQuery ? 'Try adjusting your search criteria' : 'No survey batches have been assigned yet'}
                     />
                   </td>
                 </tr>
               ) : (
-                pagination.paged.map((row: JammuRescoAssignedSurveyItem, idx: number) => {
+                pagination.paged.map((row: JKRescoSurveyAssignRecord, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const vendorName = getVendorName(row);
-                  const sitesList = formatSitesList(row);
-                  const count = row.sitecount ?? row.site_count ?? sitesList.length;
-                  const st = Number(row.status ?? 0);
+                  const siteDisplay = getSiteDisplayString(row);
+                  const count = row.sitecount || row.site_count || (row.sites ? row.sites.length : (row.site_details ? row.site_details.length : 1));
+                  const deadline = row.deadline_date || (row.sites && row.sites[0]?.inst_deadline);
                   const attachedFile = row.file || row.document;
 
                   return (
                     <tr key={row.id}>
-                      {/* 1. Sr. No. */}
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-
-                      {/* 2. Batch ID */}
-                      <td className="ax-table__td">
-                        <span
-                          className="ax-badge"
-                          style={{
-                            background: 'rgba(37, 99, 235, 0.12)',
-                            color: '#2563eb',
-                            fontWeight: 700,
-                            fontSize: 12,
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                          }}
-                        >
-                          #{row.id}
-                        </span>
-                      </td>
-
-                      {/* 3. Vendor */}
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong, #0f172a)' }}>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                         {vendorName}
                       </td>
-
-                      {/* 4. Assign Date */}
                       <td className="ax-table__td">{fmtDate(row.assign_date || row.created_at)}</td>
-
-                      {/* 5. State */}
                       <td className="ax-table__td">
-                        {row.state?.toLowerCase().includes('jammu') ? 'Jammu & Kashmir' : (row.state || 'Jammu & Kashmir')}
+                        {row.state?.toLowerCase().includes('jammu') ? 'JAMMU' : (row.state || 'JAMMU')}
                       </td>
-
-                      {/* 6. Volume */}
+                      <td className="ax-table__td">{row.district || '—'}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {siteDisplay || '—'}
+                      </td>
                       <td className="ax-table__td">
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAssignForSites(row)}
                           style={{
-                            background: 'var(--ax-surface-subtle, #f8fafc)',
-                            border: '1px solid #e2e8f0',
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
                             padding: '2px 8px',
-                            borderRadius: 4,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: '#334155',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
                           }}
+                          title="Click to view allocated sites"
                         >
-                          {row.volume || 'VOL-1'}
-                        </span>
+                          {count} Site{count === 1 ? '' : 's'} ↗
+                        </button>
                       </td>
-
-                      {/* 7. District */}
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.district || '—'}</td>
-
-                      {/* 8. Site Name */}
-                      <td className="ax-table__td" style={{ maxWidth: 280, whiteSpace: 'normal' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                            {row.site_name || sitesList[0] || `Batch #${row.id}`}
-                          </span>
-                          {sitesList.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedRecordForSites(row)}
-                              style={{
-                                background: 'rgba(37, 99, 235, 0.1)',
-                                color: '#2563eb',
-                                border: '1px solid rgba(37, 99, 235, 0.25)',
-                                borderRadius: 4,
-                                padding: '1px 6px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
-                              title="Click to view all allocated sites"
-                            >
-                              +{sitesList.length - 1} more sites &nearr;
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 9. Site Count */}
-                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
-                        {count}
-                      </td>
-
-                      {/* 10. File */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      <td className="ax-table__td">{fmtDate(deadline)}</td>
+                      <td className="ax-table__td">
                         <MediaFileThumbnail file={attachedFile} onClick={setLightboxUrl} />
                       </td>
-
-                      {/* 11. Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.remarks || row.remark || ''}>
+                      <td className="ax-table__td" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {row.remarks || row.remark || '—'}
                       </td>
-
-                      {/* 12. Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {st === 2 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Complete
+                      <td className="ax-table__td">
+                        {Number(row.status) === 2 ? (
+                          <span
+                            className="ax-badge"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: '#2563eb',
+                              background: 'rgba(37, 99, 235, 0.1)',
+                              border: '1px solid rgba(37, 99, 235, 0.25)',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
+                            Accepted
                           </span>
-                        ) : st === 1 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700, background: '#e0f2fe', color: '#0369a1' }}>
+                        ) : Number(row.status) === 1 ? (
+                          <span
+                            className="ax-badge"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: '#16a34a',
+                              background: 'rgba(22, 163, 74, 0.1)',
+                              border: '1px solid rgba(22, 163, 74, 0.25)',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }} />
                             Approved
                           </span>
                         ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
+                          <span
+                            className="ax-badge"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: '#d97706',
+                              background: 'rgba(217, 119, 6, 0.1)',
+                              border: '1px solid rgba(217, 119, 6, 0.25)',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d97706' }} />
                             Pending
                           </span>
                         )}
                       </td>
-
-                      {/* 13. Actions */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          {/* Conduct Button */}
-                          <Link
-                            to={`/vendor-management/jammu/survey/resco/assigned-vendor?siteId=${row.id}`}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              background: '#2563eb',
-                              color: '#ffffff',
-                              border: 'none',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              textDecoration: 'none',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
-                            }}
-                            title="Conduct or review field survey"
-                          >
-                            Conduct
-                          </Link>
-
-                          {/* Approve Button (when pending) */}
-                          {st === 0 && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {(!row.status || Number(row.status) === 0) && (
                             <button
                               type="button"
-                              onClick={() => setApprovingRecord(row)}
+                              onClick={() => handleApprove(row.id)}
+                              disabled={approvingId === row.id}
                               style={{
-                                padding: '4px 8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 10px',
                                 borderRadius: 6,
-                                background: '#16a34a',
+                                background: '#10b981',
                                 color: '#ffffff',
                                 border: 'none',
                                 fontSize: 11,
                                 fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
+                                cursor: approvingId === row.id ? 'not-allowed' : 'pointer',
+                                opacity: approvingId === row.id ? 0.7 : 1,
                               }}
-                              title="Approve survey allocation"
                             >
-                              Approve
+                              {approvingId === row.id ? (
+                                <>
+                                  <span className="ax-spinner" style={{ width: 10, height: 10 }} />
+                                  Approving...
+                                </>
+                              ) : (
+                                'Approve'
+                              )}
                             </button>
                           )}
 
-                          {/* Details Button */}
+                          <Link
+                            to={`/vendor-management/jammu/survey/resco/assign?edit=${row.id}`}
+                            title="Edit Assignment"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              background: 'rgba(37, 99, 235, 0.08)',
+                              color: '#2563eb',
+                              border: '1px solid rgba(37, 99, 235, 0.2)',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="12"
+                              height="12"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            Edit
+                          </Link>
+
                           <button
                             type="button"
-                            onClick={() => setSelectedRecordForSites(row)}
+                            onClick={() => setSelectedAssignForSites(row)}
                             style={{
                               padding: '4px 8px',
                               borderRadius: 6,
-                              background: '#f1f5f9',
-                              color: '#1e293b',
-                              border: '1px solid #cbd5e1',
+                              background: 'var(--ax-surface-subtle, #f1f5f9)',
+                              border: '1px solid var(--ax-border, #cbd5e1)',
+                              color: 'var(--ax-text-strong)',
                               fontSize: 11,
                               fontWeight: 600,
                               cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
                             }}
-                            title="View allocated sites breakdown"
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="10" r="3" />
-                            </svg>
                             Details
                           </button>
                         </div>
@@ -1396,7 +1205,7 @@ export function AssignViewSurvey() {
           </table>
         </div>
 
-        {/* ── Left-Aligned Pagination in Footer ── */}
+        {/* ── Left Aligned Pagination in Footer ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -1405,57 +1214,45 @@ export function AssignViewSurvey() {
               pageSize={pagination.pageSize}
               onPageChange={pagination.setPage}
               onPageSizeChange={pagination.setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
       </section>
 
-      {/* ── Modal: Assigned Sites Breakdown ── */}
+      {/* ── Modal Dialog: Assigned Rooftop Sites ── */}
       <Modal
-        open={Boolean(selectedRecordForSites)}
-        onClose={() => setSelectedRecordForSites(null)}
-        title={`Assigned Sites Breakdown: ${getVendorName(selectedRecordForSites)}`}
-        subtitle={`Batch ID: #${selectedRecordForSites?.id} • District: ${selectedRecordForSites?.district} • State: ${selectedRecordForSites?.state || 'Jammu & Kashmir'} • Volume: ${selectedRecordForSites?.volume || 'VOL-1'}`}
+        open={Boolean(selectedAssignForSites)}
+        onClose={() => setSelectedAssignForSites(null)}
+        title={`Assigned Sites: ${getVendorName(selectedAssignForSites)}`}
+        subtitle={`Batch ID #${selectedAssignForSites?.id} • District: ${selectedAssignForSites?.district || '—'} • Total: ${selectedAssignForSites?.sitecount || selectedAssignForSites?.site_count || (selectedAssignForSites?.sites ? selectedAssignForSites.sites.length : 1)} Site(s)`}
         maxWidth={780}
         footer={
           <button
             type="button"
-            className="ax-button ax-button--secondary"
-            onClick={() => setSelectedRecordForSites(null)}
-            style={{ padding: '6px 16px', fontSize: 13 }}
+            className="ax-btn ax-btn--primary"
+            onClick={() => setSelectedAssignForSites(null)}
+            style={{
+              padding: '6px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
           >
             Close
           </button>
         }
       >
-        {selectedRecordForSites && (
+        {selectedAssignForSites && (
           <div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 12,
-                marginBottom: 16,
-                background: '#f8fafc',
-                padding: 14,
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-              }}
-            >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
               <div>
                 <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
-                <strong style={{ fontSize: 13 }}>{getVendorName(selectedRecordForSites)}</strong>
+                <strong style={{ fontSize: 13 }}>{getVendorName(selectedAssignForSites)}</strong>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Allocated Sites</span>
-                <strong style={{ fontSize: 13, color: '#2563eb' }}>
-                  {selectedRecordForSites.sitecount ?? selectedRecordForSites.site_count ?? 1} Sites
-                </strong>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Assign Date</span>
-                <strong style={{ fontSize: 13 }}>{fmtDate(selectedRecordForSites.assign_date || selectedRecordForSites.created_at)}</strong>
+                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
+                <strong style={{ fontSize: 13 }}>{fmtDate(selectedAssignForSites.deadline_date || (selectedAssignForSites.sites && selectedAssignForSites.sites[0]?.inst_deadline))}</strong>
               </div>
               <div>
                 <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Status</span>
@@ -1463,70 +1260,77 @@ export function AssignViewSurvey() {
                   style={{
                     fontSize: 13,
                     color:
-                      Number(selectedRecordForSites.status) === 2
-                        ? '#16a34a'
-                        : Number(selectedRecordForSites.status) === 1
+                      Number(selectedAssignForSites.status) === 2
                         ? '#2563eb'
+                        : Number(selectedAssignForSites.status) === 1
+                        ? '#10b981'
                         : '#d97706',
                   }}
                 >
-                  {Number(selectedRecordForSites.status) === 2
-                    ? 'Complete'
-                    : Number(selectedRecordForSites.status) === 1
+                  {Number(selectedAssignForSites.status) === 2
+                    ? 'Accepted'
+                    : Number(selectedAssignForSites.status) === 1
                     ? 'Approved'
                     : 'Pending'}
                 </strong>
               </div>
             </div>
 
-            {selectedRecordForSites.remarks && (
-              <div style={{ marginBottom: 16, padding: '10px 12px', background: '#f8fafc', borderRadius: 6, fontSize: 12, color: '#475569', border: '1px solid #e2e8f0' }}>
-                <strong>Remarks:</strong> {selectedRecordForSites.remarks}
-              </div>
-            )}
-
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--ax-text-muted, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Allocated Sites ({formatSitesList(selectedRecordForSites).length}):
-            </div>
-
-            <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+            <div style={{ maxHeight: 380, overflowY: 'auto' }}>
               <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th className="ax-table__th" style={{ width: 60 }}>Sr. No.</th>
-                    <th className="ax-table__th">Site Name</th>
+                    <th className="ax-table__th">#</th>
+                    <th className="ax-table__th">Site ID</th>
+                    <th className="ax-table__th">Site / Building Name</th>
+                    <th className="ax-table__th">Site Code / CA No</th>
+                    <th className="ax-table__th">Sanction Load</th>
                     <th className="ax-table__th">District</th>
-                    <th className="ax-table__th" style={{ textAlign: 'center', width: 140 }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {formatSitesList(selectedRecordForSites).map((sName, sIdx) => (
-                    <tr key={sIdx}>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{sIdx + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#0f172a' }}>{sName}</td>
-                      <td className="ax-table__td">{selectedRecordForSites.district || 'Jammu'}</td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Link
-                          to={`/vendor-management/jammu/survey/resco/assigned-vendor?siteId=${selectedRecordForSites.id}`}
-                          onClick={() => setSelectedRecordForSites(null)}
-                          style={{
-                            padding: '3px 10px',
-                            background: '#2563eb',
-                            color: '#ffffff',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            textDecoration: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                          }}
-                        >
-                          Conduct Survey &rarr;
-                        </Link>
+                  {(selectedAssignForSites.sites && selectedAssignForSites.sites.length > 0) ? (
+                    selectedAssignForSites.sites.map((site, sIdx: number) => (
+                      <tr key={site.id || sIdx}>
+                        <td className="ax-table__td">{sIdx + 1}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                          #{site.id}
+                        </td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{site.site_name || '—'}</td>
+                        <td className="ax-table__td">
+                          {site.site_code || site.ca_no ? (
+                            <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+                              {site.site_code && <span className="ax-badge" style={{ fontSize: 10, padding: '2px 6px' }}>{site.site_code}</span>}
+                              {site.ca_no && <span style={{ color: '#64748b' }}>({site.ca_no})</span>}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="ax-table__td">{site.sanction_load ? `${site.sanction_load} kW` : '—'}</td>
+                        <td className="ax-table__td">{selectedAssignForSites.district || '—'}</td>
+                      </tr>
+                    ))
+                  ) : (selectedAssignForSites.site_details && selectedAssignForSites.site_details.length > 0) ? (
+                    selectedAssignForSites.site_details.map((site, sIdx: number) => (
+                      <tr key={site.id || sIdx}>
+                        <td className="ax-table__td">{sIdx + 1}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                          #{site.id}
+                        </td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{site.site_name || '—'}</td>
+                        <td className="ax-table__td">—</td>
+                        <td className="ax-table__td">—</td>
+                        <td className="ax-table__td">{selectedAssignForSites.district || '—'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
+                        {selectedAssignForSites.site_name ? `Site: ${selectedAssignForSites.site_name}` : 'No individual site items populated for this batch ID.'}
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1534,111 +1338,110 @@ export function AssignViewSurvey() {
         )}
       </Modal>
 
-      {/* ── Modal: Confirm Approval ── */}
-      <Modal
-        open={Boolean(approvingRecord)}
-        onClose={() => {
-          if (!isApproving) setApprovingRecord(null);
-        }}
-        title="Approve RESCO Survey Assignment"
-        maxWidth={480}
-        footer={
-          <>
-            <button
-              type="button"
-              className="ax-button ax-button--secondary"
-              onClick={() => setApprovingRecord(null)}
-              disabled={isApproving}
-              style={{ padding: '6px 14px', fontSize: 13 }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="ax-button ax-button--primary"
-              onClick={handleConfirmApprove}
-              disabled={isApproving}
-              style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              {isApproving && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
-              Confirm Approval
-            </button>
-          </>
-        }
-      >
-        {approvingRecord && (
-          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-            <p style={{ margin: '0 0 12px' }}>
-              Are you sure you want to approve survey assignment{' '}
-              <strong>Batch #{approvingRecord.id}</strong> for{' '}
-              <strong>{getVendorName(approvingRecord)}</strong>?
-            </p>
+      {/* ── Document / File Lightbox Preview Modal ── */}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#ffffff',
+              borderRadius: 12,
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <div
               style={{
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                borderRadius: 8,
-                padding: 12,
-                color: '#1e40af',
-                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                borderBottom: '1px solid #e2e8f0',
+                background: '#f8fafc',
               }}
             >
-              This will update the survey batch status to <strong>Approved</strong> and authorize field inspection.
+              <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
+                Assignment Document Preview
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a
+                  href={lightboxUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 12,
+                    color: '#2563eb',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
+                  }}
+                >
+                  Open Original ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(null)}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: 18,
+                    color: '#64748b',
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div
+              style={{
+                padding: 16,
+                overflowY: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 400,
+                minHeight: 300,
+              }}
+            >
+              {/\.pdf($|\?)/i.test(lightboxUrl) ? (
+                <iframe
+                  src={lightboxUrl}
+                  title="Document Preview"
+                  style={{ width: '80vw', height: '75vh', border: 'none' }}
+                />
+              ) : (
+                <img
+                  src={lightboxUrl}
+                  alt="Full preview"
+                  style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }}
+                />
+              )}
             </div>
           </div>
-        )}
-      </Modal>
-
-      {/* ── Document Lightbox Modal ── */}
-      <Modal
-        open={Boolean(lightboxUrl)}
-        onClose={() => setLightboxUrl(null)}
-        title="Work Order Document Preview"
-        maxWidth={840}
-        footer={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            {lightboxUrl ? (
-              <a
-                href={lightboxUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
-              >
-                Open original in new tab ↗
-              </a>
-            ) : <div />}
-            <button
-              type="button"
-              className="ax-button ax-button--secondary"
-              onClick={() => setLightboxUrl(null)}
-              style={{ padding: '6px 16px', fontSize: 13 }}
-            >
-              Close
-            </button>
-          </div>
-        }
-      >
-        {lightboxUrl && (
-          <div style={{ textAlign: 'center', padding: 4 }}>
-            {/\.(pdf)($|\?)/i.test(lightboxUrl) ? (
-              <iframe
-                src={lightboxUrl}
-                title="PDF Preview"
-                style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8 }}
-              />
-            ) : (
-              <img
-                src={lightboxUrl}
-                alt="Document Preview"
-                style={{ maxWidth: '100%', maxHeight: '68vh', objectFit: 'contain', borderRadius: 8 }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-            )}
-          </div>
-        )}
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }

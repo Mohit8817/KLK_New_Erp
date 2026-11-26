@@ -1,9 +1,10 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { getMediaUrl } from '../../up-services';
+import { getMediaUrl, getUpMediaCandidates } from '../../up-services';
+import { UP_MODAL_CSS, DetailSectionCard, AttachmentCardGrid } from './UpComplaintModalUI';
 import {
   Pagination,
   usePagination,
@@ -63,22 +64,59 @@ const STATUS_META: Record<StatusKey, { label: string; tone: 'warning' | 'info' |
 
 export const statusLabel = (row: unknown) => STATUS_META[statusKey(row)].label;
 
+const hasAssignedValue = (v: unknown): boolean => {
+  if (v === null || v === undefined) return false;
+  const s = String(v).trim().toLowerCase();
+  return (
+    s !== '' &&
+    s !== '0' &&
+    s !== 'null' &&
+    s !== 'undefined' &&
+    s !== 'na' &&
+    s !== 'n/a' &&
+    s !== '-' &&
+    s !== '—' &&
+    s !== '0000-00-00' &&
+    s !== '0000-00-00 00:00:00'
+  );
+};
+
+export const isComplaintAssigned = (row: unknown): boolean => {
+  const r = asRec(row);
+  if (!r) return false;
+  if (
+    hasAssignedValue(r.assigned_to) ||
+    hasAssignedValue(r.assign_to) ||
+    hasAssignedValue(r.assigned_date) ||
+    hasAssignedValue(r.assign_date) ||
+    hasAssignedValue(r.assigned_vendor) ||
+    hasAssignedValue(r.assign_vendor) ||
+    Number(r.assign_status) === 1 ||
+    Number(r.assigned_status) === 1
+  ) {
+    return true;
+  }
+  const sk = statusKey(r);
+  return sk === 'resolved' || sk === 'pending';
+};
+
 export const StatusBadge = ({ row }: { row: unknown }) => {
   const m = STATUS_META[statusKey(row)];
   return <span className={`ax-badge ax-badge--soft ax-badge--${m.tone}`}>{m.label}</span>;
 };
 
-export const allDocUrlsOf = (row: unknown): { label: string; url: string }[] => {
+export const allDocUrlsOf = (row: unknown): { label: string; url: string; candidates: string[] }[] => {
   const r = asRec(row);
   if (!r) return [];
-  const list: { label: string; url: string }[] = [];
+  const list: { label: string; url: string; candidates: string[] }[] = [];
   const add = (label: string, path?: string | null) => {
     if (path && typeof path === 'string') {
       const trimmed = path.trim();
       if (trimmed && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'NA') {
-        const url = getMediaUrl(trimmed);
+        const candidates = getUpMediaCandidates(trimmed);
+        const url = candidates[0] || getMediaUrl(trimmed);
         if (url && !list.some((item) => item.url === url)) {
-          list.push({ label, url });
+          list.push({ label, url, candidates: candidates.length ? candidates : [url] });
         }
       }
     }
@@ -102,7 +140,7 @@ export const docUrlOf = (row: unknown): string => {
 /* ───────── Column helpers ───────── */
 export interface CellCtx {
   serial: number;
-  openPreview: (url: string, title: string) => void;
+  openPreview: (url: string, title: string, candidates?: string[]) => void;
 }
 
 export interface ComplaintColumn<T> {
@@ -154,7 +192,7 @@ export function documentCol<T>(header = 'Document'): ComplaintColumn<T> {
       return (
         <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
           {docs.slice(0, 2).map((d, i) => (
-            <DocThumb key={i} url={d.url} alt={d.label} onPreview={ctx.openPreview} />
+            <DocThumb key={i} url={d.url} candidates={d.candidates} alt={d.label} onPreview={ctx.openPreview} />
           ))}
           {docs.length > 2 && (
             <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600 }}>
@@ -220,7 +258,7 @@ function Modal({
 
   if (!open) return null;
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div className="ax-modal ax-modal--centered up-modal" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
       <div className="ax-modal__backdrop" onClick={onClose} />
       <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
         {children}
@@ -233,20 +271,40 @@ function Modal({
 /* ───────── Image preview modal (zoom) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
-function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+function ImagePreviewModal({
+  url,
+  candidates,
+  title,
+  onClose,
+}: {
+  url: string;
+  candidates?: string[];
+  title: string;
+  onClose: () => void;
+}) {
+  const list = useMemo(() => {
+    const arr = candidates && candidates.length > 0 ? candidates : url ? [url] : [];
+    return url && !arr.includes(url) ? [url, ...arr] : arr;
+  }, [url, candidates]);
+  const [srcIdx, setSrcIdx] = useState(0);
   const [zoomIdx, setZoomIdx] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const zoom = ZOOM_STEPS[zoomIdx];
+  const activeUrl = list[srcIdx] || url;
 
   useEffect(() => {
+    setSrcIdx(0);
     setZoomIdx(0);
     setStatus('loading');
-  }, [url]);
+  }, [url, candidates]);
 
   return (
-    <Modal open onClose={onClose} labelledBy="ula-preview-title" dialogClass="ax-modal__dialog--lg">
+    <Modal open onClose={onClose} labelledBy="ula-preview-title" dialogClass="up-modal__dialog--preview">
       <div className="ax-modal__header">
-        <h2 className="ax-modal__title" id="ula-preview-title">{title || 'Media Preview'}</h2>
+        <div>
+          <span className="up-modal__eyebrow">Media Preview</span>
+          <h2 className="ax-modal__title" id="ula-preview-title">{title || 'Attached Document'}</h2>
+        </div>
         <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
       </div>
 
@@ -259,11 +317,17 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
             <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
           )}
           <img
-            key={url}
-            src={url}
+            key={activeUrl}
+            src={activeUrl}
             alt={title || 'Preview'}
             onLoad={() => setStatus('ready')}
-            onError={() => setStatus('error')}
+            onError={() => {
+              if (srcIdx + 1 < list.length) {
+                setSrcIdx((i) => i + 1);
+              } else {
+                setStatus('error');
+              }
+            }}
             style={{
               display: status === 'ready' ? 'block' : 'none',
               margin: 'auto',
@@ -283,7 +347,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
           <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
         </div>
         <div className="ula-m-zoom">
-          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <a href={activeUrl} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
           <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -294,26 +358,65 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
 /* ───────── Thumbnail (NO BORDER RADIUS) ───────── */
 export function DocThumb({
   url,
+  candidates,
   alt,
   onPreview,
   size = 34,
 }: {
   url?: string | null;
+  candidates?: string[];
   alt: string;
-  onPreview: (url: string, title: string) => void;
+  onPreview: (url: string, title: string, candidates?: string[]) => void;
   size?: number;
 }) {
+  const list = useMemo(() => {
+    const arr = candidates && candidates.length > 0 ? candidates : url ? [url] : [];
+    return url && !arr.includes(url) ? [url, ...arr] : arr;
+  }, [url, candidates]);
+  const [idx, setIdx] = useState(0);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    setIdx(0);
     setFailed(false);
-  }, [url]);
+  }, [url, candidates]);
 
-  if (!url || failed) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  const activeUrl = list[idx];
+  if (!activeUrl) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+
+  if (failed) {
+    return (
+      <a
+        href={list[0]}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        title={`${alt} — open file`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 0,
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f1f5f9)',
+          color: 'var(--ax-primary-default, #2563eb)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          textDecoration: 'none',
+        }}
+      >
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+      </a>
+    );
+  }
 
   return (
     <img
-      src={url}
+      src={activeUrl}
       alt={alt}
       style={{
         width: size,
@@ -326,22 +429,74 @@ export function DocThumb({
         display: 'block',
         flexShrink: 0,
       }}
-      onError={() => setFailed(true)}
-      onClick={() => onPreview(url, alt)}
+      onError={() => {
+        if (idx + 1 < list.length) {
+          setIdx((i) => i + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(activeUrl, alt, list)}
       title="Click to preview"
     />
   );
 }
 
 /* ───────── Row action dropdown (menu rendered in <body>) ───────── */
-const MENU_W = 180;
-const MENU_H = 84;
+const MENU_W = 148;
 
-function RowActionDropdown({ docUrl, onView }: { docUrl: string; onView: () => void }) {
+function LockedAssignedBadge() {
+  return (
+    <span
+      className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '4px 10px',
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: 'var(--ax-text-muted, #64748b)',
+        background: 'var(--ax-surface-subtle, #f1f5f9)',
+        border: '1px solid var(--ax-border, #cbd5e1)',
+        cursor: 'not-allowed',
+        userSelect: 'none',
+      }}
+      title="Complaint assigned — edit/delete locked"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={12}
+        height={12}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      </svg>
+      <span>Assigned</span>
+    </span>
+  );
+}
+
+function RowActionDropdown({
+  onEdit,
+  onDelete,
+}: {
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const visibleCount = (onEdit ? 1 : 0) + (onDelete ? 1 : 0);
+  const menuH = Math.max(1, visibleCount) * 36 + 12;
 
   const toggle = () => {
     if (open) {
@@ -352,7 +507,7 @@ function RowActionDropdown({ docUrl, onView }: { docUrl: string; onView: () => v
     if (!b) return;
     const r = b.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const top = spaceBelow < menuH + 8 && r.top > menuH + 8 ? r.top - menuH - 4 : r.bottom + 4;
     const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
     setPos({ top, left });
     setOpen(true);
@@ -409,28 +564,44 @@ function RowActionDropdown({ docUrl, onView }: { docUrl: string; onView: () => v
       {open && pos &&
         createPortal(
           <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onView();
-              }}
-            >
-              View Details
-            </button>
-            {docUrl && (
-              <a
-                href={docUrl}
-                target="_blank"
-                rel="noreferrer"
+            {onEdit && (
+              <button
+                type="button"
                 className="ula-menu__item"
                 role="menuitem"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
               >
-                Open Document
-              </a>
+                <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" style={{ color: '#2563eb', flexShrink: 0 }} aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="ula-menu__item ula-menu__item--danger"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onDelete();
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ax-danger, #dc2626)' }}
+              >
+                <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ax-danger, #dc2626)', flexShrink: 0 }} aria-hidden="true">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+                <span>Delete</span>
+              </button>
             )}
           </div>,
           document.body
@@ -439,9 +610,12 @@ function RowActionDropdown({ docUrl, onView }: { docUrl: string; onView: () => v
   );
 }
 
-/* ───────── CSS (same as ULA View Installation) ───────── */
+/* ───────── CSS (same as ULA View Installation + Unified Vendor Modal) ───────── */
 const OVERLAY_CSS = `
+  ${UP_MODAL_CSS}
   .ax-modal img { border-radius: 0 !important; }
+  .up-modal .up-drop-preview,
+  .up-modal .view-card img { border-radius: 6px !important; }
 
   .ula-m-stage {
     position: relative; display: flex; overflow: auto;
@@ -485,6 +659,11 @@ const OVERLAY_CSS = `
     color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
   }
   .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
+  .ula-menu__item--danger:hover, .ula-menu__item--danger:focus-visible { background: #fef2f2; outline: none; }
+  .up-comp-row-clickable { cursor: pointer; }
+  .up-edit-field { display: flex; flex-direction: column; gap: 5px; }
+  .up-edit-label { font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b); }
+  .up-edit-req { color: #ef4444; margin-left: 2px; }
 
   @media (max-width: 560px) {
     .ula-m-stage { height: 56vh; }
@@ -603,6 +782,11 @@ export interface ComplaintViewProps<T extends object> {
   loadingText: string;
   emptyMessage: string;
   fetchData: () => Promise<T[]>;
+  /** Delete complaint handler */
+  onDeleteComplaint?: (
+    id: number | string,
+    row: T
+  ) => Promise<{ status: boolean; message: string }>;
   columns: ComplaintColumn<T>[];
   /** Values searched by the search box. */
   searchFields: (row: T) => unknown[];
@@ -615,9 +799,11 @@ export interface ComplaintViewProps<T extends object> {
 export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>) {
   const {
     title, subtitle, breadcrumbs, addLink, addLabel, cardTitle, loadingText, emptyMessage,
+    onDeleteComplaint,
     columns, searchFields, detailEyebrow, detailFields, exportName, exportTitle,
   } = props;
 
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<T[]>([]);
@@ -634,12 +820,17 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
     return s;
   });
 
-  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
-  const openPreview = useCallback((url: string, t: string) => setPreview({ url, title: t }), []);
+  const [preview, setPreview] = useState<{ url: string; title: string; candidates?: string[] } | null>(null);
+  const openPreview = useCallback((url: string, t: string, candidates?: string[]) => setPreview({ url, title: t, candidates }), []);
   const closePreview = useCallback(() => setPreview(null), []);
 
   const [detailRow, setDetailRow] = useState<T | null>(null);
   const closeDetail = useCallback(() => setDetailRow(null), []);
+
+  // Delete Confirmation Modal State
+  const [deleteRow, setDeleteRow] = useState<T | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
   useEffect(() => {
@@ -716,6 +907,62 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
     setSelectedDistrict('All');
     setSelectedStatus('All');
     setPage(1);
+  };
+
+  const getRowId = (r: T): number | string => {
+    const rec = asRec(r);
+    return rec?.id ?? rec?.complaint_id ?? '';
+  };
+
+  const getRowSubject = (r: T): string =>
+    pick(r, ['site_name', 'beneficiary_name', 'farmer_name', 'f_name', 'customer_name', 'name']);
+
+  const handleRowClick = useCallback((e: ReactMouseEvent<HTMLTableRowElement>, row: T) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, input, select, textarea, img')) return;
+    setDetailRow(row);
+  }, []);
+
+  const handleOpenEdit = useCallback(
+    (row: T) => {
+      if (isComplaintAssigned(row)) return;
+      const id = getRowId(row);
+      if (id === '') return;
+      const sep = addLink.includes('?') ? '&' : '?';
+      navigate(`${addLink}${sep}edit=${encodeURIComponent(String(id))}`, {
+        state: { editComplaint: row },
+      });
+    },
+    [addLink, navigate]
+  );
+
+  const handleOpenDelete = useCallback((row: T) => {
+    if (isComplaintAssigned(row)) return;
+    setDeleteRow(row);
+    setDeleteError(null);
+  }, []);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteRow || !onDeleteComplaint) return;
+    const id = getRowId(deleteRow);
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await onDeleteComplaint(id, deleteRow);
+      if (res.status) {
+        setToastMsg({ type: 'success', text: res.message || 'Complaint deleted successfully.' });
+        setRows((prev) => prev.filter((r) => getRowId(r) !== id));
+        if (detailRow && getRowId(detailRow) === id) setDetailRow(null);
+        setDeleteRow(null);
+        loadData();
+      } else {
+        setDeleteError(res.message || 'Failed to delete complaint.');
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || 'Server error deleting complaint.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const exportCols: ExportColumn<T>[] = useMemo(
@@ -878,8 +1125,14 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
                   paginatedData.map((row, index) => {
                     const serial = (currentPage - 1) * pageSize + index + 1;
                     const key = pick(row, ['id', 'complaint_id'], String(serial));
+                    const assigned = isComplaintAssigned(row);
                     return (
-                      <tr key={`${key}-${serial}`} className="ax-table__row">
+                      <tr
+                        key={`${key}-${serial}`}
+                        className="ax-table__row up-comp-row-clickable"
+                        onClick={(e) => handleRowClick(e, row)}
+                        title="Click row to view complaint details"
+                      >
                         <td className="ax-table__td ax-num">{serial}</td>
                         {columns.map((c) => (
                           <td key={c.header} className="ax-table__td">
@@ -887,7 +1140,14 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
                           </td>
                         ))}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <RowActionDropdown docUrl={docUrlOf(row)} onView={() => setDetailRow(row)} />
+                          {assigned ? (
+                            <LockedAssignedBadge />
+                          ) : (
+                            <RowActionDropdown
+                              onEdit={() => handleOpenEdit(row)}
+                              onDelete={onDeleteComplaint ? () => handleOpenDelete(row) : undefined}
+                            />
+                          )}
                         </td>
                       </tr>
                     );
@@ -912,7 +1172,14 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
       </div>
 
       {/* ── Photo Preview Modal ── */}
-      {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+      {preview && (
+        <ImagePreviewModal
+          url={preview.url}
+          candidates={preview.candidates}
+          title={preview.title}
+          onClose={closePreview}
+        />
+      )}
 
       {/* ── Details Modal ── */}
       <Modal open={!!detailRow} onClose={closeDetail} labelledBy="up-complaint-detail-title">
@@ -920,55 +1187,187 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
           <>
             <div className="ax-modal__header">
               <div>
-                <p className="ula-m-field__label" style={{ margin: 0 }}>{detailEyebrow}</p>
+                <span className="up-modal__eyebrow">{detailEyebrow}</span>
                 <h2 className="ax-modal__title" id="up-complaint-detail-title">
                   Complaint {pick(detailRow, ['complaint_id', 'id'])}
                 </h2>
+                <p className="up-modal__sub">
+                  Complete complaint record, site specifications and attached proof documents.
+                </p>
               </div>
               <button type="button" className="ax-modal__close" onClick={closeDetail} aria-label="Close dialog">{X_ICON}</button>
             </div>
 
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-              <div className="ula-m-info">
-                <div><span>Status: </span><StatusBadge row={detailRow} /></div>
-                <div><span>District: </span><b>{pick(detailRow, ['district'])}</b></div>
-              </div>
-
-              <div className="ula-m-grid">
-                {detailFields(detailRow).map((f) => (
-                  <div key={f.label}>
-                    <div className="ula-m-field__label">{f.label}</div>
-                    <div className="ula-m-field__value">{f.value}</div>
+            <div className="ax-modal__body">
+              <div className="view-modal-wrap">
+                <div className="view-summary-strip">
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Complaint ID</span>
+                    <span className="view-summary-value">#{pick(detailRow, ['complaint_id', 'id'])}</span>
                   </div>
-                ))}
-              </div>
-
-              <div>
-                <div className="ula-m-field__label" style={{ marginBottom: 4 }}>Complaint Description</div>
-                <div className="ula-m-desc">{pick(detailRow, ['complaint'])}</div>
-              </div>
-
-              {allDocUrlsOf(detailRow).length > 0 && (
-                <div>
-                  <div className="ula-m-field__label" style={{ marginBottom: 6 }}>
-                    Attached Documents & Photos ({allDocUrlsOf(detailRow).length})
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">District</span>
+                    <span className="view-summary-value">{pick(detailRow, ['district', 'district_name'])}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {allDocUrlsOf(detailRow).map((doc, idx) => (
-                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-                        <DocThumb url={doc.url} alt={doc.label} onPreview={openPreview} size={96} />
-                        <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', maxWidth: 96, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {doc.label}
-                        </span>
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Complaint Date</span>
+                    <span className="view-summary-value">{pick(detailRow, ['start_date', 'complaint_date', 'created_date', 'created_at'])}</span>
+                  </div>
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Status</span>
+                    <div><StatusBadge row={detailRow} /></div>
+                  </div>
+                </div>
+
+                <DetailSectionCard
+                  title="Complaint & Site Specifications"
+                  tone="blue"
+                  icon={
+                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <rect x="4" y="2" width="16" height="20" rx="2" />
+                      <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" />
+                    </svg>
+                  }
+                >
+                  <div className="view-grid-3">
+                    {detailFields(detailRow).map((f) => (
+                      <div key={f.label} className="view-data-cell">
+                        <span className="view-data-label">{f.label}</span>
+                        <div className="view-data-value">{f.value}</div>
                       </div>
                     ))}
+                  </div>
+                </DetailSectionCard>
+
+                <DetailSectionCard
+                  title="Complaint Description & Attachments"
+                  tone="purple"
+                  icon={
+                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  }
+                >
+                  <div className="view-data-cell">
+                    <span className="view-data-label" style={{ marginBottom: 4 }}>Detailed Problem Description</span>
+                    <div className="view-desc-box">{pick(detailRow, ['complaint'])}</div>
+                  </div>
+
+                  <AttachmentCardGrid docs={allDocUrlsOf(detailRow)} onPreview={openPreview} />
+                </DetailSectionCard>
+              </div>
+            </div>
+
+            <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+              <div>
+                {isComplaintAssigned(detailRow) ? (
+                  <LockedAssignedBadge />
+                ) : (
+                  <div style={{ display: 'inline-flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--secondary ax-btn--sm"
+                      onClick={() => {
+                        const target = detailRow;
+                        closeDetail();
+                        handleOpenEdit(target);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    {onDeleteComplaint && (
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--ghost ax-btn--sm"
+                        style={{ color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' }}
+                        onClick={() => {
+                          const target = detailRow;
+                          closeDetail();
+                          handleOpenDelete(target);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button type="button" className="ax-btn ax-btn--primary" onClick={closeDetail}>Close</button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <Modal
+        open={!!deleteRow}
+        onClose={() => { if (!deleting) setDeleteRow(null); }}
+        labelledBy="up-complaint-delete-title"
+        dialogClass="up-modal__dialog--compact"
+      >
+        {deleteRow && (
+          <>
+            <div className="ax-modal__header">
+              <div>
+                <span className="up-modal__eyebrow" style={{ color: '#dc2626' }}>Confirm Deletion</span>
+                <h2 className="ax-modal__title" id="up-complaint-delete-title" style={{ color: '#0f172a' }}>
+                  Delete Complaint #{pick(deleteRow, ['complaint_id', 'id'])}
+                </h2>
+                <p className="up-modal__sub">
+                  This action permanently removes the complaint record and cannot be undone.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={() => setDeleteRow(null)}
+                disabled={deleting}
+                aria-label="Close dialog"
+              >
+                {X_ICON}
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="assigned-overview-card">
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: 10 }}>
+                  Complaint Information
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px 16px', fontSize: 12 }}>
+                  <div><span style={{ color: '#64748b' }}>Complaint ID:</span> <b>#{pick(deleteRow, ['complaint_id', 'id'])}</b></div>
+                  <div><span style={{ color: '#64748b' }}>District:</span> <b>{pick(deleteRow, ['district', 'district_name'])}</b></div>
+                  <div><span style={{ color: '#64748b' }}>Site / Beneficiary:</span> <b>{getRowSubject(deleteRow)}</b></div>
+                </div>
+              </div>
+
+              {deleteError && (
+                <div className="ax-alert ax-alert--danger" role="alert">
+                  <div className="ax-alert__content">
+                    <p className="ax-alert__message" style={{ margin: 0 }}>{deleteError}</p>
                   </div>
                 </div>
               )}
             </div>
 
             <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--primary" onClick={closeDetail}>Close</button>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost"
+                onClick={() => setDeleteRow(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ax-btn ax-btn--danger"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Delete Complaint'}
+              </button>
             </div>
           </>
         )}

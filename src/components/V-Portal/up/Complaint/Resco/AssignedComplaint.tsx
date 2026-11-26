@@ -8,7 +8,7 @@ import { AssignedComplaintPage } from '../../Complaint/CommonSharedComplaints/As
 type Row = UpRescoComplaintItem;
 const T = (h: string, keys: string[], o?: Parameters<typeof textCol>[2]) => textCol<Row>(h, keys, o);
 
-const complaintId = (r: Row) => pick(r, ['complaint_id'], `CMP-${(r as any).id}`);
+const complaintId = (r: Row) => pick(r, ['complaint_id', 'id']);
 const kw = (r: Row, keys: string[]) => {
   const v = pick(r, keys);
   return v === DASH ? DASH : `${v} kW`;
@@ -17,8 +17,8 @@ const kw = (r: Row, keys: string[]) => {
 const COLUMNS: ComplaintColumn<Row>[] = [
   {
     header: 'Complaint ID',
-    cell: (r) => <b style={{ color: 'var(--ax-primary-default, #2563eb)' }}>#{complaintId(r)}</b>,
-    exportValue: (r) => `#${complaintId(r)}`,
+    cell: (r) => <b style={{ color: 'var(--ax-primary-default, #2563eb)' }}>{complaintId(r)}</b>,
+    exportValue: (r) => `${complaintId(r)}`,
   },
   T('Complaint Date', ['start_date', 'complaint_date', 'created_at']),
   T('Complaint', ['complaint'], { clamp: true }),
@@ -107,6 +107,7 @@ export function UP_Complaint_Resco_AssignedComplaint() {
       close={{
         heading: 'Resolve & Close Complaint',
         variant: 'resolver',
+        showContactFields: true,
         emailRequired: true,
         smsDefault: 'Yes',
         file1Label: 'Resolution File 2 (Optional)',
@@ -122,17 +123,25 @@ export function UP_Complaint_Resco_AssignedComplaint() {
         fileHint: 'Image or PDF',
         submit: (v, item) => {
           const fd = new FormData();
+          fd.append('id', String(item.id));
           fd.append('complain_id', String(item.id));
+          if (item.complaint_id) fd.append('complaint_id', String(item.complaint_id));
           fd.append('resolved_by', v.resolvedBy);
+          fd.append('contact_person', v.contactPerson);
+          fd.append('contact_number', v.contactNumber);
+          fd.append('contact_no', v.contactNumber);
           fd.append('r_email', v.email);
           fd.append('r_mobile', v.mobile);
           fd.append('manual_close_date', v.date);
+          fd.append('closing_date', v.date);
           fd.append('remarks', v.remarks);
           fd.append('close_sms', v.closeSms);
           if (item.site_name) fd.append('beneficiary_name', item.site_name);
-          if (item.contact_number || item.contact_no) fd.append('contact_no', String(item.contact_number || item.contact_no));
           fd.append('r_file', v.file);
-          if (v.file1) fd.append('r_file1', v.file1);
+          if (v.file1) {
+            fd.append('r_file1', v.file1);
+            fd.append('r_file2', v.file1);
+          }
           return upComplaintService.closeRescoComplaint(fd);
         },
       }}

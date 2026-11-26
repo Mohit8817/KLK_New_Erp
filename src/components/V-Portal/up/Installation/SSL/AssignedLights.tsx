@@ -1,58 +1,53 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { PageHead } from '../../../../shell/PageHead';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   upInstallationService,
   resolveUpMediaUrl,
-  type UpSsl18wAssignSiteItem,
+  getUpMediaCandidates,
 } from '../../up-services';
 import {
   TableExportToolbar,
   SearchInput,
   Pagination,
   TableEmptyState,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
+  usePagination,
   type ExportColumn,
 } from '../../../../../common';
 
 const DASH = '—';
 
-/* ───────── API helpers ───────── */
+interface NormalizedAssignedSite {
+  id: number;
+  vendor: string;
+  state: string;
+  district: string;
+  block: string;
+  village: string;
+  assign_date: string;
+  deadline_date: string;
+  site_count: number;
+  file: string;
+  remarks: string;
+  status: number;
+}
 
-// API se status string ("2") aata hai, local update ke baad number (2) — dono handle karo
-const isAcceptedStatus = (status: number | string | null | undefined) => Number(status) === 2;
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 
-// village: '["Bhartapur"]' -> 'Bhartapur'
-const parseVillages = (v?: string | null): string => {
-  if (!v) return '';
-  try {
-    const p = JSON.parse(v);
-    return Array.isArray(p) ? p.map(String).filter(Boolean).join(', ') : String(p);
-  } catch {
-    return v;
-  }
-};
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+);
 
-// '2026-11-04 12:51:16' -> '2026-11-04'
-const fmtDate = (d?: string | null) => (d ? d.split(/[ T]/)[0] : '');
-
-/* ───────── KPI Card ───────── */
-type KpiTone = 'accent' | 'emerald' | 'amber';
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
 };
-
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
 
 function KpiCard({
   icon,
@@ -60,35 +55,21 @@ function KpiCard({
   label,
   value,
   sub,
-  active,
-  onClick,
 }: {
   icon: ReactNode;
   tone: KpiTone;
   label: string;
   value: ReactNode;
-  sub: ReactNode;
-  active?: boolean;
-  onClick?: () => void;
+  sub: string;
 }) {
   const t = TONE[tone];
   return (
-    <div
-      className={`ax-card ax-col--4 ${active ? 'is-active-filter' : ''}`}
-      onClick={onClick}
-      style={{
-        padding: '16px 20px',
-        borderRadius: 12,
-        cursor: onClick ? 'pointer' : 'default',
-        boxShadow: active ? `0 0 0 1px ${t.fg}22` : undefined,
-        transition: 'all 0.2s ease',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span
           style={{
-            width: 30,
-            height: 30,
+            width: 28,
+            height: 28,
             borderRadius: 8,
             background: t.bg,
             color: t.fg,
@@ -98,20 +79,327 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
     </div>
   );
 }
 
-/* ───────── Responsive page CSS ───────── */
+const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const parseVillages = (v: unknown): string => {
+  if (Array.isArray(v)) return v.map(String).filter(Boolean).join(', ');
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return '';
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean).join(', ');
+      return String(parsed);
+    } catch {
+      return s;
+    }
+  }
+  return '';
+};
+
+const fmtState = (s?: string | null): string => {
+  const clean = (s || '').trim();
+  if (!clean) return 'Uttar Pradesh';
+  if (clean.toLowerCase() === 'up') return 'UP';
+  return clean;
+};
+
+const normalizeRecord = (r: any): NormalizedAssignedSite => ({
+  id: Number(r.id) || 0,
+  vendor: r.vendor ? String(r.vendor) : '',
+  state: fmtState(r.state),
+  district: r.district ? String(r.district) : '',
+  block: r.block ? String(r.block) : '',
+  village: parseVillages(r.village ?? r.panchayat),
+  assign_date: r.assign_date ?? r.start_date ?? r.sdate ?? '',
+  deadline_date: r.deadline_date ?? r.end_date ?? r.ldate ?? '',
+  site_count: Number(r.site_count ?? r.sitecount) || 0,
+  file: r.file ?? r.uid_file ?? r.image ?? r.photo ?? r.site_image ?? '',
+  remarks: r.remarks ?? r.remark ?? '',
+  status: Number(r.status) || 0,
+});
+
+const fmtDate = (d?: string | null) => {
+  if (!d) return DASH;
+  const datePart = String(d).trim().split(/[ T]/)[0];
+  const [y, m, day] = datePart.split('-');
+  return y && m && day ? `${day}-${m}-${y}` : datePart;
+};
+
+const isImage = (url?: string | null) =>
+  Boolean(url && /\.(jpe?g|png|webp|gif|svg|bmp|tiff|avif)(\?.*)?$/i.test(String(url).trim()));
+
+const getImageForLight = (item: any): string | null => {
+  if (!item) return null;
+  const candidates = [
+    item.file,
+    item.image,
+    item.photo,
+    item.site_image,
+    item.uid_file,
+    item.assigned_file,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim() && isImage(c)) {
+      return c.trim();
+    }
+  }
+  return null;
+};
+
+const getFileExt = (url?: string | null) => {
+  if (!url) return 'FILE';
+  const clean = url.split('?')[0];
+  const ext = clean.includes('.') ? clean.split('.').pop() : '';
+  return ext ? ext.toUpperCase() : 'FILE';
+};
+
+const resolveFileUrl = (file?: string | null) => {
+  if (!file) return '';
+  if (/^https?:\/\//i.test(file)) return file;
+  return resolveUpMediaUrl(file) || '';
+};
+
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+function ImagePlaceholder({
+  size = 36,
+  label = 'No photo uploaded',
+}: {
+  size?: number;
+  label?: string;
+}) {
+  return (
+    <div
+      className="ax-img-placeholder"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        border: '1px dashed var(--ax-border, #cbd5e1)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--ax-text-muted, #94a3b8)',
+        flexShrink: 0,
+        cursor: 'default',
+        userSelect: 'none',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        transition: 'all 0.18s ease',
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={Math.max(14, Math.round(size * 0.48))}
+        height={Math.max(14, Math.round(size * 0.48))}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ opacity: 0.7 }}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </div>
+  );
+}
+
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({
+  url,
+  title,
+  onClose,
+}: {
+  url: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 100000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{ maxWidth: 840, width: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{title || 'Image Preview'}</h3>
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div
+          className="ax-modal__body"
+          style={{
+            padding: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0f172a',
+            overflow: 'auto',
+            minHeight: 360,
+          }}
+        >
+          <img
+            src={url}
+            alt={title}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '65vh',
+              transform: `scale(${zoom})`,
+              transition: 'transform 0.2s ease',
+              borderRadius: 6,
+            }}
+          />
+        </div>
+        <div
+          className="ax-modal__footer"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <div style={{ display: 'flex', gap: 6 }}>
+            {ZOOM_STEPS.map((z, idx) => (
+              <button
+                key={z}
+                type="button"
+                className={`ax-btn ax-btn--sm ${zoomIdx === idx ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                onClick={() => setZoomIdx(idx)}
+              >
+                {z}x
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+            >
+              Open original ↗
+            </a>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 36,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getUpMediaCandidates(src), [src]);
+  const [candIdx, setCandIdx] = useState(0);
+
+  useEffect(() => {
+    setCandIdx(0);
+  }, [src]);
+
+  if (!src || candidates.length === 0 || candIdx >= candidates.length) {
+    return <ImagePlaceholder size={size} label={`No image — ${alt}`} />;
+  }
+
+  const currentUrl = candidates[candIdx];
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        margin: '0 auto',
+      }}
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.14)';
+          e.currentTarget.style.borderColor = 'var(--ax-primary-default, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => setCandIdx((prev) => prev + 1)}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
+  );
+}
+
+/* ───────── Responsive page CSS (matching Bihar Assigned Lights design) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -123,6 +411,23 @@ const PAGE_CSS = `
   .solar-erp-page .ula-table--wide img,
   .solar-erp-page .ax-card img {
     border-radius: 0 !important;
+  }
+
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
+  }
+  @media (max-width: 992px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
   }
 
   .solar-erp-page .ax-card__header {
@@ -185,11 +490,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ax-table th,
-  .solar-erp-page .ax-table td {
-    white-space: nowrap;
-    vertical-align: middle;
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -220,37 +520,57 @@ const PAGE_CSS = `
       width: 100%;
       max-width: 100%;
     }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
     .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
       width: 100%;
-      justify-content: stretch;
       margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
     }
     .solar-erp-page .ax-card__actions .ax-cluster {
-      width: 100%;
       flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] {
       flex: 1 1 100%;
+      width: 100%;
       max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
     }
   }
 
-  @media (max-width: 900px) {
-    .solar-erp-page .ax-dash-grid > .ax-card {
-      grid-column: span 12 !important;
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
     }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
-const actionsRowStyle = {
-  gap: 'var(--ax-space-2)',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  width: '100%',
-} as const;
-
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
@@ -260,49 +580,19 @@ const footerStyle = {
   width: '100%',
   boxSizing: 'border-box',
 } as const;
+const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-const ICON_PROPS = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.75,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
-  'aria-hidden': true,
-};
+/* ───────── Modal ───────── */
 
-const ICON_REFRESH = (
-  <svg className="ax-btn__icon" {...ICON_PROPS}>
-    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-  </svg>
-);
-
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
-
-/* ───────── UI Modal Component ───────── */
 function Modal({
   open,
   onClose,
   labelledBy,
-  centered = true,
-  dialogClass = '',
-  dialogStyle,
-  closeOnBackdrop = true,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   labelledBy: string;
-  centered?: boolean;
-  dialogClass?: string;
-  dialogStyle?: CSSProperties;
-  closeOnBackdrop?: boolean;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -318,20 +608,10 @@ function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
-
   return createPortal(
-    <div
-      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={labelledBy}
-    >
-      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div
-        ref={dialogRef}
-        className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}
-        style={dialogStyle}
-      >
+    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className="ax-modal__dialog ax-modal__dialog--sm">
         {children}
       </div>
     </div>,
@@ -339,31 +619,42 @@ function Modal({
   );
 }
 
-/* ───────── Main Component ───────── */
-const TOTAL_COLUMNS = 12;
-
 export function UP_Installation_SSL_AssignedLights() {
-  const [sites, setSites] = useState<UpSsl18wAssignSiteItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
-  const [search, setSearch] = useState('');
-  const [districtFilter, setDistrictFilter] = useState('all');
+  const [records, setRecords] = useState<NormalizedAssignedSite[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
 
-  // Detail modal
-  const [viewItem, setViewItem] = useState<UpSsl18wAssignSiteItem | null>(null);
+  // Accept Confirmation Modal state
+  const [acceptModalOpen, setAcceptModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<NormalizedAssignedSite | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  // Interactive Lightbox Modal
+  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
+  const openPreview = useCallback((url: string, title: string) => {
+    setLightbox({ url, title });
+  }, []);
+
+  const deferredQuery = useDeferredValue(searchQuery);
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = window.setTimeout(() => setToastMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [toastMsg]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await upInstallationService.getSsl18wAssignSites();
-      setSites(res.data || []);
+      const data = Array.isArray(res?.data) ? res.data : [];
+      setRecords(data.map(normalizeRecord));
     } catch (err: any) {
-      console.warn('[UP SSL AssignedLights] load error:', err);
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load assigned installation sites.' });
+      console.error('[UP SSL AssignedLights] load error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load assigned lights.' });
     } finally {
       setLoading(false);
     }
@@ -373,118 +664,205 @@ export function UP_Installation_SSL_AssignedLights() {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    if (!feedbackMsg) return;
-    const t = window.setTimeout(() => setFeedbackMsg(null), 4000);
-    return () => window.clearTimeout(t);
-  }, [feedbackMsg]);
-
-  /* ── Accept handler ── */
-  const handleAccept = async (id: number) => {
-    if (actionLoadingId !== null) return;
-    if (!window.confirm(`Are you sure you want to accept this installation assignment #${id}?`)) return;
-
-    setActionLoadingId(id);
-    setFeedbackMsg(null);
-    try {
-      const res = await upInstallationService.acceptSsl18wInstallation(id);
-      if (res.status) {
-        setFeedbackMsg({ type: 'success', text: res.message || 'Installation assignment accepted successfully!' });
-        setSites((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, status: 2 } : item))
-        );
-      } else {
-        setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to accept installation.' });
-      }
-    } catch (err: any) {
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to accept assignment. Please try again.' });
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  /* ── Summary counts ── */
-  const summary = useMemo(() => {
-    const accepted = sites.filter((s) => isAcceptedStatus(s.status)).length;
-    return { total: sites.length, accepted, pending: sites.length - accepted };
-  }, [sites]);
-
-  /* ── Distinct districts ── */
+  // Unique districts for filter
   const districts = useMemo(() => {
     const set = new Set<string>();
-    sites.forEach((s) => {
-      if (s.district && s.district.trim()) set.add(s.district.trim());
+    records.forEach((r) => {
+      if (r.district) set.add(r.district.trim());
     });
     return Array.from(set).sort();
-  }, [sites]);
+  }, [records]);
 
-  /* ── Filtered data ── */
-  const filteredSites = useMemo(() => {
-    return sites.filter((s) => {
-      if (statusFilter === 'pending' && isAcceptedStatus(s.status)) return false;
-      if (statusFilter === 'accepted' && !isAcceptedStatus(s.status)) return false;
+  // Filtered list
+  const filtered = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    return records.filter((r) => {
+      if (q) {
+        const matches =
+          (r.vendor && r.vendor.toLowerCase().includes(q)) ||
+          (r.district && r.district.toLowerCase().includes(q)) ||
+          (r.block && r.block.toLowerCase().includes(q)) ||
+          (r.village && r.village.toLowerCase().includes(q)) ||
+          (r.remarks && r.remarks.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+      // Status filter: 1 = Pending, 2 = Accepted
+      if (statusFilter === 'pending' && r.status === 2) return false;
+      if (statusFilter === 'accepted' && r.status !== 2) return false;
 
-      if (districtFilter !== 'all' && (s.district || '').toLowerCase() !== districtFilter.toLowerCase()) {
+      if (districtFilter !== 'all' && r.district?.trim().toLowerCase() !== districtFilter.toLowerCase()) {
         return false;
       }
-
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const haystack = [
-          String(s.id),
-          s.vendor || '',
-          s.state || '',
-          s.district || '',
-          s.block || '',
-          parseVillages(s.village),
-          s.remarks || '',
-          s.assign_date || '',
-          s.deadline_date || '',
-        ].join(' ').toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-
       return true;
     });
-  }, [sites, statusFilter, districtFilter, search]);
+  }, [records, deferredQuery, statusFilter, districtFilter]);
 
-  /* ── Paginated slice ── */
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredSites.slice(start, start + pageSize);
-  }, [filteredSites, currentPage, pageSize]);
+  // Summary Metrics
+  const metrics = useMemo(() => {
+    const totalBatches = records.length;
+    let totalSites = 0;
+    let pendingCount = 0;
+    let acceptedCount = 0;
 
-  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || statusFilter !== 'all';
+    records.forEach((r) => {
+      totalSites += Number(r.site_count) || 0;
+      if (r.status === 2) acceptedCount++;
+      else pendingCount++;
+    });
+
+    return { totalBatches, totalSites, pendingCount, acceptedCount };
+  }, [records]);
+
+  // Universal Pagination with 100 items by default
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+    usePagination({ data: filtered, initialPageSize: 100 });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter, districtFilter, setPage]);
+
+  const hasFilters = searchQuery.trim() !== '' || statusFilter !== 'all' || districtFilter !== 'all';
   const resetFilters = () => {
-    setSearch('');
-    setDistrictFilter('all');
+    setSearchQuery('');
     setStatusFilter('all');
-    setCurrentPage(1);
+    setDistrictFilter('all');
+    setPage(1);
   };
 
-  const setStatus = (s: 'all' | 'pending' | 'accepted') => {
-    setStatusFilter(s);
-    setCurrentPage(1);
-  };
-
-  /* ── Export columns ── */
-  const exportCols: ExportColumn<UpSsl18wAssignSiteItem>[] = useMemo(
+  // Export Columns
+  const exportCols: ExportColumn<NormalizedAssignedSite>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
-      { header: 'Vendor', accessor: (r) => r.vendor || DASH },
-      { header: 'State', accessor: (r) => (r.state ? r.state.toUpperCase() : 'UP') },
-      { header: 'District', accessor: (r) => r.district || DASH },
-      { header: 'Block', accessor: (r) => r.block || DASH },
-      { header: 'Village', accessor: (r) => parseVillages(r.village) || DASH },
-      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date) || DASH },
-      { header: 'Deadline', accessor: (r) => fmtDate(r.deadline_date) || DASH },
-      { header: 'Site Count', accessor: (r) => String(r.site_count ?? DASH) },
-      { header: 'File', accessor: (r) => r.file || DASH },
-      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-      { header: 'Status', accessor: (r) => (isAcceptedStatus(r.status) ? 'Accepted' : 'Pending') },
+      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
+      { header: 'Vendor', accessor: (r) => r.vendor || '' },
+      { header: 'State', accessor: (r) => r.state || 'Uttar Pradesh' },
+      { header: 'District', accessor: (r) => r.district || '' },
+      { header: 'Block', accessor: (r) => r.block || '' },
+      { header: 'Village', accessor: (r) => r.village || '' },
+      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date) },
+      { header: 'Deadline', accessor: (r) => fmtDate(r.deadline_date) },
+      { header: 'Site Count', accessor: (r) => String(r.site_count || 0) },
+      { header: 'Remarks', accessor: (r) => r.remarks || '' },
+      {
+        header: 'Status',
+        accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Acceptance'),
+      },
     ],
     []
   );
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = 'UP_SSL_18W_Assigned_Lights';
+  const fileTitle = 'UP SSL 18W Assigned Lights Register';
+
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out: string[][] = [
+      columns.map((c) => escapeExportValue(c.header)),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    }
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d8dee6;padding:6px 6px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  // Trigger Accept
+  const handleConfirmAccept = async () => {
+    if (!selectedItem) return;
+    setSubmitting(true);
+    try {
+      const res = await upInstallationService.acceptSsl18wInstallation(selectedItem.id);
+      if (res && res.status === false) {
+        setToastMsg({ type: 'danger', text: res.message || 'Failed to accept light assignment.' });
+      } else {
+        setToastMsg({ type: 'success', text: res?.message || 'Light assignment accepted successfully!' });
+        setAcceptModalOpen(false);
+        setSelectedItem(null);
+        await loadData();
+      }
+    } catch (err: any) {
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to accept light assignment.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const HEADERS = [
+    'Sr. No.',
+    'Vendor',
+    'State',
+    'District',
+    'Block',
+    'Village',
+    'Assign Date',
+    'Deadline',
+    'Site Count',
+    'File',
+    'Remarks',
+    'Status',
+    'Action',
+  ];
+  const TOTAL_COLUMNS = HEADERS.length;
 
   return (
     <div className="solar-erp-page">
@@ -492,367 +870,459 @@ export function UP_Installation_SSL_AssignedLights() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="View Assigned SSL 18W Installation"
-        subtitle="Welcome to, View and accept assigned 18W solar street light installations across Uttar Pradesh"
+        title="Assigned Lights"
+        subtitle="Manage and accept 18W Solar Street Light installation site allocations in Uttar Pradesh"
         breadcrumbs={[
-          { label: 'Home', href: '/v' },
-          { label: 'UP SSL Install 18w Light' },
+          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Uttar Pradesh' },
+          { label: 'Installation' },
+          { label: 'SSL 18W', href: '/v/up/ssl-18w-installation-dashboard' },
           { label: 'Assigned Lights' },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
               onClick={loadData}
-              disabled={loading}
+              title="Refresh list"
             >
-              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
-              <span className="ax-btn__label">Refresh</span>
+              <svg
+                width={14}
+                height={14}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}
+              >
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              <span>Refresh</span>
             </button>
-            <Link to="/v/up/ssl-install-18w-light" className="ax-btn ax-btn--primary ax-btn--sm">
-              Install Light
-            </Link>
           </div>
         }
       />
 
-      {feedbackMsg && (
-        <div
-          className={`ax-alert ax-alert--${feedbackMsg.type}`}
-          style={{ marginBottom: 'var(--ax-space-4)' }}
-          role="status"
-        >
-          <div className="ax-alert__content">{feedbackMsg.text}</div>
+      {toastMsg && (
+        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{toastMsg.text}</div>
+        </div>
+      )}
+
+      {/* ── Top Metric KPI Cards (4 cards in 1 row) ── */}
+      <div className="asw-cards-row">
+        <KpiCard
+          tone="accent"
+          label="Total Batches"
+          value={num(metrics.totalBatches)}
+          sub="Assigned work orders"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="violet"
+          label="Total Allocated Sites"
+          value={num(metrics.totalSites)}
+          sub="Cumulative light points"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Pending Acceptance"
+          value={num(metrics.pendingCount)}
+          sub="Requires vendor action"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="Accepted Batches"
+          value={num(metrics.acceptedCount)}
+          sub="Ready for installation"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* ── Status Tabs ABOVE Table ── */}
+      <div style={{ marginBottom: 'var(--ax-space-3, 12px)' }}>
+        <div className="ax-cluster" role="tablist" aria-label="Assigned lights status tabs" style={{ gap: 'var(--ax-space-2)' }}>
           <button
             type="button"
-            className="ax-btn ax-btn--ghost ax-btn--xs"
-            onClick={() => setFeedbackMsg(null)}
-            aria-label="Dismiss alert"
+            role="tab"
+            aria-selected={statusFilter === 'all'}
+            className={`ax-btn ax-btn--sm ${statusFilter === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+            onClick={() => {
+              setStatusFilter('all');
+              setPage(1);
+            }}
           >
-            {X_ICON}
+            <span className="ax-btn__label">All ({metrics.totalBatches})</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === 'pending'}
+            className={`ax-btn ax-btn--sm ${statusFilter === 'pending' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+            onClick={() => {
+              setStatusFilter('pending');
+              setPage(1);
+            }}
+          >
+            <span className="ax-btn__label">Pending ({metrics.pendingCount})</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === 'accepted'}
+            className={`ax-btn ax-btn--sm ${statusFilter === 'accepted' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+            onClick={() => {
+              setStatusFilter('accepted');
+              setPage(1);
+            }}
+          >
+            <span className="ax-btn__label">Accepted ({metrics.acceptedCount})</span>
           </button>
         </div>
-      )}
+      </div>
 
-      {/* ── KPI Cards (click to filter) ── */}
-      {!loading && (
-        <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
-          <KpiCard
-            tone="accent"
-            label="Total Assigned"
-            value={summary.total.toLocaleString('en-IN')}
-            sub="All assigned batches"
-            active={statusFilter === 'all'}
-            onClick={() => setStatus('all')}
-            icon={svg(
-              <>
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="2" />
-                <path d="M9 14l2 2 4-4" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="amber"
-            label="Pending"
-            value={summary.pending.toLocaleString('en-IN')}
-            sub="Waiting for acceptance"
-            active={statusFilter === 'pending'}
-            onClick={() => setStatus('pending')}
-            icon={svg(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="emerald"
-            label="Accepted"
-            value={summary.accepted.toLocaleString('en-IN')}
-            sub="Accepted by vendor"
-            active={statusFilter === 'accepted'}
-            onClick={() => setStatus('accepted')}
-            icon={svg(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9 12l2 2 4-4" />
-              </>
-            )}
-          />
-        </div>
-      )}
-
-      <div className="ax-dash-grid">
-        {/* ── Main Table Card ── */}
-        <section className="ax-card ax-col--12" role="region" aria-label="Assigned SSL Light Records">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">ASSIGNED SITES</span>
-              <h2 className="ax-card__title">View Assign SSL Light</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredSites.length} of {sites.length} records
-              </p>
-            </div>
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                {districts.length > 0 && (
-                  <select
-                    className="ax-input ax-input--sm"
-                    style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                    value={districtFilter}
-                    onChange={(e) => {
-                      setDistrictFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    aria-label="Filter by district"
-                  >
-                    <option value="all">All Districts</option>
-                    {districts.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                )}
-
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={statusFilter}
-                  onChange={(e) => setStatus(e.target.value as 'all' | 'pending' | 'accepted')}
-                  aria-label="Filter by status"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="accepted">Accepted</option>
-                </select>
-
-                {hasFilters && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={resetFilters}
-                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  >
-                    Reset
-                  </button>
-                )}
-
-                <SearchInput
-                  value={search}
-                  onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search vendor, district, block…"
-                  size="sm"
-                  ariaLabel="Search assigned lights"
-                />
-
-                <TableExportToolbar
-                  onCopy={() => copyTableDataToClipboard(filteredSites, exportCols)}
-                  onExportCSV={() => exportDataToCSV('UP_SSL_18w_Assigned_Lights', filteredSites, exportCols)}
-                  onExportExcel={() => exportDataToExcel('UP_SSL_18w_Assigned_Lights', filteredSites, exportCols)}
-                  onExportPDF={() => printTableData('UP SSL 18W Assigned Lights', filteredSites, exportCols)}
-                />
-              </div>
-            </div>
+      {/* ── Main Table Card ── */}
+      <section className="ax-card ax-col--12" id="up-ssl-assigned-tabpanel" role="tabpanel" aria-label="Assigned Lights">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Assigned Lights Records</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{records.length}</span> batches
+              {' '}· Total Allocated Sites <b className="ax-num">{num(metrics.totalSites)}</b> · Pending <b className="ax-num">{num(metrics.pendingCount)}</b> · Accepted <b className="ax-num">{num(metrics.acceptedCount)}</b>
+            </p>
           </div>
-
-          <div className="ax-table-wrap">
-            <table
-              className="ax-table ax-table--hover ula-table--wide"
-              style={{ whiteSpace: 'nowrap', minWidth: 1400 }}
-            >
-              <caption className="ax-visually-hidden">View Assigned SSL 18W Installation Records</caption>
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th" scope="col" style={{ width: 60 }}>Sr. No.</th>
-                  <th className="ax-table__th" scope="col">Vendor</th>
-                  <th className="ax-table__th" scope="col">State</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col">Block</th>
-                  <th className="ax-table__th" scope="col">Village</th>
-                  <th className="ax-table__th" scope="col">Assign Date</th>
-                  <th className="ax-table__th" scope="col">Deadline</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>Site Count</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>File</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 110 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody aria-busy={loading}>
-                {loading && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ textAlign: 'center', padding: 32 }}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned lights…
-                    </td>
-                  </tr>
-                )}
-                {!loading && filteredSites.length === 0 && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
-                      <TableEmptyState
-                        title="No data available in table"
-                        message={
-                          hasFilters
-                            ? 'No records match your filters or search. Try clearing your query.'
-                            : 'No 18W SSL batches currently assigned.'
-                        }
-                        onClear={hasFilters ? resetFilters : undefined}
-                      />
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  paginatedData.map((item, index) => {
-                    const accepted = isAcceptedStatus(item.status);
-                    const fileUrl = item.file ? resolveUpMediaUrl(item.file) : '';
-
-                    return (
-                      <tr key={item.id || index} className="ax-table__row">
-                        <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {item.vendor || DASH}
-                        </td>
-                        <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
-                          {item.state || 'UP'}
-                        </td>
-                        <td className="ax-table__td">{item.district || DASH}</td>
-                        <td className="ax-table__td">{item.block || DASH}</td>
-                        <td className="ax-table__td">{parseVillages(item.village) || DASH}</td>
-                        <td className="ax-table__td">{fmtDate(item.assign_date) || DASH}</td>
-                        <td className="ax-table__td">{fmtDate(item.deadline_date) || DASH}</td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <span
-                            className="ax-badge ax-badge--soft"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '2px 8px',
-                              borderRadius: 'var(--ax-radius-pill, 9999px)',
-                              background: 'rgba(var(--ax-accent-rgb, 73, 146, 255), 0.1)',
-                              color: 'var(--ax-accent)',
-                              fontWeight: 700,
-                              fontSize: 12,
-                            }}
-                          >
-                            {item.site_count ?? DASH}
-                          </span>
-                        </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {fileUrl ? (
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ padding: '2px 8px', fontSize: 11 }}
-                            >
-                              View File
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
-                          )}
-                        </td>
-                        <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                          {item.remarks || DASH}
-                        </td>
-                        <td className="ax-table__td">
-                          {accepted ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
-                              Accepted
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="ax-badge ax-badge--soft ax-badge--warning"
-                              style={{ fontWeight: 600, cursor: 'pointer', border: 'none' }}
-                              onClick={() => handleAccept(item.id)}
-                              disabled={actionLoadingId !== null}
-                              title="Click to accept assignment"
-                            >
-                              {actionLoadingId === item.id ? 'Accepting…' : 'Pending'}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── Table Footer ── */}
-          <div className="ax-card__footer" style={footerStyle}>
-            <div className="ula-pagination-left">
-              <Pagination
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalItems={filteredSites.length}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setCurrentPage(1);
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                id="up_assigned_district_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setPage(1);
                 }}
-                pageSizeOptions={[25, 50, 100, 200, 300]}
+                aria-label="Filter by district"
+              >
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
+
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search vendor, district, block…"
+                size="sm"
+                ariaLabel="Search assigned lights"
+              />
+
+              <TableExportToolbar
+                onCopy={() => copyToClipboard(filtered, exportCols)}
+                onExportCSV={() => exportToCSV(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filtered, exportCols, fileTitle)}
               />
             </div>
           </div>
-        </section>
-      </div>
+        </div>
 
-      {/* ── Detail Modal ── */}
-      {viewItem && (
-        <Modal
-          open={!!viewItem}
-          onClose={() => setViewItem(null)}
-          labelledBy="ssl-detail-modal-title"
-          dialogStyle={{ maxWidth: 620 }}
-        >
-          <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
-            <div>
-              <h3 id="ssl-detail-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                Assignment #{viewItem.id} Details
-              </h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                District: <b>{viewItem.district || 'UP'}</b> · Vendor: <b>{viewItem.vendor || DASH}</b>
-              </p>
-            </div>
-            <button
-              type="button"
-              className="ax-modal__close"
-              onClick={() => setViewItem(null)}
-              aria-label="Close modal"
-            >
-              {X_ICON}
-            </button>
+        <div className="ax-table-wrap">
+          <table
+            className="ax-table ax-table--hover"
+            style={{ whiteSpace: 'nowrap', minWidth: 1200 }}
+          >
+            <caption className="ax-visually-hidden">Assigned 18W SSL Lights Data</caption>
+            <thead className="ax-table__head">
+              <tr>
+                {HEADERS.map((h) => (
+                  <th
+                    key={h}
+                    className="ax-table__th"
+                    scope="col"
+                    style={
+                      h === 'Action' || h === 'Status' || h === 'File'
+                        ? { textAlign: 'center' }
+                        : h === 'Site Count'
+                        ? { textAlign: 'right' }
+                        : h === 'Village'
+                        ? { maxWidth: 240, width: 240 }
+                        : undefined
+                    }
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned lights from server…
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title="No assigned lights found"
+                      message={
+                        hasFilters
+                          ? 'No records match your filters or search. Try clearing your query.'
+                          : 'No 18W SSL lights currently assigned.'
+                      }
+                      onClear={hasFilters ? resetFilters : undefined}
+                      clearLabel="Clear filters"
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                paginatedData.map((r, index) => {
+                  const isAccepted = r.status === 2;
+                  const imageSrc = getImageForLight(r);
+                  const isImg = Boolean(imageSrc || (r.file && isImage(r.file)));
+                  const fileUrl = resolveFileUrl(imageSrc || r.file);
+                  const fileExt = getFileExt(r.file);
+
+                  return (
+                    <tr key={r.id || index} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="ax-table__td">
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{r.vendor || DASH}</span>
+                      </td>
+                      <td className="ax-table__td">{r.state || 'Uttar Pradesh'}</td>
+                      <td className="ax-table__td"><b>{r.district || DASH}</b></td>
+                      <td className="ax-table__td">{r.block || DASH}</td>
+                      <td
+                        className="ax-table__td"
+                        style={{
+                          maxWidth: 240,
+                          width: 240,
+                          whiteSpace: 'normal',
+                          wordBreak: 'break-word',
+                        }}
+                        title={r.village || ''}
+                      >
+                        <div
+                          style={{
+                            maxWidth: 240,
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            fontSize: 12,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {r.village || DASH}
+                        </div>
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>{fmtDate(r.assign_date)}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>{fmtDate(r.deadline_date)}</td>
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--asw-primary)' }}>
+                        {num(r.site_count)}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {isImg ? (
+                          <InstallationThumbnail
+                            src={imageSrc || r.file}
+                            alt={`${r.vendor || 'Light'} File Photo`}
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        ) : fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--asw-primary)' }}
+                            title="View / Download File"
+                          >
+                            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1={12} y1={18} x2={12} y2={12} />
+                              <line x1={9} y1={15} x2={12} y2={18} />
+                              <line x1={15} y1={15} x2={12} y2={18} />
+                            </svg>
+                            <span>{fileExt}</span>
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
+                        )}
+                      </td>
+                      <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: 12 }} title={r.remarks || ''}>
+                        {r.remarks || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Badge tone={isAccepted ? 'success' : 'warning'}>
+                          {isAccepted ? 'Accepted' : 'Pending'}
+                        </Badge>
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {isAccepted ? (
+                          <Badge tone="success">Done</Badge>
+                        ) : (
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--primary ax-btn--sm"
+                            onClick={() => {
+                              setSelectedItem(r);
+                              setAcceptModalOpen(true);
+                            }}
+                          >
+                            Accept
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Table Footer ── */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
           </div>
-          <div className="ax-modal__body" style={{ padding: '16px 20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, fontSize: 13 }}>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span><strong>{viewItem.vendor || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{(viewItem.state || 'UP').toUpperCase()}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{viewItem.district || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Block: </span><strong>{viewItem.block || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Village: </span><strong>{parseVillages(viewItem.village) || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><strong>{fmtDate(viewItem.assign_date) || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Deadline: </span><strong>{fmtDate(viewItem.deadline_date) || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Count: </span><strong>{viewItem.site_count ?? DASH}</strong></div>
-              <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{viewItem.remarks || DASH}</strong></div>
-              <div>
-                <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
-                {isAcceptedStatus(viewItem.status) ? (
-                  <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Accepted</span>
-                ) : (
-                  <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>
-                )}
+        </div>
+      </section>
+
+      {/* ── Accept Confirmation Modal ── */}
+      <Modal open={acceptModalOpen && !!selectedItem} onClose={() => !submitting && setAcceptModalOpen(false)} labelledBy="up-assigned-accept-title">
+        {selectedItem && (
+          <div>
+            <div className="ax-modal__header">
+              <h2 className="ax-modal__title" id="up-assigned-accept-title">Accept Light Assignment</h2>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={() => !submitting && setAcceptModalOpen(false)}
+                disabled={submitting}
+                aria-label="Close dialog"
+              >
+                {X_ICON}
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--ax-text-muted)', lineHeight: 1.5 }}>
+                Are you sure you want to accept this assigned 18W solar street light batch for installation?
+              </p>
+
+              <div
+                style={{
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                  border: '1px solid var(--ax-border, #e2e8f0)',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  fontSize: 13,
+                }}
+              >
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Vendor:</strong> {selectedItem.vendor || DASH}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>District:</strong> {selectedItem.district || DASH}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Block:</strong> {selectedItem.block || DASH}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Village:</strong> {selectedItem.village || DASH}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Period:</strong>{' '}
+                  {fmtDate(selectedItem.assign_date)} — {fmtDate(selectedItem.deadline_date)}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Site Count:</strong>{' '}
+                  <span style={{ color: 'var(--asw-primary)', fontWeight: 700 }}>{num(selectedItem.site_count)}</span>
+                </div>
               </div>
             </div>
+
+            <div className="ax-modal__footer">
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => setAcceptModalOpen(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                onClick={handleConfirmAccept}
+                disabled={submitting}
+              >
+                {submitting ? 'Accepting…' : 'Confirm Accept'}
+              </button>
+            </div>
           </div>
-          <div className="ax-modal__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" className="ax-btn ax-btn--primary" onClick={() => setViewItem(null)}>
-              Close
-            </button>
-          </div>
-        </Modal>
+        )}
+      </Modal>
+
+      {/* ── Interactive Image Preview Lightbox ── */}
+      {lightbox && (
+        <ImagePreviewModal
+          url={lightbox.url}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

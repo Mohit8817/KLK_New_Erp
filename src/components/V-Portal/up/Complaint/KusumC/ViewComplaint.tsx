@@ -56,6 +56,7 @@ export function UPComplaintKCView() {
       loadingText="Loading Kusum C complaints…"
       emptyMessage="Kusum C complaints will appear here once they are registered."
       fetchData={() => upComplaintService.getKusumCViewComplaints()}
+      onDeleteComplaint={(id) => upComplaintService.deleteKusumCComplaint(id)}
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),

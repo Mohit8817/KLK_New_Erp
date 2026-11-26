@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -13,28 +14,22 @@ import {
 import {
   jammuRescoAdminService,
   resolveJammuMediaUrl,
-  type RescoVerifyDocItem,
 } from './jammuRescoAdminService';
 
-/* ───────── Responsive page CSS (Exact Solar ERP reference, all columns scrollable) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP / Jammu SWP / SRT 70MW reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2559bf;
     --asw-primary-rgb: 37, 89, 191;
-    --ax-primary: #2559bf;
-    --ax-primary-hover: #1e4699;
-    --ax-primary-rgb: 37, 89, 191;
   }
-  .solar-erp-page .ax-btn--primary,
-  .solar-erp-page .ax-button--primary {
-    background: #2559bf !important;
+  .solar-erp-page .ax-btn--primary {
+    background-color: #2559bf !important;
     border-color: #2559bf !important;
     color: #ffffff !important;
   }
-  .solar-erp-page .ax-btn--primary:hover,
-  .solar-erp-page .ax-button--primary:hover {
-    background: #1e4699 !important;
-    border-color: #1e4699 !important;
+  .solar-erp-page .ax-btn--primary:hover {
+    background-color: #1d4699 !important;
+    border-color: #1d4699 !important;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -43,38 +38,23 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-    .solar-erp-page .asw-cards-row {
+  .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
   }
-  .solar-erp-page .asw-cards-row span svg {
-    width: 15px !important;
-    height: 15px !important;
-    display: block !important;
+  @media (max-width: 1280px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
-  /* Compact table action buttons */
-  .solar-erp-page .ax-table .ax-btn--sm,
-  .solar-erp-page .ax-table .ax-btn--xs,
-  .solar-erp-page .ax-table button.ax-btn,
-  .solar-erp-page .ax-table a.ax-btn {
-    min-height: unset !important;
-    height: auto !important;
-    padding: 4px 8px !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-  }
-    @media (max-width: 1024px) {
+  @media (max-width: 768px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 640px) {
+  @media (max-width: 480px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
@@ -169,7 +149,6 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* All table columns fully scrollable horizontally - no sticky/fixed columns */
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -205,11 +184,6 @@ const PAGE_CSS = `
       width: 100%;
       max-width: 100%;
     }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
     .solar-erp-page .ax-card__actions {
       flex: 0 0 auto;
       width: 100%;
@@ -237,21 +211,6 @@ const PAGE_CSS = `
       justify-content: flex-start;
       gap: 6px;
     }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 11px;
-      height: 28px;
-      padding: 0 6px !important;
-    }
-    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
@@ -309,61 +268,12 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-function Modal({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
-  footer,
-  maxWidth = 640,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  footer?: ReactNode;
-  maxWidth?: number;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div className="ax-modal" role="dialog" aria-modal="true">
-      <div className="ax-modal__backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="ax-modal__header">
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>{subtitle}</p>}
-          </div>
-          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            ✕
-          </button>
-        </div>
-        <div className="ax-modal__body">{children}</div>
-        {footer && <div className="ax-modal__footer">{footer}</div>}
-      </div>
-    </div>,
-    document.body
-  );
-}
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
 
 /* ── Top KPI Card Component ── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
@@ -391,7 +301,7 @@ function KpiCard({
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#fff', border: '1px solid #e2e8f0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span
           style={{
@@ -406,57 +316,271 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            {icon}
-          </span>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
       <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
         {sub}
       </div>
     </div>
   );
 }
 
+/* ───────── Modal Dialog Component ───────── */
+function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  maxWidth = 540,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  maxWidth?: number;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className="ax-modal__dialog" style={{ maxWidth }} tabIndex={-1}>
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#64748b' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div className="ax-modal__body">{children}</div>
+        {footer && <div className="ax-modal__footer">{footer}</div>}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Lightbox Modal ───────── */
+function LightboxModal({
+  open,
+  onClose,
+  url,
+  title,
+}: {
+  open: boolean;
+  onClose: () => void;
+  url: string;
+  title: string;
+}) {
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 10000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: isPdf ? 1000 : 800,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            <span style={{ fontSize: 11.5, color: '#64748b' }}>Document Inspection</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ fontSize: 12 }}
+            >
+              Open Original ↗
+            </a>
+            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+              {X_ICON}
+            </button>
+          </div>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', background: '#0b1120', minHeight: 460 }}>
+          {isPdf ? (
+            <iframe src={url} title={title} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8, background: '#fff' }} />
+          ) : (
+            <img src={url} alt={title} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 8 }} />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+export interface JammuRescoVerifyDocumentItem {
+  id: number;
+  state: string;
+  vendorName: string;
+  district: string;
+  block: string;
+  village: string;
+  siteName: string;
+  applicantName: string;
+  contactPerson?: string;
+  contactNumber?: string;
+  documentFile?: string;
+  submitDate: string;
+  remarks: string;
+  verifyStatus: 'Pending' | 'Approved' | 'Rejected';
+  rawStatus: number; // 1 = Pending, 2 = Approved, 3 = Rejected
+  verifyRemarks: string;
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function extractFilePath(raw: any): string | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'string') {
+    let trimmed = raw.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return undefined;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) return extractFilePath(parsed[0]);
+      } catch {}
+    }
+    trimmed = trimmed.replace(/^["']|["']$/g, '');
+    trimmed = trimmed.replace(/\\+/g, '/');
+    return trimmed;
+  }
+  if (Array.isArray(raw) && raw.length > 0) return extractFilePath(raw[0]);
+  return undefined;
+}
+
 export function VerifyRescoDocument() {
-  const [pendingList, setPendingList] = useState<RescoVerifyDocItem[]>([]);
-  const [approvedRejectedList, setApprovedRejectedList] = useState<RescoVerifyDocItem[]>([]);
+  const [items, setItems] = useState<JammuRescoVerifyDocumentItem[]>([]);
   const [stats, setStats] = useState({
-    total: 21,
-    assigned: 5,
-    not_assigned: 13,
-    installed_complete: 4,
-    installed_pending: 1,
-    doc_complete: 2,
-    doc_pending: 1,
+    total: 0,
+    assigned: 0,
+    not_assigned: 0,
+    complete: 0,
+    pending: 0,
+    doc_approved: 0,
+    doc_pending: 0,
     doc_reject: 0,
   });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'processed'>('all');
+  const [search, setSearch] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>('pending');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  // Action popup states
-  const [selectedDocForAction, setSelectedDocForAction] = useState<RescoVerifyDocItem | null>(null);
-  const [actionStatus, setActionStatus] = useState<string>('1');
+  // Verify Modal
+  const [selectedDocForAction, setSelectedDocForAction] = useState<JammuRescoVerifyDocumentItem | null>(null);
+  const [actionStatus, setActionStatus] = useState<string>('2'); // '2' = Approved, '3' = Rejected
   const [actionRemarks, setActionRemarks] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
 
+  // Lightbox
+  const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null);
+
+  // Fetch document verification records strictly from live API
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await jammuRescoAdminService.getVerifyDocument();
-      setPendingList(data.pending);
-      setApprovedRejectedList(data.approved_rejected);
-      setStats(data.stats);
-    } catch (e) {
-      console.error('Failed to load verify document data:', e);
+      const resp = await jammuRescoAdminService.getViewInstallationDocument();
+      if (resp.detail) {
+        setStats({
+          total: Number(resp.detail.total || 0),
+          assigned: Number(resp.detail.assigned || 0),
+          not_assigned: Number(resp.detail.not_assigned || 0),
+          complete: Number(resp.detail.complete || 0),
+          pending: Number(resp.detail.pending || 0),
+          doc_approved: Number(resp.detail.doc_approved || 0),
+          doc_pending: Number(resp.detail.doc_pending || 0),
+          doc_reject: Number(resp.detail.doc_reject || 0),
+        });
+      }
+
+      const mapDocItem = (item: any, defaultSt: number): JammuRescoVerifyDocumentItem => {
+        const rawStatus = Number(item.inst_doc_status ?? item.status ?? item.verify_status ?? defaultSt);
+        const verifyStatus: 'Pending' | 'Approved' | 'Rejected' =
+          rawStatus === 2 ? 'Approved' : rawStatus === 3 ? 'Rejected' : 'Pending';
+
+        const rawCandidate =
+          item.inst_doc_file ||
+          item.document_file ||
+          item.doc_file ||
+          item.file ||
+          item.inst_doc ||
+          item.document ||
+          item.hoc_photo;
+        const cleanFile = extractFilePath(rawCandidate);
+
+        const displayName =
+          item.site_name ||
+          item.f_farmer_name ||
+          item.farmer_name ||
+          item.applicant_name ||
+          item.beneficiary_name ||
+          `Site #${item.id}`;
+
+        return {
+          id: Number(item.id),
+          state: 'Jammu',
+          vendorName: item.vendor_name || item.vendor || item.firm_name || (item.vendors?.name ? item.vendors.name : (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—')),
+          district: item.district || item.f_district || 'Jammu',
+          block: item.block || item.f_block || '—',
+          village: item.village || item.panchayat || item.f_village || '—',
+          siteName: displayName,
+          applicantName: displayName,
+          contactPerson: item.contact_person || item.person || '—',
+          contactNumber: item.contact_number || item.phone || item.mobile || '—',
+          documentFile: cleanFile ? resolveJammuMediaUrl(cleanFile) : undefined,
+          submitDate: item.inst_doc_date || item.submit_date || item.doc_date || item.created_at || '—',
+          remarks: item.inst_doc_remarks || item.remarks || item.inst_remarks || '—',
+          verifyStatus,
+          rawStatus,
+          verifyRemarks: item.inst_doc_verify_remarks || item.doc_verify_remarks || item.verify_remarks || '—',
+        };
+      };
+
+      const combined: JammuRescoVerifyDocumentItem[] = [
+        ...(resp.verification || []).map((x: any) => mapDocItem(x, 1)),
+        ...(resp.verified || []).map((x: any) => mapDocItem(x, 2)),
+      ];
+      setItems(combined);
+    } catch (err: any) {
+      console.error('Failed to load live Jammu RESCO document verification data:', err);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -466,294 +590,589 @@ export function VerifyRescoDocument() {
     loadData();
   }, [loadData]);
 
-  const currentList = activeTab === 'pending' ? pendingList : approvedRejectedList;
+  // Distinct districts
+  const districtOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((r) => {
+      const d = String(r.district || '').trim();
+      if (d && d !== '—') set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [items]);
 
-  const filteredList = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return currentList;
-    return currentList.filter(
-      (d) =>
-        d.vendor_name.toLowerCase().includes(q) ||
-        d.district.toLowerCase().includes(q) ||
-        d.site_name.toLowerCase().includes(q) ||
-        d.contact_person.toLowerCase().includes(q)
-    );
-  }, [currentList, searchQuery]);
+  // Filter based on bifurcation tabs and search
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (activeTab === 'pending') {
+      result = result.filter((s) => s.verifyStatus === 'Pending');
+    } else if (activeTab === 'processed') {
+      result = result.filter((s) => s.verifyStatus === 'Approved' || s.verifyStatus === 'Rejected');
+    }
 
-  const pagination = usePagination(filteredList, { initialPageSize: 10 });
+    if (districtFilter !== 'all') {
+      result = result.filter((s) => s.district.toLowerCase() === districtFilter.toLowerCase());
+    }
 
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.applicantName.toLowerCase().includes(q) ||
+          s.siteName.toLowerCase().includes(q) ||
+          s.vendorName.toLowerCase().includes(q) ||
+          s.district.toLowerCase().includes(q) ||
+          s.block.toLowerCase().includes(q) ||
+          s.village.toLowerCase().includes(q) ||
+          String(s.id).includes(q)
+      );
+    }
+    return result;
+  }, [items, activeTab, districtFilter, search]);
+
+  const pagination = usePagination(filteredItems, { initialPageSize: 50 });
+
+  useEffect(() => {
+    pagination.setPage(1);
+  }, [activeTab, districtFilter, search]);
+
+  // Export columns
+  const exportColumns: ExportColumn[] = [
+    { header: 'Sr. No.', accessor: 'id' },
+    { header: 'State', accessor: 'state' },
+    { header: 'Vendor Name', accessor: 'vendorName' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Block', accessor: 'block' },
+    { header: 'Village', accessor: 'village' },
+    { header: 'Site / Applicant Name', accessor: 'applicantName' },
+    { header: 'Document File', accessor: 'documentFile' },
+    { header: 'Submit Date', accessor: 'submitDate' },
+    { header: 'Remarks', accessor: 'remarks' },
+    { header: 'Verify Status', accessor: 'verifyStatus' },
+    { header: 'Verify Remarks', accessor: 'verifyRemarks' },
+  ];
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = async () => {
+    if (!filteredItems.length) return;
+    const t = [
+      exportColumns.map((c) => c.header).join('\t'),
+      ...filteredItems.map((row) =>
+        exportColumns.map((c) => String((row as any)[c.accessor as string] || '')).join('\t')
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert('Data copied to clipboard!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Data copied to clipboard!');
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!filteredItems.length) return;
+    const out = [
+      exportColumns.map((c) => c.header),
+      ...filteredItems.map((row) =>
+        exportColumns.map((c) => `"${String((row as any)[c.accessor as string] || '').replace(/"/g, '""')}"`)
+      ),
+    ];
+    downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `Jammu_RESCO_Doc_Verify_${activeTab}.csv`, 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!filteredItems.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredItems.map((row) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_RESCO_Doc_Verify_${activeTab}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = () => {
+    if (!filteredItems.length) return;
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8"/><title>Jammu RESCO Verify Documents</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Jammu RESCO Document Verification</h1><table><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredItems.map((r) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  // Submit document audit
   const handleActionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDocForAction) return;
 
+    if (!actionStatus) {
+      alert('Please select status.');
+      return;
+    }
+
     setSubmittingAction(true);
     try {
-      const st = parseInt(actionStatus, 10);
-      const updated: RescoVerifyDocItem = {
-        ...selectedDocForAction,
-        verify_status: st as 1 | 2 | 0,
-        verify_remarks: actionRemarks,
-      };
+      const targetStatus = Number(actionStatus); // 2 = Approved, 3 = Rejected
+      const res = await jammuRescoAdminService.verifyInstallationDocument({
+        id: selectedDocForAction.id,
+        status: targetStatus,
+        remarks: actionRemarks,
+      });
 
-      if (st === 1 || st === 2) {
-        setPendingList((prev) => prev.filter((p) => p.id !== selectedDocForAction.id));
-        setApprovedRejectedList((prev) => [updated, ...prev.filter((p) => p.id !== selectedDocForAction.id)]);
+      if (res.success || res.status) {
+        const newStatusLabel: 'Pending' | 'Approved' | 'Rejected' =
+          targetStatus === 2 ? 'Approved' : 'Rejected';
+
+        setItems((prev) =>
+          prev.map((s) =>
+            s.id === selectedDocForAction.id
+              ? {
+                  ...s,
+                  rawStatus: targetStatus,
+                  verifyStatus: newStatusLabel,
+                  verifyRemarks: actionRemarks || s.verifyRemarks,
+                }
+              : s
+          )
+        );
+
+        setStats((prev) => ({
+          ...prev,
+          doc_pending: Math.max(0, (prev.doc_pending || 0) - 1),
+          doc_approved: targetStatus === 2 ? (prev.doc_approved || 0) + 1 : prev.doc_approved,
+          doc_reject: targetStatus === 3 ? (prev.doc_reject || 0) + 1 : prev.doc_reject,
+        }));
+
+        setSelectedDocForAction(null);
+        setActionStatus('2');
+        setActionRemarks('');
+        alert(res.message || 'Document verification status updated successfully.');
       } else {
-        setApprovedRejectedList((prev) => prev.filter((p) => p.id !== selectedDocForAction.id));
-        setPendingList((prev) => [updated, ...prev.filter((p) => p.id !== selectedDocForAction.id)]);
+        alert(res.message || 'Failed to update document status.');
       }
-
-      setSelectedDocForAction(null);
-      setActionRemarks('');
-    } catch (e) {
-      console.error('Submit verify document failed:', e);
+    } catch (err: any) {
+      alert(err?.message || 'Error updating document status.');
     } finally {
       setSubmittingAction(false);
     }
   };
 
+  const pendingCount = items.filter((s) => s.verifyStatus === 'Pending').length;
+  const processedCount = items.filter((s) => s.verifyStatus === 'Approved' || s.verifyStatus === 'Rejected').length;
+
   return (
-    <div className="solar-erp-page">
+    <div className="solar-erp-page ax-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <PageHead
-        title="Welcome to, Verify Resco Document"
-        subtitle="Verification desk for commissioned site compliance documents, CEIG clearance certificates, DISCOM net-metering letters, and JMR records."
+        title="Jammu RESCO Installation - Verify Documents"
+        subtitle="Verification and audit desk for beneficiary handover certificates (HOC), Joint Commissioning Reports (JCR), and installation documents in Jammu"
         breadcrumbs={[
-          { label: 'Home', href: '/' },
+          { label: 'ERP Dashboard', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu' },
-          { label: 'RESCO Installation', href: '/vendor-management/jammu/installation/resco/dashboard' },
-          { label: 'Verify Resco Document' },
+          { label: 'Installation', href: '/vendor-management/jammu/installation/resco' },
+          { label: 'RESCO', href: '/vendor-management/jammu/installation/resco' },
+          { label: 'Verify Documents' },
         ]}
       />
 
-      {/* Top 3 Metric Cards exactly matching user's summary format */}
+      {/* ── Top 5 KPI Metric Cards ── */}
       <div className="asw-cards-row">
         <KpiCard
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
           }
           tone="accent"
-          label="Total / Assigned / Not Assigned"
-          value={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span>{stats.total}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#16a34a' }}>{stats.assigned}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#d97706' }}>{stats.not_assigned}</span>
-            </div>
-          }
-          sub={`Total Sites: ${stats.total} • Assigned: ${stats.assigned} • Not Assigned: ${stats.not_assigned}`}
+          label="Total Sites"
+          value={stats.total || items.length}
+          sub={`${stats.assigned} Assigned · ${stats.not_assigned} Unassigned`}
         />
-
         <KpiCard
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-          }
-          tone="emerald"
-          label="Installation Status"
-          value={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ color: '#16a34a' }}>{stats.installed_complete}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#d97706' }}>{stats.installed_pending}</span>
-            </div>
-          }
-          sub={`Complete: ${stats.installed_complete} • Pending: ${stats.installed_pending}`}
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <polyline points="20 6 9 17 4 12" />
             </svg>
           }
           tone="cyan"
-          label="Document Verify Status"
-          value={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ color: '#16a34a' }}>{stats.doc_complete}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#d97706' }}>{stats.doc_pending}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#dc2626' }}>{stats.doc_reject}</span>
-            </div>
+          label="Installed Sites"
+          value={`${stats.complete} / ${stats.pending}`}
+          sub="Complete / Pending"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
           }
-          sub={`Approved: ${stats.doc_complete} • Pending: ${stats.doc_pending} • Reject: ${stats.doc_reject}`}
+          tone="amber"
+          label="Doc Pending"
+          value={stats.doc_pending || pendingCount}
+          sub="HOC under audit review"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
+          tone="emerald"
+          label="Document Approved"
+          value={stats.doc_approved}
+          sub="Handover accepted"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+          tone="violet"
+          label="Document Rejected"
+          value={stats.doc_reject}
+          sub="Signoff papers rejected"
         />
       </div>
 
-      {/* Report Wise Bifurcation Pills */}
+      {/* ── Report Wise Bifurcation Pills ── */}
       <div className="asw-bifurcation-row">
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>Report Wise Bifurcation:</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+          onClick={() => setActiveTab('all')}
+          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
+        >
+          All Documents
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {items.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('pending')}
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
         >
           Verification Pending
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {pendingList.length}
+            {stats.doc_pending || pendingCount}
           </span>
         </button>
+
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active' : ''}`}
-          onClick={() => setActiveTab('approved_rejected')}
+          onClick={() => setActiveTab('processed')}
+          className={`asw-pill-btn ${activeTab === 'processed' ? 'active' : ''}`}
         >
           Approved / Rejected Data
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {approvedRejectedList.length}
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'processed' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {(stats.doc_approved + stats.doc_reject) || processedCount}
           </span>
         </button>
       </div>
 
-      {/* Main Table Card */}
+      {/* ── Main Data Card ── */}
       <section className="ax-card ax-col--12">
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">
-              {activeTab === 'pending' ? 'Jammu RESCO Compliance Documents Pending Verification' : 'Jammu RESCO Approved / Rejected Documents'}
+              {activeTab === 'all'
+                ? 'All Jammu RESCO Installation Documents'
+                : activeTab === 'pending'
+                ? 'Jammu RESCO Installation Documents Pending Verification'
+                : 'Jammu RESCO Verified Installation Documents Register'}
             </h2>
-            <p className="ax-card__subtitle">Showing {filteredList.length} site compliance submission{filteredList.length === 1 ? '' : 's'}</p>
+            <p className="ax-card__subtitle">
+              Showing {filteredItems.length} document record{filteredItems.length === 1 ? '' : 's'} across Jammu
+            </p>
           </div>
+
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {searchQuery.trim() !== '' && (
+              {districtOptions.length > 0 && (
+                <select
+                  value={districtFilter}
+                  onChange={(e) => setDistrictFilter(e.target.value)}
+                  className="ax-form-control"
+                  style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1', height: 32 }}
+                >
+                  <option value="all">All Districts ({districtOptions.length})</option>
+                  {districtOptions.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              )}
+
+              {search.trim() !== '' && (
                 <button
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    pagination.setPage(1);
-                  }}
-                  style={{ height: 30, padding: '0 8px', fontSize: '11px' }}
+                  onClick={() => setSearch('')}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                 >
                   Reset
                 </button>
               )}
-              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search vendor, site, district..." size="sm" />
-              <TableExportToolbar onCopy={() => {}} onExportCSV={() => {}} onExportExcel={() => {}} onExportPDF={() => {}} />
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search vendor, applicant, district..."
+                size="sm"
+              />
+              <TableExportToolbar
+                onCopy={copyToClipboard}
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
+              />
             </div>
           </div>
         </div>
 
-        {/* Responsive Table */}
+        {/* ── Horizontally Scrollable Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 1400 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: activeTab === 'pending' ? 1400 : 1550 }}>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th">Sr. No.</th>
-                <th className="ax-table__th">Vendor Name</th>
+                <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>Sr. No.</th>
                 <th className="ax-table__th">State</th>
+                <th className="ax-table__th">Vendor Name</th>
                 <th className="ax-table__th">District</th>
-                <th className="ax-table__th">Site Name</th>
-                <th className="ax-table__th">Contact Person</th>
-                <th className="ax-table__th">Contact Number</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Document File</th>
+                <th className="ax-table__th">Block</th>
+                <th className="ax-table__th">Village</th>
+                <th className="ax-table__th">Site / Applicant Name</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Document File</th>
                 <th className="ax-table__th">Submit Date</th>
                 <th className="ax-table__th">Remarks</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Verify Status</th>
+                {activeTab === 'pending' ? (
+                  <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
+                ) : (
+                  <th className="ax-table__th">Verify Remarks</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={12} style={centerCell}>Loading compliance documents...</td>
+                  <td colSpan={12} style={centerCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading document verification records...</span>
+                    </div>
+                  </td>
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
                   <td colSpan={12} style={centerCell}>
-                    <TableEmptyState title="No document records found" description="No files match current filter" />
+                    <TableEmptyState
+                      title="No Document Records Found"
+                      description={`No records found under "${activeTab === 'pending' ? 'Verification Pending' : 'Approved/Rejected Data'}" matching your criteria.`}
+                    />
                   </td>
                 </tr>
               ) : (
                 pagination.paged.map((row, idx) => {
-                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const serialNo = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   return (
                     <tr key={row.id}>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>{row.vendor_name}</td>
-                      <td className="ax-table__td">JAMMU &amp; KASHMIR</td>
-                      <td className="ax-table__td">{row.district}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#2559bf' }}>{row.site_name}</td>
-                      <td className="ax-table__td">{row.contact_person}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', color: '#2559bf' }}>{row.contact_number}</td>
+                      {/* 1. Sr. No. */}
+                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
+                        {serialNo}
+                      </td>
 
+                      {/* 2. State */}
+                      <td className="ax-table__td" style={{ color: '#334155' }}>
+                        {row.state}
+                      </td>
+
+                      {/* 3. Vendor Name */}
+                      <td className="ax-table__td">
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.vendorName}</div>
+                      </td>
+
+                      {/* 4. District */}
+                      <td className="ax-table__td">
+                        <span className="ax-badge ax-badge--subtle" style={{ fontWeight: 600 }}>
+                          {row.district}
+                        </span>
+                      </td>
+
+                      {/* 5. Block */}
+                      <td className="ax-table__td">{row.block}</td>
+
+                      {/* 6. Village */}
+                      <td className="ax-table__td">{row.village}</td>
+
+                      {/* 7. Site / Applicant Name */}
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {row.applicantName}
+                      </td>
+
+                      {/* 8. Document File */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.document_file ? (
-                          <a
-                            href={resolveJammuMediaUrl(row.document_file)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ color: '#2559bf', fontWeight: 600 }}
-                          >
-                            📄 View File
-                          </a>
+                        {row.documentFile ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/\.(jpe?g|png|webp|gif|svg)($|\?)/i.test(row.documentFile) ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightboxUrl({ url: row.documentFile!, title: `Document - ${row.applicantName}` })}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: 6,
+                                  padding: 2,
+                                  background: '#fff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                }}
+                                title="Click to preview Document image"
+                              >
+                                <img
+                                  src={row.documentFile}
+                                  alt="Document"
+                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={row.documentFile}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '5px 10px',
+                                  borderRadius: 6,
+                                  background: '#eff4fc',
+                                  color: '#2559bf',
+                                  textDecoration: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  border: '1px solid #bfd3f8',
+                                }}
+                                title="Open / Download Document"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>View File</span>
+                              </a>
+                            )}
+                          </div>
                         ) : (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         )}
                       </td>
 
-                      <td className="ax-table__td" style={{ fontSize: 12 }}>{row.submit_date}</td>
-                      <td className="ax-table__td" style={{ fontSize: 11, maxWidth: 180, whiteSpace: 'normal' }}>
-                        {row.remarks || '—'}
+                      {/* 9. Submit Date */}
+                      <td className="ax-table__td">{row.submitDate}</td>
+
+                      {/* 10. Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.remarks}>
+                          {row.remarks}
+                        </div>
                       </td>
 
+                      {/* 11. Verify Status */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <span
-                          className={`ax-badge ax-badge--soft ${
-                            row.verify_status === 1
-                              ? 'ax-badge--success'
-                              : row.verify_status === 2
-                              ? 'ax-badge--danger'
-                              : 'ax-badge--warning'
-                          }`}
-                          style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '3px 10px',
+                            borderRadius: 9999,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            background:
+                              row.verifyStatus === 'Approved'
+                                ? '#ecfdf5'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fef2f2'
+                                : '#fffbeb',
+                            color:
+                              row.verifyStatus === 'Approved'
+                                ? '#059669'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#dc2626'
+                                : '#d97706',
+                            border: `1px solid ${
+                              row.verifyStatus === 'Approved'
+                                ? '#a7f3d0'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fecaca'
+                                : '#fde68a'
+                            }`,
+                          }}
                         >
-                          {row.verify_status === 1 ? 'Approved' : row.verify_status === 2 ? 'Rejected' : 'Pending'}
+                          {row.verifyStatus}
                         </span>
                       </td>
 
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDocForAction(row);
-                            setActionStatus(String(row.verify_status || '1'));
-                            setActionRemarks(row.verify_remarks || '');
-                          }}
-                          className="ax-btn ax-btn--primary ax-btn--sm"
-                          style={{
-                            padding: '4px 12px',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            lineHeight: 1.2,
-                            height: 'auto',
-                            minHeight: 'unset',
-                          }}
-                        >
-                          Verify
-                        </button>
-                      </td>
+                      {/* 12. If Pending: Action column */}
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDocForAction(row);
+                              setActionStatus('2');
+                              setActionRemarks(row.verifyRemarks !== '—' ? row.verifyRemarks : '');
+                            }}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: '#2559bf',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            Verify
+                          </button>
+                        </td>
+                      )}
+
+                      {/* 12. If Approved/Rejected: Verify Remarks */}
+                      {activeTab === 'processed' && (
+                        <td className="ax-table__td" style={{ maxWidth: 180 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
+                            {row.verifyRemarks}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -762,7 +1181,7 @@ export function VerifyRescoDocument() {
           </table>
         </div>
 
-        {/* Footer Pagination */}
+        {/* ── Table Footer with Pagination ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -771,63 +1190,153 @@ export function VerifyRescoDocument() {
               pageSize={pagination.pageSize}
               onPageChange={pagination.setPage}
               onPageSizeChange={pagination.setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
       </section>
 
-      {/* Verify Document Action Modal */}
+      {/* ── Document Verification Modal (Only from Pending tab) ── */}
       <Modal
         open={Boolean(selectedDocForAction)}
-        onClose={() => setSelectedDocForAction(null)}
-        title="Verify RESCO Document Status"
-        subtitle={selectedDocForAction ? `${selectedDocForAction.site_name} (${selectedDocForAction.vendor_name})` : ''}
-        maxWidth={500}
-        footer={
-          <>
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setSelectedDocForAction(null)} disabled={submittingAction}>
-              Cancel
-            </button>
-            <button type="button" className="ax-btn ax-btn--primary" onClick={handleActionSubmit} disabled={submittingAction}>
-              {submittingAction ? 'Updating...' : 'Submit Verification'}
-            </button>
-          </>
-        }
+        onClose={() => {
+          if (!submittingAction) {
+            setSelectedDocForAction(null);
+            setActionStatus('2');
+            setActionRemarks('');
+          }
+        }}
+        title="Verify Document"
+        subtitle={selectedDocForAction ? `Site: ${selectedDocForAction.applicantName} (${selectedDocForAction.district})` : undefined}
       >
-        <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {selectedDocForAction?.documentFile && (
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/\.(jpe?g|png|webp|gif|svg)($|\?)/i.test(selectedDocForAction.documentFile) ? (
+                  <img
+                    src={selectedDocForAction.documentFile}
+                    alt="Document"
+                    style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', border: '1px solid #cbd5e1' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 24 }}>📄</span>
+                )}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Submitted Document</div>
+                  <div style={{ fontSize: 11.5, color: '#64748b' }}>Date: {selectedDocForAction.submitDate}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl({ url: selectedDocForAction.documentFile!, title: `Document - ${selectedDocForAction.applicantName}` })}
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  style={{ fontSize: 12 }}
+                >
+                  Preview
+                </button>
+                <a
+                  href={selectedDocForAction.documentFile}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  style={{ fontSize: 12 }}
+                >
+                  Open ↗
+                </a>
+              </div>
+            </div>
+          )}
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Verification Status <span style={{ color: '#ef4444' }}>*</span>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Status <span style={{ color: '#dc2626' }}>*</span>
             </label>
             <select
               value={actionStatus}
               onChange={(e) => setActionStatus(e.target.value)}
-              className="ax-select"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
               required
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                outline: 'none',
+              }}
             >
-              <option value="1">Approved</option>
-              <option value="2">Rejected</option>
-              <option value="0">Pending</option>
+              <option value="2">Approved</option>
+              <option value="3">Rejected</option>
             </select>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Audit Remarks
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Remark
             </label>
             <textarea
               rows={3}
               value={actionRemarks}
               onChange={(e) => setActionRemarks(e.target.value)}
-              placeholder="Enter document verification remarks or missing certificate notes..."
-              className="ax-textarea"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+              placeholder="Enter document verification remarks..."
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                resize: 'vertical',
+                outline: 'none',
+              }}
             />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button
+              type="button"
+              disabled={submittingAction}
+              onClick={() => {
+                setSelectedDocForAction(null);
+                setActionStatus('2');
+                setActionRemarks('');
+              }}
+              className="ax-btn ax-btn--secondary"
+              style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submittingAction}
+              className="ax-btn ax-btn--primary"
+              style={{
+                padding: '8px 20px',
+                fontSize: 13,
+                borderRadius: 8,
+                background: '#2559bf',
+                color: '#fff',
+                fontWeight: 600,
+                border: 'none',
+                cursor: submittingAction ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {submittingAction ? 'Submitting...' : 'Submit'}
+            </button>
           </div>
         </form>
       </Modal>
+
+      {/* ── Media Lightbox Modal ── */}
+      {lightboxUrl && (
+        <LightboxModal
+          open={Boolean(lightboxUrl)}
+          onClose={() => setLightboxUrl(null)}
+          url={lightboxUrl.url}
+          title={lightboxUrl.title}
+        />
+      )}
     </div>
   );
 }

@@ -31,7 +31,7 @@ const formatAmcType = (val: any) => {
   if (s.toUpperCase() === 'Q') return 'Quarterly (Q)';
   if (s.toUpperCase() === 'H') return 'Half-Yearly (H)';
   if (s.toUpperCase() === 'Y') return 'Yearly (Y)';
-  return s ? `Period ${s}` : 'Year 1';
+  return s ? `Period ${s}` : '—';
 };
 
 export function UP_AMC_SSL18W_ViewAssignLight() {
@@ -106,28 +106,16 @@ export function UP_AMC_SSL18W_ViewAssignLight() {
       cell: (r: any, ctx: CellCtx) => {
         const fileUrl = r.file ? resolveUpMediaUrl(r.file) : '';
         if (!fileUrl) return <span style={{ color: 'var(--ax-text-muted)' }}>—</span>;
-        const isImg = /\.(jpe?g|png|webp|gif)$/i.test(fileUrl);
+        const isPdf = /\.pdf$/i.test(fileUrl.split('?')[0]);
+        const isImg = !isPdf && !/\.(docx?|xlsx?|csv|zip)$/i.test(fileUrl.split('?')[0]);
         if (isImg) {
           return (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <DocThumb url={fileUrl} alt={`Doc #${r.id}`} onPreview={ctx.openPreview} size={30} />
-              <button
-                type="button"
-                onClick={() => ctx.openPreview(fileUrl, `Document #${r.id}`)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--ax-primary-default, #2563eb)',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: 12,
-                  textDecoration: 'underline',
-                  fontWeight: 600,
-                }}
-              >
-                View
-              </button>
-            </div>
+            <DocThumb
+              url={fileUrl}
+              alt={`Document #${r.id}`}
+              onPreview={ctx.openPreview}
+              size={36}
+            />
           );
         }
         return (
@@ -135,10 +123,27 @@ export function UP_AMC_SSL18W_ViewAssignLight() {
             href={fileUrl}
             target="_blank"
             rel="noreferrer"
-            className="ax-btn ax-btn--ghost ax-btn--sm"
-            style={{ height: 26, padding: '0 8px', fontSize: 12 }}
+            className="ax-btn ax-btn--ghost ax-btn--xs"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              height: 28,
+              padding: '0 8px',
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 6,
+              border: '1px solid var(--ax-border, #e2e8f0)',
+              color: 'var(--ax-primary-default, #2563eb)',
+              textDecoration: 'none',
+            }}
+            title="Open Document ↗"
           >
-            View File ↗
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span>{isPdf ? 'PDF' : 'Doc'} ↗</span>
           </a>
         );
       },

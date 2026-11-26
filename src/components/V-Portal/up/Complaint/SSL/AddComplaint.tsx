@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ComplaintFormLayout,
   FloatingInput,
@@ -9,9 +9,10 @@ import {
   SectionHeader,
   opts,
   getTodayFormatted,
+  formatDateForInput,
   type SectionItem,
 } from '../CommonSharedComplaints';
-import { upComplaintService, type UpSslBeneficiaryDetails } from '../../up-services';
+import { getMediaUrl, upComplaintService, type UpSslBeneficiaryDetails } from '../../up-services';
 
 const SECTIONS: SectionItem[] = [
   { id: 'ssl-sec-1', num: '1', title: 'Location & Beneficiary' },
@@ -61,8 +62,15 @@ type FormKey = keyof typeof INITIAL_FORM;
 
 export function UP_Complaint_SSL_AddComplaint() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
+  const skipTypeResetRef = useRef(isEdit);
 
   const [form, setForm] = useState(INITIAL_FORM);
+  const [complaintCode, setComplaintCode] = useState('');
+  const [existingFile, setExistingFile] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -89,11 +97,33 @@ export function UP_Complaint_SSL_AddComplaint() {
 
 useEffect(() => {
   let active = true;
-  // Reset cascading fields on type change
-  setDistricts([]);
-  setBlocks([]);
-  setPanchayats([]);
-  setBeneficiaries([]);
+  if (skipTypeResetRef.current) {
+    skipTypeResetRef.current = false;
+  } else {
+    // Reset cascading fields and selected form values on type change
+    setDistricts([]);
+    setBlocks([]);
+    setPanchayats([]);
+    setBeneficiaries([]);
+    setForm((p) => ({
+      ...p,
+      district: '',
+      block: '',
+      panchayat: '',
+      beneficiary_name: '',
+      beneficiary_id: '',
+      contact_no: '',
+      uid_no: '',
+      latitude: '',
+      longitude: '',
+      along_with_pole: '',
+      luminary_no: '',
+      sim_no: '',
+      battery_serial_no: '',
+      module_no: '',
+      date_of_installation: '',
+    }));
+  }
 
   const loadDistricts = async () => {
     try {
@@ -110,6 +140,96 @@ useEffect(() => {
   loadDistricts();
   return () => { active = false; };
 }, [form.type]);  // ← re-run when type changes
+
+  // Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const rawType = String(rec.ssl_type || rec.type || 'SSL 18W').trim().toLowerCase();
+      const uiType = rawType.includes('12') ? 'SSL 12W' : 'SSL 18W';
+      const dist = String(rec.district || rec.district_name || '').trim();
+      const block = String(rec.block || rec.block_name || '').trim();
+      const panchayat = String(rec.panchyat || rec.panchayat || rec.panchayt || rec.gp_name || '').trim();
+      const bName = String(rec.beneficiary_name || rec.name || '').trim();
+      const bId = String(rec.beneficiary_id || rec.uid || rec.uid_no || bName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'Yes').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile(getMediaUrl(rec.file || rec.document || rec.file1) || '');
+      skipTypeResetRef.current = true;
+      setForm({
+        type: uiType,
+        district: dist,
+        block,
+        panchayat,
+        beneficiary_name: bName,
+        beneficiary_id: bId,
+        contact_no: String(rec.contact_no || rec.mobile || rec.phone || ''),
+        uid_no: String(rec.uid_no || rec.uid || rec.uuid_no || ''),
+        latitude: rec.latitude !== undefined && rec.latitude !== null ? String(rec.latitude) : '',
+        longitude: rec.longitude !== undefined && rec.longitude !== null ? String(rec.longitude) : '',
+        along_with_pole: String(rec.along_with_pole || ''),
+        luminary_no: String(rec.luminary_no || rec.luminary_serial_no || ''),
+        sim_no: String(rec.sim_no || rec.sim_number || ''),
+        battery_serial_no: String(rec.battery_serial_no || rec.battery_no || ''),
+        module_no: String(rec.module_no || rec.panel_no || ''),
+        date_of_installation: formatDateForInput(rec.date_of_installation || rec.installation_date || rec.inst_date),
+        complaint_date: formatDateForInput(rec.complaint_date || rec.start_date || rec.created_at) || getTodayFormatted(),
+        complaint_source: String(rec.complaint_source || rec.source || 'Vendor App'),
+        complaint_issue: String(rec.complaint_issue || rec.issue || ''),
+        complaint: String(rec.complaint || rec.remarks || ''),
+        sms: rawSms === 'no' || rawSms === '0' || rawSms === 'false' ? 'No' : 'Yes',
+      });
+
+      const apiT = toApiType(uiType);
+      if (dist) {
+        try {
+          const bList = await upComplaintService.getSslBlocks(dist, apiT);
+          if (active) setBlocks(bList);
+        } catch {}
+        if (block) {
+          try {
+            const pList = await upComplaintService.getSslPanchayats(dist, block, apiT);
+            if (active) setPanchayats(pList);
+          } catch {}
+          if (panchayat) {
+            try {
+              const list = await upComplaintService.getSslBeneficiaryNames(dist, block, panchayat, apiT);
+              if (!active) return;
+              const matched = list.find((b) => String(b.id) === bId || b.name === bName);
+              if (matched) {
+                setBeneficiaries(list);
+                setForm((p) => ({ ...p, beneficiary_id: String(matched.id), beneficiary_name: matched.name }));
+              } else if (bId || bName) {
+                setBeneficiaries([{ id: bId || bName, name: bName || bId }, ...list]);
+              } else {
+                setBeneficiaries(list);
+              }
+            } catch {
+              if (active && (bId || bName)) setBeneficiaries([{ id: bId || bName, name: bName || bId }]);
+            }
+          }
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getSslEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
 
   const handleDistrictChange = async (d: string) => {
     setForm((p) => ({
@@ -137,7 +257,7 @@ useEffect(() => {
     if (!d) return;
 
     try {
-      const bList = await upComplaintService.getSslBlocks(d);
+      const bList = await upComplaintService.getSslBlocks(d, toApiType(form.type));
       setBlocks(bList);
     } catch {
       setBlocks([]);
@@ -152,7 +272,7 @@ useEffect(() => {
     if (!b || !form.district) return;
 
     try {
-      const pList = await upComplaintService.getSslPanchayats(form.district, b);
+      const pList = await upComplaintService.getSslPanchayats(form.district, b, toApiType(form.type));
       setPanchayats(pList);
     } catch {
       setPanchayats([]);
@@ -166,7 +286,7 @@ useEffect(() => {
     if (!panch || !form.district || !form.block) return;
 
     try {
-      const list = await upComplaintService.getSslBeneficiaryNames(form.district, form.block, panch);
+      const list = await upComplaintService.getSslBeneficiaryNames(form.district, form.block, panch, toApiType(form.type));
       setBeneficiaries(list);
     } catch {
       setBeneficiaries([]);
@@ -183,20 +303,26 @@ useEffect(() => {
     if (!idOrName) return;
 
     try {
-      const det: UpSslBeneficiaryDetails | null = await upComplaintService.getSslBeneficiaryDetails(idOrName);
+      const det: UpSslBeneficiaryDetails | null = await upComplaintService.getSslBeneficiaryDetails(
+        idOrName,
+        bName,
+        toApiType(form.type),
+      );
       if (det) {
+        const rawInstDate = det.date_of_installation || det.installation_date || '';
+        const formattedInstDate = rawInstDate ? String(rawInstDate).split('T')[0].split(' ')[0] : '';
         setForm((p) => ({
           ...p,
           contact_no: det.contact_no || p.contact_no,
-          uid_no: det.uid_no || p.uid_no,
+          uid_no: det.uid_no || det.uuid_no || p.uid_no,
           latitude: det.latitude !== undefined ? String(det.latitude) : p.latitude,
           longitude: det.longitude !== undefined ? String(det.longitude) : p.longitude,
           along_with_pole: det.along_with_pole || p.along_with_pole,
           luminary_no: det.luminary_no || p.luminary_no,
           sim_no: det.sim_no || p.sim_no,
           battery_serial_no: det.battery_serial_no || p.battery_serial_no,
-          module_no: det.module_no || p.module_no,
-          date_of_installation: det.date_of_installation || p.date_of_installation,
+          module_no: det.module_no || det.panel_no || p.module_no,
+          date_of_installation: formattedInstDate || p.date_of_installation,
         }));
       }
     } catch {}
@@ -223,7 +349,7 @@ useEffect(() => {
       errs.contact_no = 'Must be exactly 10 digits';
     }
     if (!form.complaint.trim()) errs.complaint = 'Complaint description is required';
-    if (!file) errs.file = 'Supporting document / photo is required';
+    if (!isEdit && !file) errs.file = 'Supporting document / photo is required';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -241,6 +367,10 @@ useEffect(() => {
     setLoading(true);
     try {
       const fd = new FormData();
+      if (isEdit && editId) {
+        fd.append('id', String(editId));
+        if (complaintCode) fd.append('complaint_id', complaintCode);
+      }
       Object.entries(form).forEach(([k, v]) => {
         if (v !== '' && v !== null && v !== undefined) {
           // 'type' field: backend expects 'upssl18w' / 'upssl12w'
@@ -252,15 +382,20 @@ useEffect(() => {
         fd.append('file1', file);
       }
 
-      const res = await upComplaintService.saveSslComplaint(fd);
+      const res = isEdit
+        ? await upComplaintService.updateSslComplaint(fd)
+        : await upComplaintService.saveSslComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'SSL Complaint registered successfully!' });
-        handleReset();
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'SSL Complaint updated successfully!' : 'SSL Complaint registered successfully!'),
+        });
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/ssl-view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        setToast({ type: 'error', message: res.message || (isEdit ? 'Failed to update complaint.' : 'Failed to submit complaint.') });
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Error occurred.' });
@@ -271,21 +406,23 @@ useEffect(() => {
 
   return (
     <ComplaintFormLayout
-      title="Add Vendor UP SSL Complaint"
-      subtitle="Register Solar Street Light breakdown, hardware faults, and repair requests"
+      title={isEdit ? 'Edit Vendor UP SSL Complaint' : 'Add Vendor UP SSL Complaint'}
+      subtitle={isEdit ? 'Update Solar Street Light breakdown, hardware faults, and repair request' : 'Register Solar Street Light breakdown, hardware faults, and repair requests'}
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'Vendor UP SSL Complaints', href: '/v/complaint/up/ssl-view-complaint' },
-        { label: 'Add UP SSL Complaint' },
+        { label: isEdit ? 'Edit UP SSL Complaint' : 'Add UP SSL Complaint' },
       ]}
       viewLink="/v/complaint/up/ssl-view-complaint"
       eyebrow="Solar Street Light (SSL)"
-      formTitle="Add UP SSL Complaint"
-      formSubtitle="Enter location, luminary details, and issue description across 3 sections."
+      formTitle={isEdit ? `Edit UP SSL Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add UP SSL Complaint'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Enter location, luminary details, and issue description across 3 sections.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={loading}
+      submitLabel={isEdit ? 'Update Complaint' : 'Submit Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* ── Section 1: Location & Beneficiary ── */}
@@ -395,8 +532,9 @@ useEffect(() => {
           <FloatingFileInput
             id="ssl-file"
             label="Upload Proof Photo / Document"
-            required
+            required={!isEdit}
             file={file}
+            existingUrl={existingFile}
             onChange={setFile}
             error={errors.file}
           />

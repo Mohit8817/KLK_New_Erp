@@ -1,469 +1,563 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
-  INITIAL_ASSIGN_DATA,
-  UP_DISTRICTS,
-  UP_KUSUM_C_VENDORS,
-  type UPKusumCAssignRecord,
-  type UPFarmerInfo,
-} from './upKusumCTypes';
+  Pagination,
+  usePagination,
+  SearchInput,
+  TableExportToolbar,
+  TableEmptyState,
+  type ExportColumn,
+} from '../../../../../common';
+import {
+  upKusumCAdminService,
+  resolveUpMediaUrl,
+  type UpKusumCAssignRecord,
+  type UpKusumCAssignSiteDetail,
+  type UpKusumCDetailSummary,
+} from '../../up-services';
+import {
+  TABLE_PAGE_CSS,
+  OVERLAY_CSS,
+  actionsRowStyle,
+  footerStyle,
+  centerCell,
+  Modal,
+  KpiCard,
+  MediaFileThumbnail,
+  MediaLightbox,
+  StatusFeedbackBanners,
+  fmtDate,
+  fmtNum,
+  DASH,
+  copyRowsToClipboard,
+  exportRowsCSV,
+  exportRowsExcel,
+  exportRowsPDF,
+} from '../upInstallationShared';
+
+function getSiteList(row: UpKusumCAssignRecord): UpKusumCAssignSiteDetail[] {
+  if (Array.isArray(row.site_id)) {
+    return row.site_id
+      .filter((s: any) => s && typeof s === 'object')
+      .map((s: any) => s as UpKusumCAssignSiteDetail);
+  }
+  return [];
+}
+
+function getAssignStatusMeta(status: unknown): { label: string; tone: 'warning' | 'info' | 'success' } {
+  const code = Number(status);
+  if (code === 2) return { label: 'Accepted', tone: 'success' };
+  if (code === 1) return { label: 'Approved', tone: 'info' };
+  return { label: 'Pending', tone: 'warning' };
+}
+
+function normalizeMaterialYesNo(val?: string | number | null): string {
+  if (val === null || val === undefined || val === '') return '';
+  const s = String(val).trim().toLowerCase();
+  if (s === 'yes' || s === '1' || s === 'true') return 'Yes';
+  if (s === 'no' || s === '0' || s === 'false') return 'No';
+  return '';
+}
+
+function normalizeVfdValue(val?: string | number | null): string {
+  if (val === null || val === undefined || val === '') return '';
+  const s = String(val).trim().toLowerCase();
+  if (s === '1' || s === 'yes' || s === 'true') return '1';
+  if (s === '0' || s === 'no' || s === 'false') return '0';
+  return '';
+}
 
 export function UPKusumCViewAssignInstallation() {
-  const [data] = useState<UPKusumCAssignRecord[]>(INITIAL_ASSIGN_DATA);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedVendor, setSelectedVendor] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [selectedRecord, setSelectedRecord] = useState<UPKusumCAssignRecord | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [assigns, setAssigns] = useState<UpKusumCAssignRecord[]>([]);
+  const [detail, setDetail] = useState<UpKusumCDetailSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  // Filtered Data
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const q = searchTerm.toLowerCase();
-      const matchesSearch =
-        !q ||
-        item.vendor.toLowerCase().includes(q) ||
-        item.district.toLowerCase().includes(q) ||
-        item.applicant_name.toLowerCase().includes(q) ||
-        (item.remarks || '').toLowerCase().includes(q);
+  // Detail modal & Material Status edit modal
+  const [selectedAssign, setSelectedAssign] = useState<UpKusumCAssignRecord | null>(null);
+  const [materialSite, setMaterialSite] = useState<UpKusumCAssignSiteDetail | null>(null);
+  const [mtBos, setMtBos] = useState('');
+  const [vfdStatus, setVfdStatus] = useState('');
+  const [mtInverter, setMtInverter] = useState('');
+  const [mtStructure, setMtStructure] = useState('');
+  const [savingMaterial, setSavingMaterial] = useState(false);
 
-      const matchesVendor = !selectedVendor || item.vendor === selectedVendor;
-      const matchesDistrict = !selectedDistrict || item.district === selectedDistrict;
-      const matchesStatus = !selectedStatus || item.status === selectedStatus;
+  const fetchAssignments = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await upKusumCAdminService.getViewAssign();
+      setAssigns(res.assigns);
+      setDetail(res.detail);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to load UP Kusum C assigned installations.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-      return matchesSearch && matchesVendor && matchesDistrict && matchesStatus;
+  useEffect(() => {
+    fetchAssignments();
+  }, [fetchAssignments]);
+
+  const handleApprove = async (id: number) => {
+    setApprovingId(id);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await upKusumCAdminService.approveAssign(id);
+      setSuccessMsg(res.message || `Assignment #${id} approved successfully!`);
+      setAssigns((prev) => prev.map((a) => (a.id === id ? { ...a, status: 1 } : a)));
+    } catch (err: any) {
+      setErrorMsg(err?.message || `Failed to approve assignment #${id}.`);
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const openMaterialModal = (site: UpKusumCAssignSiteDetail) => {
+    setMaterialSite(site);
+    setMtBos(normalizeMaterialYesNo(site.mt_bos));
+    setVfdStatus(normalizeVfdValue(site.vfd_status));
+    setMtInverter(normalizeMaterialYesNo(site.mt_inverter));
+    setMtStructure(normalizeMaterialYesNo(site.mt_structure));
+  };
+
+  const handleSaveMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!materialSite) return;
+    setSavingMaterial(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const vfdPayload = vfdStatus === '1' || vfdStatus === '0' ? vfdStatus : undefined;
+      const res = await upKusumCAdminService.updateMaterialStatus({
+        id: materialSite.id,
+        mt_bos: mtBos || undefined,
+        vfd_status: vfdPayload,
+        mt_inverter: mtInverter || undefined,
+        mt_structure: mtStructure || undefined,
+      });
+      setSuccessMsg(res.message || 'Material status updated successfully.');
+      const patchSite = (s: UpKusumCAssignSiteDetail) =>
+        s.id === materialSite.id
+          ? {
+              ...s,
+              mt_bos: mtBos || s.mt_bos,
+              vfd_status: vfdPayload ?? s.vfd_status,
+              mt_inverter: mtInverter || s.mt_inverter,
+              mt_structure: mtStructure || s.mt_structure,
+            }
+          : s;
+
+      setAssigns((prev) =>
+        prev.map((a) => ({
+          ...a,
+          site_id: Array.isArray(a.site_id)
+            ? a.site_id.map((s: any) => (typeof s === 'object' ? patchSite(s) : s))
+            : a.site_id,
+        }))
+      );
+      setSelectedAssign((prev) =>
+        prev
+          ? {
+              ...prev,
+              site_id: Array.isArray(prev.site_id)
+                ? prev.site_id.map((s: any) => (typeof s === 'object' ? patchSite(s) : s))
+                : prev.site_id,
+            }
+          : null
+      );
+      setMaterialSite(null);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to update material status.');
+    } finally {
+      setSavingMaterial(false);
+    }
+  };
+
+  const filteredAssigns = useMemo(() => {
+    let list = assigns;
+    if (statusFilter !== 'all') {
+      list = list.filter((r) => String(Number(r.status)) === statusFilter);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((row) => {
+      const vName = (row.vendor_name || row.vendors?.name || '').toLowerCase();
+      const dist = (row.district || '').toLowerCase();
+      const vol = String(row.volume ?? '').toLowerCase();
+      const rem = (row.remarks || '').toLowerCase();
+      const farmers = getSiteList(row)
+        .map((s) => `${s.f_farmer_name || ''} ${s.f_father_name || ''}`.toLowerCase())
+        .join(' ');
+      return (
+        vName.includes(q) ||
+        dist.includes(q) ||
+        vol.includes(q) ||
+        rem.includes(q) ||
+        farmers.includes(q) ||
+        String(row.id).includes(q)
+      );
     });
-  }, [data, searchTerm, selectedVendor, selectedDistrict, selectedStatus]);
+  }, [assigns, searchQuery, statusFilter]);
 
-  // Pagination calculation
-  const totalItems = filteredData.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagination = usePagination(filteredAssigns, { initialPageSize: 50 });
 
-  const resetFilters = () => {
-    setSearchTerm('');
-    setSelectedVendor('');
-    setSelectedDistrict('');
-    setSelectedStatus('');
-    setCurrentPage(1);
-  };
+  const exportCols = useMemo<ExportColumn<UpKusumCAssignRecord>[]>(
+    () => [
+      { header: 'Sr. No.', accessor: ((_r: UpKusumCAssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : '')) as any },
+      { header: 'Vendor', accessor: (r) => r.vendor_name || r.vendors?.name || `Vendor #${r.vendor}` },
+      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date || r.created_at) },
+      { header: 'State', accessor: (r) => (r.state || 'UP').toUpperCase() },
+      { header: 'District', accessor: (r) => r.district || DASH },
+      { header: 'Volume', accessor: (r) => r.volume ?? DASH },
+      {
+        header: 'Applicants',
+        accessor: (r) =>
+          getSiteList(r)
+            .map((s) => `${s.f_farmer_name}${s.f_father_name ? ` (${s.f_father_name})` : ''}`)
+            .join(', ') || DASH,
+      },
+      { header: 'Deadline', accessor: (r) => fmtDate(r.deadline_date) },
+      { header: 'Count', accessor: (r) => r.site_count || getSiteList(r).length },
+      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
+      { header: 'Status', accessor: (r) => getAssignStatusMeta(r.status).label },
+    ],
+    []
+  );
 
-  const handleExportCSV = () => {
-    const headers = ['Sr. No.', 'Vendor', 'Assign Date', 'State', 'District', 'Applicant Name', 'Deadline', 'Count', 'Remarks', 'Status'];
-    const rows = filteredData.map((item, idx) => [
-      idx + 1,
-      `"${item.vendor}"`,
-      `"${item.assign_date}"`,
-      `"${item.state}"`,
-      `"${item.district}"`,
-      `"${item.applicant_name}"`,
-      `"${item.deadline_date}"`,
-      item.site_count,
-      `"${item.remarks || ''}"`,
-      `"${item.status}"`,
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `UP_Kusum_C_Assigned_Installations_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const stamp = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="ax-page" style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 40 }}>
-      {/* Page Head */}
+    <div className="solar-erp-page">
+      <style>{TABLE_PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
+
       <PageHead
         title="View Assign UP Kusum-C Installation"
-        subtitle="Manage assigned vendor work orders, view farmer allocations, and authorize dispatches"
+        subtitle="Track Kusum C vendor installation allocations, nested farmer material status (BOS/VFD/Inverter/Structure), and approvals"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Uttar Pradesh', href: '/vendor-management/up' },
           { label: 'Kusum C', href: '/vendor-management/up/kusumc/installation/dashboard' },
-          { label: 'View Assign UP Kusum-C Installation' },
+          { label: 'View Assign Installation' },
         ]}
-        actions={
-          <Link
-            to="/vendor-management/up/kusumc/installation/assign"
-            className="ax-btn ax-btn--primary ax-btn--sm"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ marginRight: 6 }}
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Assign Installation
-          </Link>
-        }
       />
 
-      {/* KPI Stat Cards (Matching Specification) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        {/* Total Metric Card */}
-        <div
-          className="ax-card"
-          style={{
-            padding: '16px 20px',
-            borderLeft: '4px solid #3b82f6',
-            background: 'var(--ax-surface-solid, #ffffff)',
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Total Allocation
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            310 <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>/ 1 / 1 / 308</span>
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-            Total / Assign / Accept / Not Assigned
-          </div>
-        </div>
+      <StatusFeedbackBanners
+        errorMsg={errorMsg}
+        successMsg={successMsg}
+        onClearError={() => setErrorMsg('')}
+        onClearSuccess={() => setSuccessMsg('')}
+      />
 
-        {/* Installation Status Metric Card */}
-        <div
-          className="ax-card"
-          style={{
-            padding: '16px 20px',
-            borderLeft: '4px solid #10b981',
-            background: 'var(--ax-surface-solid, #ffffff)',
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Installation Status
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            0 <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>/ 1</span>
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-            Complete / Pending
-          </div>
-        </div>
-
-        {/* Verify Status Metric Card */}
-        <div
-          className="ax-card"
-          style={{
-            padding: '16px 20px',
-            borderLeft: '4px solid #f59e0b',
-            background: 'var(--ax-surface-solid, #ffffff)',
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Verify Status
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            0 <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>/ 1 / 0</span>
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-            Complete / Pending / Reject
-          </div>
-        </div>
+      {/* Top KPI Summary Cards matching User Fields */}
+      <div className="asw-cards-row">
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /></svg>}
+          tone="accent"
+          label="Total / Assign / Accept / Not Assigned"
+          value={`${fmtNum(detail?.total)} / ${fmtNum(detail?.ourside_assigned)} / ${fmtNum(detail?.assigned)} / ${fmtNum(detail?.not_assigned)}`}
+          sub="Total · Assign · Accept · Not Assigned"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+          tone="emerald"
+          label="Installation Status"
+          value={`${fmtNum(detail?.complete)} / ${fmtNum(detail?.pending)}`}
+          sub="Complete / Pending"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
+          tone="cyan"
+          label="Verify Status"
+          value={`${fmtNum(detail?.verify_approved)} / ${fmtNum(detail?.verify_pending)} / ${fmtNum(detail?.verify_reject)}`}
+          sub="Complete / Pending / Reject"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /></svg>}
+          tone="violet"
+          label="Assignment Batches"
+          value={fmtNum(assigns.length)}
+          sub={`Pending: ${assigns.filter((a) => Number(a.status) === 0).length} · Approved: ${assigns.filter((a) => Number(a.status) === 1).length} · Accepted: ${assigns.filter((a) => Number(a.status) === 2).length}`}
+        />
       </div>
 
-      {/* Main Table Card */}
-      <div className="ax-card" style={{ overflow: 'hidden' }}>
-        {/* Table Header / Toolbar */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            background: 'var(--ax-surface-subtle, #f8fafc)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-              View Assign UP Kusum-C Installation
-            </h3>
-            <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-              {filteredData.length} Records
-            </span>
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">View Assign UP Kusum-C Installation</h2>
+            <p className="ax-card__subtitle">
+              Showing <span className="ax-num">{filteredAssigns.length}</span> of <span className="ax-num">{assigns.length}</span> assignments
+            </p>
           </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                className="ax-input ax-input--sm"
+                style={{ width: 145, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  pagination.setPage(1);
+                }}
+              >
+                <option value="all">All Status</option>
+                <option value="0">Pending</option>
+                <option value="1">Approved</option>
+                <option value="2">Accepted</option>
+              </select>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={handleExportCSV}
-              title="Export as CSV"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5 }}>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              CSV
-            </button>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={() => window.print()}
-              title="Print Table"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5 }}>
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              Print
-            </button>
+              <Link
+                to="/vendor-management/up/kusumc/installation/assign"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{ height: 32, padding: '0 12px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
+              >
+                + Assign Installation
+              </Link>
+
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search vendor, district, farmer..."
+                size="sm"
+              />
+
+              <TableExportToolbar
+                onCopy={() => copyRowsToClipboard(filteredAssigns, exportCols)}
+                onExportCSV={() => exportRowsCSV(filteredAssigns, exportCols, `UP_KusumC_View_Assign_${stamp}`)}
+                onExportExcel={() => exportRowsExcel(filteredAssigns, exportCols, `UP_KusumC_View_Assign_${stamp}`)}
+                onExportPDF={() => exportRowsPDF(filteredAssigns, exportCols, 'View Assign UP Kusum-C Installation')}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Filters Bar */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 12,
-            background: '#ffffff',
-          }}
-        >
-          {/* Search */}
-          <div style={{ flex: '1 1 220px', minWidth: 200, position: 'relative' }}>
-            <input
-              type="text"
-              className="ax-form-input"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search: vendor, district, applicant, remarks..."
-              style={{
-                width: '100%',
-                padding: '7px 12px',
-                fontSize: 13,
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-              }}
-            />
-          </div>
-
-          {/* Vendor Filter */}
-          <div style={{ minWidth: 160 }}>
-            <select
-              className="ax-form-input"
-              value={selectedVendor}
-              onChange={(e) => {
-                setSelectedVendor(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="">-- All Vendors --</option>
-              {UP_KUSUM_C_VENDORS.map((v) => (
-                <option key={v.id} value={v.name}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* District Filter */}
-          <div style={{ minWidth: 160 }}>
-            <select
-              className="ax-form-input"
-              value={selectedDistrict}
-              onChange={(e) => {
-                setSelectedDistrict(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="">-- All Districts --</option>
-              {UP_DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div style={{ minWidth: 140 }}>
-            <select
-              className="ax-form-input"
-              value={selectedStatus}
-              onChange={(e) => {
-                setSelectedStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="">-- All Status --</option>
-              <option value="Assigned">Assigned</option>
-              <option value="Accepted">Accepted</option>
-              <option value="Pending">Pending</option>
-              <option value="Completed">Completed</option>
-            </select>
-          </div>
-
-          {(searchTerm || selectedVendor || selectedDistrict || selectedStatus) && (
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-              onClick={resetFilters}
-              style={{ color: '#ef4444' }}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        {/* Table Body */}
-        <div style={{ overflowX: 'auto' }}>
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div className="ax-table-wrap">
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ minWidth: 1200 }}>
+            <thead className="ax-table__head">
               <tr>
-                <th style={{ padding: '10px 12px', textAlign: 'center', width: 60, fontWeight: 600, color: '#475569' }}>Sr. No.</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Vendor</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Assign Date</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>State</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>District</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Applicant Name - Deadline</th>
-                <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Count</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>File</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Remarks</th>
-                <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Status</th>
-                <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Action</th>
+                <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">Assign Date</th>
+                <th className="ax-table__th">State</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th">Applicant Name - Deadline & Material</th>
+                <th className="ax-table__th">Count</th>
+                <th className="ax-table__th">File</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th">Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {pagedData.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b' }}>
-                    No assignment records match your filter criteria.
+                  <td colSpan={11} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading UP Kusum C assignments...
+                  </td>
+                </tr>
+              ) : pagination.paged.length === 0 ? (
+                <tr>
+                  <td colSpan={11} style={centerCell}>
+                    <TableEmptyState title="No assignments found" description="Try adjusting search or status filter." />
                   </td>
                 </tr>
               ) : (
-                pagedData.map((item, idx) => {
-                  const srNo = (currentPage - 1) * pageSize + idx + 1;
+                pagination.paged.map((row, idx) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const vendorName = row.vendor_name || row.vendors?.name || `Vendor #${row.vendor}`;
+                  const sites = getSiteList(row);
+                  const count = row.site_count || sites.length;
+                  const fileUrl = row.file ? resolveUpMediaUrl(row.file, 'kusumc') : '';
+
                   return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b', fontWeight: 500 }}>
-                        {srNo}
+                    <tr key={row.id}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{vendorName}</td>
+                      <td className="ax-table__td" style={{ whiteSpace: 'nowrap' }}>{fmtDate(row.assign_date || row.created_at)}</td>
+                      <td className="ax-table__td">{(row.state || 'UP').toUpperCase()}</td>
+                      <td className="ax-table__td" style={{ whiteSpace: 'nowrap' }}>
+                        <div>{row.district || DASH}</div>
+                        {row.volume && <div style={{ fontSize: 11, color: '#64748b' }}>Vol: {row.volume}</div>}
                       </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#0f172a' }}>
-                        {item.vendor}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#334155' }}>
-                        {item.assign_date}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#334155', textTransform: 'uppercase' }}>
-                        {item.state}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#334155' }}>
-                        {item.district}
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <div style={{ fontWeight: 600, color: '#1e293b' }}>{item.applicant_name}</div>
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                          Deadline: <span style={{ color: '#ef4444', fontWeight: 500 }}>{item.deadline_date}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 26,
-                            height: 26,
-                            borderRadius: '50%',
-                            background: '#eff6ff',
-                            color: '#2563eb',
-                            fontWeight: 700,
-                            fontSize: 12,
-                          }}
-                        >
-                          {item.site_count}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {item.file ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              color: '#2563eb',
-                              fontSize: 12,
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                            }}
-                            title={item.file}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                            WO Document
-                          </span>
+                      <td className="ax-table__td" style={{ minWidth: 340 }}>
+                        {sites.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {sites.slice(0, 2).map((s, sIdx) => (
+                              <div
+                                key={s.id || sIdx}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: 8,
+                                  padding: '5px 8px',
+                                  background: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: 6,
+                                  fontSize: 11.5,
+                                }}
+                              >
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                                    {s.f_farmer_name} {s.f_father_name ? `(${s.f_father_name})` : ''}
+                                  </div>
+                                  <div style={{ fontSize: 10.5, color: '#64748b' }}>
+                                    Deadline: {fmtDate(s.inst_deadline || row.deadline_date)} · BOS: <b>{normalizeMaterialYesNo(s.mt_bos) || 'No'}</b> · VFD: <b>{normalizeMaterialYesNo(s.vfd_status) || 'No'}</b> · Inv: <b>{normalizeMaterialYesNo(s.mt_inverter) || 'No'}</b> · Str: <b>{normalizeMaterialYesNo(s.mt_structure) || 'No'}</b>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => openMaterialModal(s)}
+                                  className="ax-btn ax-btn--secondary ax-btn--xs"
+                                  style={{ fontSize: 10, padding: '2px 7px', flexShrink: 0 }}
+                                >
+                                  Material
+                                </button>
+                              </div>
+                            ))}
+                            {sites.length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedAssign(row)}
+                                style={{
+                                  alignSelf: 'flex-start',
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#2563eb',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                }}
+                              >
+                                +{sites.length - 2} more farmer(s) — View all & Material Status ↗
+                              </button>
+                            )}
+                          </div>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
+                          <span style={{ color: '#64748b', fontSize: 12 }}>
+                            Deadline: {fmtDate(row.deadline_date)}
+                          </span>
                         )}
                       </td>
-                      <td style={{ padding: '10px 12px', color: '#64748b', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.remarks || '—'}
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <span
-                          className={`ax-badge ${
-                            item.status === 'Accepted'
-                              ? 'ax-badge--soft ax-badge--success'
-                              : item.status === 'Assigned'
-                              ? 'ax-badge--soft ax-badge--info'
-                              : 'ax-badge--soft ax-badge--warning'
-                          }`}
-                          style={{ fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      <td className="ax-table__td">
                         <button
                           type="button"
-                          className="ax-btn ax-btn--secondary ax-btn--sm"
-                          onClick={() => setSelectedRecord(item)}
-                          style={{ fontSize: 11, padding: '4px 8px' }}
-                          title="View Farmer & Equipment Details"
+                          onClick={() => setSelectedAssign(row)}
+                          style={{
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
+                            padding: '2px 8px',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
                         >
-                          View Details
+                          {count} Site{count === 1 ? '' : 's'} ↗
                         </button>
+                      </td>
+                      <td className="ax-table__td">
+                        <MediaFileThumbnail
+                          url={fileUrl || null}
+                          alt="Assignment File"
+                          onClick={(url, title) => setLightbox({ url, title })}
+                        />
+                      </td>
+                      <td className="ax-table__td" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {row.remarks || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ whiteSpace: 'nowrap' }}>
+                        {(() => {
+                          const st = getAssignStatusMeta(row.status);
+                          return (
+                            <span className={`ax-badge ax-badge--soft ax-badge--${st.tone}`} style={{ fontSize: 11, fontWeight: 700 }}>
+                              {st.label}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {Number(row.status) === 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(row.id)}
+                              disabled={approvingId === row.id}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#10b981',
+                                color: '#fff',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: approvingId === row.id ? 'not-allowed' : 'pointer',
+                              }}
+                            >
+                              {approvingId === row.id ? 'Approving...' : 'Approve'}
+                            </button>
+                          )}
+                          <Link
+                            to={`/vendor-management/up/kusumc/installation/assign?edit=${row.id}`}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              background: 'rgba(37, 99, 235, 0.08)',
+                              color: '#2563eb',
+                              border: '1px solid rgba(37, 99, 235, 0.2)',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                            }}
+                          >
+                            Edit
+                          </Link>
+                          <Link
+                            to={`/vendor-management/up/kusumc/installation/assign?reassign=${row.id}`}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              background: 'rgba(124, 58, 237, 0.08)',
+                              color: '#7c3aed',
+                              border: '1px solid rgba(124, 58, 237, 0.2)',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                            }}
+                          >
+                            Reassign
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAssign(row)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              color: '#0f172a',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Details
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -473,291 +567,165 @@ export function UPKusumCViewAssignInstallation() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderTop: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-            background: 'var(--ax-surface-subtle, #f8fafc)',
-            fontSize: 12.5,
-            color: '#64748b',
-          }}
-        >
-          <div>
-            Showing {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Show</span>
-              <select
-                className="ax-form-input"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                style={{ padding: '3px 6px', fontSize: 12, borderRadius: 4 }}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <span>entries</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                style={{ padding: '3px 8px', fontSize: 11 }}
-              >
-                Previous
-              </button>
-              <span style={{ padding: '4px 8px', fontWeight: 600, color: '#1e293b' }}>
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                style={{ padding: '3px 8px', fontSize: 11 }}
-              >
-                Next
-              </button>
-            </div>
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── Farmer Info Nested Detail Modal (Matching Specification) ── */}
-      {selectedRecord && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 1050,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-          onClick={() => setSelectedRecord(null)}
-        >
-          <div
-            className="ax-card"
-            style={{
-              width: '100%',
-              maxWidth: 900,
-              maxHeight: '85vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: '#f8fafc',
-              }}
-            >
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-                  Farmer Info & Equipment Status
-                </h3>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                  Vendor: <strong>{selectedRecord.vendor}</strong> · District: <strong>{selectedRecord.district}</strong> · Assign Date: <strong>{selectedRecord.assign_date}</strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => setSelectedRecord(null)}
-                style={{ fontSize: 18, lineHeight: 1 }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Modal Content Table */}
-            <div style={{ padding: 20, overflowY: 'auto' }}>
-              <table className="ax-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                  <tr>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', width: 50 }}>Sr. No.</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'left' }}>Farmer Info</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>BOS</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>VFD</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Inverter</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Structure</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Action / Image</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedRecord.farmers && selectedRecord.farmers.length > 0 ? (
-                    selectedRecord.farmers.map((farmer: UPFarmerInfo, fIdx: number) => (
-                      <tr key={farmer.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>
-                          {fIdx + 1}
-                        </td>
-                        <td style={{ padding: '10px' }}>
-                          <div style={{ fontWeight: 700, color: '#0f172a' }}>{farmer.farmer_name}</div>
-                          {farmer.contact && (
-                            <div style={{ fontSize: 11, color: '#64748b' }}>Contact: {farmer.contact}</div>
-                          )}
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
-                            {farmer.village ? `${farmer.village}, ` : ''}{farmer.block ? `${farmer.block}` : ''}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 500, marginTop: 2 }}>
-                            Deadline: {farmer.deadline_date}
-                          </div>
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <span
-                            className={`ax-badge ${farmer.bos === 'Yes' ? 'ax-badge--soft ax-badge--success' : 'ax-badge--soft ax-badge--danger'}`}
-                            style={{ fontSize: 11, padding: '2px 8px' }}
-                          >
-                            {farmer.bos}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <span
-                            className={`ax-badge ${farmer.vfd === 'Yes' ? 'ax-badge--soft ax-badge--success' : 'ax-badge--soft ax-badge--danger'}`}
-                            style={{ fontSize: 11, padding: '2px 8px' }}
-                          >
-                            {farmer.vfd}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <span
-                            className={`ax-badge ${farmer.inverter === 'Yes' ? 'ax-badge--soft ax-badge--success' : 'ax-badge--soft ax-badge--danger'}`}
-                            style={{ fontSize: 11, padding: '2px 8px' }}
-                          >
-                            {farmer.inverter}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <span
-                            className={`ax-badge ${farmer.structure === 'Yes' ? 'ax-badge--soft ax-badge--success' : 'ax-badge--soft ax-badge--danger'}`}
-                            style={{ fontSize: 11, padding: '2px 8px' }}
-                          >
-                            {farmer.structure}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          {farmer.image ? (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => setPreviewImage(farmer.image || null)}
-                              style={{ fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                <circle cx="8.5" cy="8.5" r="1.5" />
-                                <polyline points="21 15 16 10 5 21" />
-                              </svg>
-                              Image
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: 11, color: '#94a3b8' }}>testing</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
-                        No individual farmer data registered for this work order.
+      {/* Nested Farmer Info & Material Status Modal */}
+      <Modal
+        open={Boolean(selectedAssign)}
+        onClose={() => setSelectedAssign(null)}
+        title={`Assigned Farmers: ${selectedAssign?.vendor_name || selectedAssign?.vendors?.name || ''}`}
+        subtitle={`Batch #${selectedAssign?.id} • District: ${selectedAssign?.district} • Volume: ${selectedAssign?.volume ?? DASH}`}
+        maxWidth={880}
+        footer={
+          <button type="button" className="ax-btn ax-btn--primary" onClick={() => setSelectedAssign(null)}>
+            Close
+          </button>
+        }
+      >
+        {selectedAssign && (
+          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+            <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th className="ax-table__th">Sr. No.</th>
+                  <th className="ax-table__th">Farmer Info</th>
+                  <th className="ax-table__th">Deadline</th>
+                  <th className="ax-table__th">BOS</th>
+                  <th className="ax-table__th">VFD</th>
+                  <th className="ax-table__th">Inverter</th>
+                  <th className="ax-table__th">Structure</th>
+                  <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getSiteList(selectedAssign).length > 0 ? (
+                  getSiteList(selectedAssign).map((site, i) => (
+                    <tr key={site.id || i}>
+                      <td className="ax-table__td">{i + 1}</td>
+                      <td className="ax-table__td">
+                        <div style={{ fontWeight: 600 }}>{site.f_farmer_name}</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>
+                          {site.f_father_name ? `S/o ${site.f_father_name} • ` : ''}ID #{site.id}
+                        </div>
+                      </td>
+                      <td className="ax-table__td">{fmtDate(site.inst_deadline || selectedAssign.deadline_date)}</td>
+                      <td className="ax-table__td">{normalizeMaterialYesNo(site.mt_bos) || 'No'}</td>
+                      <td className="ax-table__td">{normalizeMaterialYesNo(site.vfd_status) || 'No'}</td>
+                      <td className="ax-table__td">{normalizeMaterialYesNo(site.mt_inverter) || 'No'}</td>
+                      <td className="ax-table__td">{normalizeMaterialYesNo(site.mt_structure) || 'No'}</td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--primary ax-btn--xs"
+                          onClick={() => openMaterialModal(site)}
+                        >
+                          Update Material
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
+                      No farmer site details returned for this assignment.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
 
-            {/* Modal Footer */}
-            <div
-              style={{
-                padding: '12px 20px',
-                borderTop: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                background: '#f8fafc',
-              }}
-            >
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={() => setSelectedRecord(null)}
-              >
-                Close
-              </button>
+      {/* Material Status Update Modal (Endpoint #18) */}
+      <Modal
+        open={Boolean(materialSite)}
+        onClose={() => setMaterialSite(null)}
+        title="Material Status Update"
+        maxWidth={520}
+      >
+        <form onSubmit={handleSaveMaterial} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Farmer Name</label>
+              <input
+                type="text"
+                className="ax-input"
+                value={materialSite?.f_farmer_name || DASH}
+                readOnly
+                disabled
+                style={{ width: '100%', background: '#f8fafc', color: '#0f172a', fontWeight: 600 }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Father Name</label>
+              <input
+                type="text"
+                className="ax-input"
+                value={materialSite?.f_father_name || DASH}
+                readOnly
+                disabled
+                style={{ width: '100%', background: '#f8fafc', color: '#0f172a', fontWeight: 600 }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>BOS Status</label>
+              <select className="ax-input" value={mtBos} onChange={(e) => setMtBos(e.target.value)} style={{ width: '100%' }}>
+                <option value="">-- Select Status --</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>VFD Status</label>
+              <select className="ax-input" value={vfdStatus} onChange={(e) => setVfdStatus(e.target.value)} style={{ width: '100%' }}>
+                <option value="">-- Select Status --</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Inverter Status</label>
+              <select className="ax-input" value={mtInverter} onChange={(e) => setMtInverter(e.target.value)} style={{ width: '100%' }}>
+                <option value="">-- Select Status --</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Structure Status</label>
+              <select className="ax-input" value={mtStructure} onChange={(e) => setMtStructure(e.target.value)} style={{ width: '100%' }}>
+                <option value="">-- Select Status --</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Image Preview Modal ── */}
-      {previewImage && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.85)',
-            zIndex: 1100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-          onClick={() => setPreviewImage(null)}
-        >
-          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <img
-              src={previewImage}
-              alt="Site Preview"
-              style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 8, objectFit: 'contain' }}
-            />
-            <button
-              type="button"
-              onClick={() => setPreviewImage(null)}
-              style={{
-                position: 'absolute',
-                top: -36,
-                right: 0,
-                background: 'none',
-                border: 'none',
-                color: '#ffffff',
-                fontSize: 26,
-                cursor: 'pointer',
-              }}
-            >
-              ×
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setMaterialSite(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="ax-btn ax-btn--primary" disabled={savingMaterial}>
+              {savingMaterial ? 'Saving...' : 'Save Material Status'}
             </button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
-      {/* Footer copyright */}
+      <MediaLightbox url={lightbox?.url || null} title={lightbox?.title} onClose={() => setLightbox(null)} />
     </div>
   );
 }

@@ -1,27 +1,22 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
-  jammuRescoSurveyService,
+  jammuSurveyAdminService,
   resolveJammuSurveyMediaUrl,
-  type JammuRescoDropdownSite,
-  type JammuRescoSiteDetail,
-} from '../../../../V-Portal/jammu/jammu-services';
+  type JKRescoSurveyItem,
+} from '../jammuSurveyAdminService';
 
-/* ───────── Unified Single-Card Layout matching Reference Design ───────── */
+// Unified Single-Card Layout matching Reference Design
 const SINGLE_CARD_FORM_CSS = `
-.solar-erp-page {
-  --asw-primary: #2563eb;
-  --asw-primary-rgb: 37, 99, 235;
-}
-.jammu-survey-form .ax-card {
-  border: 1px solid var(--ax-border, #e2e8f0);
+.swp-inst-form .ax-card {
+  border: 1px solid var(--ax-border, #cbd5e1);
   border-radius: var(--ax-radius-xl, 16px);
   background: var(--ax-surface-solid, #ffffff);
   box-shadow: var(--ax-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   overflow: hidden;
 }
-.jammu-survey-form .ax-card__header {
+.swp-inst-form .ax-card__header {
   padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
   border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
   background: var(--ax-surface-subtle, #f8fafc);
@@ -29,7 +24,7 @@ const SINGLE_CARD_FORM_CSS = `
   flex-direction: column;
   gap: var(--ax-space-4, 16px);
 }
-.jammu-survey-form .ax-card__body { padding: var(--ax-space-6, 24px); }
+.swp-inst-form .ax-card__body { padding: var(--ax-space-6, 24px); }
 
 /* Quick Section Nav Pills */
 .swp-section-pills {
@@ -88,7 +83,7 @@ const SINGLE_CARD_FORM_CSS = `
   width: 100%;
   height: 46px;
   padding: 12px 14px 4px 14px;
-  font-size: var(--ax-text-sm, 13.5px);
+  font-size: var(--ax-text-sm, 13px);
   background: var(--ax-surface-solid, #ffffff);
   border: 1px solid var(--ax-border, #cbd5e1);
   border-radius: var(--ax-radius-md, 8px);
@@ -98,12 +93,11 @@ const SINGLE_CARD_FORM_CSS = `
               box-shadow var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
 .ax-float__input::placeholder { color: transparent; }
-.ax-float__input:focus::placeholder { color: #94a3b8; }
 .ax-float__input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
 }
-.ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
+.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
 .ax-float__label {
   position: absolute;
@@ -112,7 +106,7 @@ const SINGLE_CARD_FORM_CSS = `
   transform: translateY(-50%);
   margin: 0;
   padding: 0 4px;
-  font-size: var(--ax-text-sm, 13.5px);
+  font-size: var(--ax-text-sm, 13px);
   color: var(--ax-text-subtle, #64748b);
   background: var(--ax-surface-solid, #ffffff);
   border-radius: var(--ax-radius-xs, 4px);
@@ -138,14 +132,6 @@ const SINGLE_CARD_FORM_CSS = `
   font-weight: 500;
   color: var(--ax-text-muted, #64748b);
 }
-
-/* Upload dropzone grid */
-.jammu-upload-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-  margin-top: 8px;
-}
 `;
 
 interface FloatingInputProps {
@@ -157,74 +143,14 @@ interface FloatingInputProps {
   disabled?: boolean;
   type?: string;
   placeholder?: string;
-  as?: 'input' | 'select' | 'textarea';
-  children?: React.ReactNode;
 }
 
-function FloatingInput({
-  label,
-  name,
-  value,
-  onChange,
-  required,
-  disabled,
-  type = 'text',
-  placeholder,
-  as = 'input',
-  children,
-}: FloatingInputProps) {
+function FloatingInput({ label, name, value, onChange, required, disabled, type = 'text', placeholder }: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
 
-  if (as === 'select') {
-    return (
-      <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
-        <select
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          required={required}
-          disabled={disabled}
-          className="ax-float__input"
-        >
-          {children}
-        </select>
-        <label htmlFor={name} className="ax-float__label floating">
-          {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
-        </label>
-      </div>
-    );
-  }
-
-  if (as === 'textarea') {
-    return (
-      <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
-        <textarea
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          required={required}
-          disabled={disabled}
-          placeholder={placeholder || label}
-          rows={3}
-          style={{ height: 'auto', minHeight: 76, padding: '16px 14px 8px' }}
-          className="ax-float__input"
-        />
-        <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
-          {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
-        </label>
-      </div>
-    );
-  }
-
   return (
-    <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
+    <div className="ax-float">
       <input
         type={type}
         id={name}
@@ -245,7 +171,7 @@ function FloatingInput({
   );
 }
 
-/* ───────── Upload Dropzone Component ───────── */
+/* ───────── Upload Dropzone ───────── */
 interface UploadDropzoneProps {
   id: string;
   label: string;
@@ -264,7 +190,7 @@ function UploadDropzone({
   label,
   required,
   disabled,
-  accept = '.pdf,.jpg,.jpeg,.png',
+  accept = '.pdf,.jpg,.jpeg,.png,.webp',
   file,
   preview,
   onSelect,
@@ -287,7 +213,9 @@ function UploadDropzone({
     if (disabled) return;
     setIsDragging(false);
     const chosen = e.dataTransfer.files?.[0];
-    if (chosen) onSelect(chosen);
+    if (chosen) {
+      onSelect(chosen);
+    }
   };
 
   return (
@@ -337,13 +265,6 @@ function UploadDropzone({
         onMouseLeave={() => setIsHovered(false)}
         role="button"
         tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
         style={{
           border: disabled
             ? '1.5px dashed #cbd5e1'
@@ -364,7 +285,8 @@ function UploadDropzone({
             : isHovered
             ? '#fbfcfd'
             : '#ffffff',
-          padding: file || preview ? '12px 14px' : '20px 16px',
+          opacity: disabled ? 0.75 : 1,
+          padding: file || preview ? '10px 12px' : '18px 14px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -372,7 +294,7 @@ function UploadDropzone({
           textAlign: 'center',
           cursor: disabled ? 'not-allowed' : 'pointer',
           transition: 'all 0.2s ease',
-          minHeight: 110,
+          minHeight: 100,
         }}
       >
         {file || preview ? (
@@ -404,11 +326,11 @@ function UploadDropzone({
                 </div>
               )}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {file ? file.name : label}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
-                  {file ? `${(file.size / 1024).toFixed(0)} KB &bull; Ready to upload` : 'File attached'}
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'File selected'}
                 </div>
               </div>
             </div>
@@ -426,15 +348,15 @@ function UploadDropzone({
           <>
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 borderRadius: '50%',
                 background: '#eff6ff',
                 color: '#3b82f6',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 6,
+                marginBottom: 4,
               }}
             >
               <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -443,10 +365,10 @@ function UploadDropzone({
                 <path d="m8 16 4-4 4 4" />
               </svg>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
-              Click or drag image
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload {label}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+            <div style={{ fontSize: 10.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
               JPG, PNG or PDF (Max 5 MB)
             </div>
           </>
@@ -462,78 +384,83 @@ function UploadDropzone({
   );
 }
 
-/* ───────── Main Component ───────── */
 export function AssignedSurveyVendor() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const querySiteId = searchParams.get('site_id') || searchParams.get('id');
 
-  // Query parameter support: siteId
-  const querySiteId = searchParams.get('siteId') || searchParams.get('site_id');
+  // Master datasets from API: assign-vendor
+  const [vendors, setVendors] = useState<Array<{ id: number; name: string }>>([]);
+  const [sites, setSites] = useState<Array<{ id: number; site_name: string; unique_id?: string }>>([]);
+  const [loadingInit, setLoadingInit] = useState<boolean>(true);
+  const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
 
-  // Sites list & selected site
-  const [sitesList, setSitesList] = useState<JammuRescoDropdownSite[]>([]);
-  const [loadingSites, setLoadingSites] = useState(false);
+  // Top Selectors
   const [selectedSiteId, setSelectedSiteId] = useState<string>(querySiteId || '');
-  const [siteDetail, setSiteDetail] = useState<JammuRescoSiteDetail | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<string>('');
 
-  // Section 2: Location, Nodal & GPS Details
-  const [siteAddress, setSiteAddress] = useState('');
-  const [landmark, setLandmark] = useState('');
-  const [agencyPersonName, setAgencyPersonName] = useState('');
-  const [agencyPersonContact, setAgencyPersonContact] = useState('');
-  const [nodalPerson, setNodalPerson] = useState('');
-  const [contactNodal, setContactNodal] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  // General Information (from site detail)
+  const [siteDetail, setSiteDetail] = useState<JKRescoSurveyItem | null>(null);
 
-  // Section 3: Electrical & Metering
-  const [loadType, setLoadType] = useState('Commercial');
-  const [connectionPhase, setConnectionPhase] = useState('3 Phase');
-  const [meterConnection, setMeterConnection] = useState('Single Phase');
-  const [meterNumber, setMeterNumber] = useState('');
-  const [meterType, setMeterType] = useState('Digital');
-  const [sanctionLoad, setSanctionLoad] = useState('');
-  const [connectedLoad, setConnectedLoad] = useState('');
-  const [gridPower, setGridPower] = useState('Yes');
-  const [ltdbPresent, setLtdbPresent] = useState('Yes');
-  const [all3PhaseLtdb, setAll3PhaseLtdb] = useState('Yes');
-  const [missingPhase, setMissingPhase] = useState('No');
+  // Form Fields: Contacts & Address
+  const [siteAddress, setSiteAddress] = useState<string>('');
+  const [landmark, setLandmark] = useState<string>('');
+  const [agencyPersonName, setAgencyPersonName] = useState<string>('');
+  const [agencyPersonContact, setAgencyPersonContact] = useState<string>('');
+  const [nodalPerson, setNodalPerson] = useState<string>('');
+  const [contactNodal, setContactNodal] = useState<string>('');
+  const [latitude, setLatitude] = useState<string>('');
+  const [longitude, setLongitude] = useState<string>('');
 
-  // Section 4: Rooftop & Civil Feasibility
-  const [roofCondition, setRoofCondition] = useState('Good');
-  const [areaRoof, setAreaRoof] = useState('');
-  const [freeSpaceSolar, setFreeSpaceSolar] = useState('');
-  const [freeSpaceInverter, setFreeSpaceInverter] = useState('');
-  const [earthPit, setEarthPit] = useState('Available');
-  const [buildingAge, setBuildingAge] = useState('');
-  const [roofAccess, setRoofAccess] = useState('Staircase');
-  const [rooftopHeight, setRooftopHeight] = useState('');
-  const [parapetHeight, setParapetHeight] = useState('');
-  const [floorsNumber, setFloorsNumber] = useState('1');
-  const [waterSource, setWaterSource] = useState('Tap Water');
-  const [siteAccess, setSiteAccess] = useState('Direct Road Access');
-  const [siteDistance, setSiteDistance] = useState('0');
-  const [surveyRemarks, setSurveyRemarks] = useState('');
+  // Form Fields: Technical Information
+  const [loadType, setLoadType] = useState<string>('AC');
+  const [connectionPhase, setConnectionPhase] = useState<string>('3 Phase');
+  const [meterConnection, setMeterConnection] = useState<string>('LT');
+  const [meterNumber, setMeterNumber] = useState<string>('');
+  const [meterType, setMeterType] = useState<string>('Smart Meter');
+  const [sanctionLoad, setSanctionLoad] = useState<string>('');
+  const [connectedLoad, setConnectedLoad] = useState<string>('');
+  const [gridPower, setGridPower] = useState<string>('Yes');
+  const [all3PhaseLtdb, setAll3PhaseLtdb] = useState<string>('Yes');
+  const [missingPhase, setMissingPhase] = useState<string>('No');
+  const [ltdbPresent, setLtdbPresent] = useState<string>('Present');
+  const [roofCondition, setRoofCondition] = useState<string>('Feasible');
+  const [areaRoof, setAreaRoof] = useState<string>('');
+  const [freeSpaceSolar, setFreeSpaceSolar] = useState<string>('');
+  const [freeSpaceInverter, setFreeSpaceInverter] = useState<string>('');
+  const [earthPit, setEarthPit] = useState<string>('Ok');
+  const [siteFeasible, setSiteFeasible] = useState<string>('Feasible');
+  const [surveyRemarks, setSurveyRemarks] = useState<string>('');
 
-  // Section 5: Feasibility Verdict & Media Evidence
-  const [siteFeasible, setSiteFeasible] = useState('Feasible');
+  // Form Fields: Civil / Structural
+  const [buildingAge, setBuildingAge] = useState<string>('');
+  const [roofAccess, setRoofAccess] = useState<string>('Available');
+  const [rooftopHeight, setRooftopHeight] = useState<string>('');
+  const [parapetHeight, setParapetHeight] = useState<string>('');
+  const [floorsNumber, setFloorsNumber] = useState<string>('G+1');
+  const [waterSource, setWaterSource] = useState<string>('Available');
+
+  // Form Fields: Other Information
+  const [siteAccess, setSiteAccess] = useState<string>('Available');
+  const [siteDistance, setSiteDistance] = useState<string>('0');
+
+  // Media Files
   const [buildingImage, setBuildingImage] = useState<File | null>(null);
-  const [buildingImagePreview, setBuildingImagePreview] = useState('');
+  const [buildingImagePreview, setBuildingImagePreview] = useState<string>('');
   const [roofImage, setRoofImage] = useState<File | null>(null);
-  const [roofImagePreview, setRoofImagePreview] = useState('');
+  const [roofImagePreview, setRoofImagePreview] = useState<string>('');
   const [controlRoomImage, setControlRoomImage] = useState<File | null>(null);
-  const [controlRoomImagePreview, setControlRoomImagePreview] = useState('');
+  const [controlRoomImagePreview, setControlRoomImagePreview] = useState<string>('');
+  const [meterImage, setMeterImage] = useState<File | null>(null);
+  const [meterImagePreview, setMeterImagePreview] = useState<string>('');
   const [otherImage, setOtherImage] = useState<File | null>(null);
-  const [otherImagePreview, setOtherImagePreview] = useState('');
+  const [otherImagePreview, setOtherImagePreview] = useState<string>('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
-  // Submission state & feedback
-  const [submitting, setSubmitting] = useState(false);
-  const [gettingLocation, setGettingLocation] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
-
-  // Section references for scroll
+  // Section refs for navigation pills
   const sec1 = useRef<HTMLDivElement>(null);
   const sec2 = useRef<HTMLDivElement>(null);
   const sec3 = useRef<HTMLDivElement>(null);
@@ -544,43 +471,59 @@ export function AssignedSurveyVendor() {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Fetch Dropdown Sites
-  const fetchSites = useCallback(async () => {
-    setLoadingSites(true);
-    try {
-      const list = await jammuRescoSurveyService.fetchSites();
-      if (Array.isArray(list) && list.length > 0) {
-        setSitesList(list);
-      } else {
-        const pending = await jammuRescoSurveyService.getPendingSurveys();
-        setSitesList(
-          pending.map((p) => ({
-            id: p.id,
-            site_name: p.site_name || `Site #${p.id}`,
-            district: p.district,
-            capacity: p.capacity,
-          }))
-        );
+  // 1. Initial Load: Fetch Vendors and Assigned Sites from Live Backend API
+  useEffect(() => {
+    let active = true;
+    const loadAssignVendorData = async () => {
+      setLoadingInit(true);
+      setErrorMsg('');
+      try {
+        const [assignVendorRes, viewSurveyRes] = await Promise.allSettled([
+          jammuSurveyAdminService.getRescoSurveyAssignVendor(),
+          jammuSurveyAdminService.viewRescoSurvey(),
+        ]);
+
+        let vendorList: Array<{ id: number; name: string }> = [];
+        let siteList: Array<any> = [];
+
+        if (assignVendorRes.status === 'fulfilled' && assignVendorRes.value) {
+          vendorList = assignVendorRes.value.vendors || [];
+          siteList = assignVendorRes.value.srtRecords || [];
+        }
+
+        // If srtRecords is empty or need additional pending sites, merge from view-survey
+        if (viewSurveyRes.status === 'fulfilled' && viewSurveyRes.value) {
+          const pending = viewSurveyRes.value.pending || [];
+          if (siteList.length === 0) {
+            siteList = pending;
+          } else {
+            const existingIds = new Set(siteList.map((s) => Number(s.id)));
+            pending.forEach((p) => {
+              if (!existingIds.has(Number(p.id))) {
+                siteList.push(p);
+              }
+            });
+          }
+        }
+
+        if (!active) return;
+        setVendors(vendorList);
+        setSites(siteList);
+      } catch (err: any) {
+        if (!active) return;
+        console.error('Jammu Resco assign vendor load error:', err);
+        setErrorMsg(err?.message || 'Failed to load survey assign vendor data.');
+      } finally {
+        if (active) setLoadingInit(false);
       }
-    } catch (err) {
-      console.warn('[AssignedSurveyVendor] fetchSites fallback:', err);
-      setSitesList([
-        { id: 1, site_name: 'DC Office Complex Jammu', district: 'Jammu', capacity: '100 KW' },
-        { id: 2, site_name: 'District Hospital Kathua', district: 'Kathua', capacity: '50 KW' },
-        { id: 3, site_name: 'Govt Higher Secondary School Samba', district: 'Samba', capacity: '25 KW' },
-        { id: 4, site_name: 'PWD Divisional Office Udhampur', district: 'Udhampur', capacity: '30 KW' },
-        { id: 5, site_name: 'Govt Polytechnic College Rajouri', district: 'Rajouri', capacity: '75 KW' },
-      ]);
-    } finally {
-      setLoadingSites(false);
-    }
+    };
+    loadAssignVendorData();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  useEffect(() => {
-    fetchSites();
-  }, [fetchSites]);
-
-  // Load Site Details when selected
+  // 2. Site Selection -> Fetch Site Detail (GET /jammu/resco/survey/fetch-site-detail?srt_id=...)
   useEffect(() => {
     if (!selectedSiteId) {
       setSiteDetail(null);
@@ -588,852 +531,918 @@ export function AssignedSurveyVendor() {
     }
 
     let active = true;
-    const loadDetail = async () => {
+    const loadSiteDetail = async () => {
       setLoadingDetail(true);
+      setErrorMsg('');
       try {
-        const detail = await jammuRescoSurveyService.getSiteDetail(selectedSiteId);
+        const detail = await jammuSurveyAdminService.fetchRescoSurveySiteDetail(selectedSiteId);
         if (!active) return;
         setSiteDetail(detail);
 
-        if (detail) {
-          if (detail.site_address) setSiteAddress(detail.site_address);
-          if (detail.nearest_landmark) setLandmark(detail.nearest_landmark);
-          if (detail.contact_person) setAgencyPersonName(detail.contact_person);
-          if (detail.contact_number) setAgencyPersonContact(detail.contact_number);
-          if (detail.latitude) setLatitude(String(detail.latitude));
-          if (detail.longitude) setLongitude(String(detail.longitude));
-          if (detail.sanction_load) setSanctionLoad(String(detail.sanction_load));
-          if (detail.connected_load) setConnectedLoad(String(detail.connected_load));
-          if (detail.meter_number) setMeterNumber(String(detail.meter_number));
-          if (detail.area_roof) setAreaRoof(String(detail.area_roof));
-          if (detail.free_space_solar) setFreeSpaceSolar(String(detail.free_space_solar));
-          if (detail.building_age) setBuildingAge(String(detail.building_age));
-        }
-      } catch (err) {
-        console.warn('[AssignedSurveyVendor] getSiteDetail fallback:', err);
+        // Pre-fill existing values from site detail
+        if (detail.survey_vendor || detail.vendor) setSelectedVendor(String(detail.survey_vendor || detail.vendor));
+        if (detail.site_address || detail.address) setSiteAddress(detail.site_address || detail.address || '');
+        if (detail.landmark || detail.nearest_landmark) setLandmark(detail.landmark || detail.nearest_landmark || '');
+        if (detail.agency_person_name || detail.agency_contact_person_name || detail.contact_person)
+          setAgencyPersonName(detail.agency_person_name || detail.agency_contact_person_name || detail.contact_person || '');
+        if (detail.agency_person_contact || detail.agency_contact_number || detail.contact_number)
+          setAgencyPersonContact(detail.agency_person_contact || detail.agency_contact_number || detail.contact_number || '');
+        if (detail.nodal_person) setNodalPerson(detail.nodal_person);
+        if (detail.contact_nodal || detail.nodal_person_contact)
+          setContactNodal(detail.contact_nodal || detail.nodal_person_contact || '');
+        if (detail.latitude) setLatitude(String(detail.latitude));
+        if (detail.longitude) setLongitude(String(detail.longitude));
+        if (detail.load_type) setLoadType(detail.load_type);
+        if (detail.connection_phase) setConnectionPhase(detail.connection_phase);
+        if (detail.meter_connection || detail.meter_connection_type)
+          setMeterConnection(detail.meter_connection || detail.meter_connection_type || 'LT');
+        if (detail.meter_number) setMeterNumber(detail.meter_number);
+        if (detail.meter_type) setMeterType(detail.meter_type);
+        if (detail.sanction_load) setSanctionLoad(String(detail.sanction_load));
+        if (detail.connected_load) setConnectedLoad(String(detail.connected_load));
+        if (detail.grid_power || detail.grid_power_availability)
+          setGridPower(detail.grid_power || detail.grid_power_availability || 'Yes');
+        if (detail.all_3_phase_ltdb || detail.three_phase_availability)
+          setAll3PhaseLtdb(detail.all_3_phase_ltdb || detail.three_phase_availability || 'Yes');
+        if (detail.missing_phase) setMissingPhase(detail.missing_phase);
+        if (detail.ltdb_present) setLtdbPresent(detail.ltdb_present);
+        if (detail.roof_condition) setRoofCondition(detail.roof_condition);
+        if (detail.area_roof || detail.total_roof_area) setAreaRoof(String(detail.area_roof || detail.total_roof_area));
+        if (detail.free_space_solar || detail.free_space_for_solar)
+          setFreeSpaceSolar(String(detail.free_space_solar || detail.free_space_for_solar));
+        if (detail.free_space_inverter || detail.free_space_for_control_room)
+          setFreeSpaceInverter(String(detail.free_space_inverter || detail.free_space_for_control_room));
+        if (detail.earth_pit || detail.earth_pit_position)
+          setEarthPit(detail.earth_pit || detail.earth_pit_position || 'Ok');
+        if (detail.site_feasible) setSiteFeasible(detail.site_feasible);
+        if (detail.survey_remarks) setSurveyRemarks(detail.survey_remarks);
+        if (detail.building_age || detail.age_of_building)
+          setBuildingAge(String(detail.building_age || detail.age_of_building));
+        if (detail.roof_access || detail.access_to_roof)
+          setRoofAccess(detail.roof_access || detail.access_to_roof || 'Available');
+        if (detail.rooftop_height) setRooftopHeight(String(detail.rooftop_height));
+        if (detail.parapet_height) setParapetHeight(String(detail.parapet_height));
+        if (detail.floors_number || detail.no_of_floors)
+          setFloorsNumber(String(detail.floors_number || detail.no_of_floors));
+        if (detail.water_source || detail.water_source_for_cleaning)
+          setWaterSource(detail.water_source || detail.water_source_for_cleaning || 'Available');
+        if (detail.site_access || detail.access_to_site)
+          setSiteAccess(detail.site_access || detail.access_to_site || 'Available');
+        if (detail.site_distance || detail.distance_of_site_from_main_road)
+          setSiteDistance(String(detail.site_distance || detail.distance_of_site_from_main_road));
+
+        // Set existing media previews if available on server
+        if (detail.building_image || detail.image1)
+          setBuildingImagePreview(resolveJammuSurveyMediaUrl(detail.building_image || detail.image1, 'resco_image'));
+        if (detail.roof_image || detail.image2)
+          setRoofImagePreview(resolveJammuSurveyMediaUrl(detail.roof_image || detail.image2, 'resco_image'));
+        if (detail.control_room_image || detail.image3)
+          setControlRoomImagePreview(resolveJammuSurveyMediaUrl(detail.control_room_image || detail.image3, 'resco_image'));
+        if (detail.meter_image || detail.image4)
+          setMeterImagePreview(resolveJammuSurveyMediaUrl(detail.meter_image || detail.image4, 'resco_image'));
+        if (detail.other_image || detail.image5)
+          setOtherImagePreview(resolveJammuSurveyMediaUrl(detail.other_image || detail.image5, 'resco_image'));
+      } catch (err: any) {
+        if (!active) return;
+        console.error('Fetch Jammu Resco site detail error:', err);
+        setErrorMsg(err?.message || 'Failed to fetch site details.');
       } finally {
         if (active) setLoadingDetail(false);
       }
     };
-
-    loadDetail();
+    loadSiteDetail();
     return () => {
       active = false;
     };
   }, [selectedSiteId]);
 
-  // Fetch Live GPS
-  const handleFetchLocation = () => {
-    if (!navigator.geolocation) {
-      setFeedback({ type: 'danger', text: 'Geolocation is not supported by your browser.' });
-      return;
-    }
-    setGettingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(6));
-        setLongitude(pos.coords.longitude.toFixed(6));
-        setGettingLocation(false);
-        setFeedback({ type: 'success', text: 'GPS coordinates captured from device.' });
-      },
-      (err) => {
-        setGettingLocation(false);
-        setFeedback({ type: 'danger', text: `Failed to fetch GPS location: ${err.message}` });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  // Submit Handler
+  // Submit Handler: POST /jammu/resco/survey/store (multipart/form-data)
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setFeedback(null);
+    setErrorMsg('');
+    setSuccessMsg('');
 
-    if (!selectedSiteId) {
-      setFeedback({ type: 'danger', text: 'Please select a survey site.' });
-      scrollTo(sec1);
-      return;
-    }
+    if (!selectedSiteId) return setErrorMsg('Please select a site.');
+    if (!siteAddress.trim()) return setErrorMsg('Site Address (details) is required.');
+    if (!landmark.trim()) return setErrorMsg('Nearest Landmark is required.');
+    if (!agencyPersonName.trim()) return setErrorMsg('Agency Contact Person Name is required.');
+    if (!agencyPersonContact.trim()) return setErrorMsg('Agency Contact Number is required.');
+    if (!nodalPerson.trim()) return setErrorMsg('Nodal Person is required.');
+    if (!contactNodal.trim()) return setErrorMsg('Contact Number of Nodal Person is required.');
+    if (!latitude.trim() || !longitude.trim()) return setErrorMsg('Latitude and Longitude are required.');
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      const fd = new FormData();
-      fd.append('site_id', selectedSiteId);
-      fd.append('site_address', siteAddress);
-      fd.append('nearest_landmark', landmark);
-      fd.append('agency_person_name', agencyPersonName);
-      fd.append('agency_person_contact', agencyPersonContact);
-      fd.append('nodal_person', nodalPerson);
-      fd.append('contact_nodal', contactNodal);
-      fd.append('latitude', latitude);
-      fd.append('longitude', longitude);
+      const formData = new FormData();
+      formData.append('site_name', selectedSiteId);
+      if (selectedVendor) formData.append('survey_vendor', selectedVendor);
+      formData.append('site_address', siteAddress.trim());
+      formData.append('landmark', landmark.trim());
+      formData.append('agency_person_name', agencyPersonName.trim());
+      formData.append('agency_person_contact', agencyPersonContact.trim());
+      formData.append('nodal_person', nodalPerson.trim());
+      formData.append('contact_nodal', contactNodal.trim());
+      formData.append('latitude', latitude.trim());
+      formData.append('longitude', longitude.trim());
+      formData.append('load_type', loadType);
+      formData.append('connection_phase', connectionPhase);
+      formData.append('meter_connection', meterConnection);
+      formData.append('meter_number', meterNumber.trim());
+      formData.append('meter_type', meterType);
+      formData.append('sanction_load', sanctionLoad.trim());
+      formData.append('connected_load', connectedLoad.trim());
+      formData.append('grid_power', gridPower);
+      formData.append('ltdb_present', ltdbPresent);
+      formData.append('all_3_phase_ltdb', all3PhaseLtdb);
+      formData.append('missing_phase', missingPhase.trim());
+      formData.append('roof_condition', roofCondition);
+      formData.append('area_roof', areaRoof.trim());
+      formData.append('free_space_solar', freeSpaceSolar.trim());
+      formData.append('free_space_inverter', freeSpaceInverter.trim());
+      formData.append('earth_pit', earthPit);
+      formData.append('survey_remarks', surveyRemarks.trim());
+      formData.append('building_age', buildingAge.trim());
+      formData.append('roof_access', roofAccess);
+      formData.append('rooftop_height', rooftopHeight.trim());
+      formData.append('parapet_height', parapetHeight.trim());
+      formData.append('floors_number', floorsNumber.trim());
+      formData.append('water_source', waterSource);
+      formData.append('site_access', siteAccess);
+      formData.append('site_distance', siteDistance.trim());
+      if (siteFeasible) formData.append('site_feasible', siteFeasible);
 
-      fd.append('load_type', loadType);
-      fd.append('connection_phase', connectionPhase);
-      fd.append('meter_connection', meterConnection);
-      fd.append('meter_number', meterNumber);
-      fd.append('meter_type', meterType);
-      fd.append('sanction_load', sanctionLoad);
-      fd.append('connected_load', connectedLoad);
-      fd.append('grid_power', gridPower);
-      fd.append('ltdb_present', ltdbPresent);
-      fd.append('all_3phase_ltdb', all3PhaseLtdb);
-      fd.append('missing_phase', missingPhase);
+      // Photos
+      if (buildingImage) formData.append('building_image', buildingImage);
+      if (roofImage) formData.append('roof_image', roofImage);
+      if (controlRoomImage) formData.append('control_room_image', controlRoomImage);
+      if (meterImage) formData.append('image4', meterImage);
+      if (otherImage) formData.append('image5', otherImage);
+      if (pdfFile) formData.append('pdf', pdfFile);
 
-      fd.append('roof_condition', roofCondition);
-      fd.append('area_roof', areaRoof);
-      fd.append('free_space_solar', freeSpaceSolar);
-      fd.append('free_space_inverter', freeSpaceInverter);
-      fd.append('earth_pit', earthPit);
-      fd.append('building_age', buildingAge);
-      fd.append('roof_access', roofAccess);
-      fd.append('rooftop_height', rooftopHeight);
-      fd.append('parapet_height', parapetHeight);
-      fd.append('floors_number', floorsNumber);
-      fd.append('water_source', waterSource);
-      fd.append('site_access', siteAccess);
-      fd.append('site_distance', siteDistance);
-      fd.append('survey_remarks', surveyRemarks);
-
-      fd.append('site_feasible', siteFeasible);
-      if (buildingImage) fd.append('building_image', buildingImage);
-      if (roofImage) fd.append('roof_image', roofImage);
-      if (controlRoomImage) fd.append('control_room_image', controlRoomImage);
-      if (otherImage) fd.append('other_image', otherImage);
-      if (pdfFile) fd.append('pdf', pdfFile);
-
-      await jammuRescoSurveyService.submitSurvey(fd);
-
-      setFeedback({
-        type: 'success',
-        text: 'Field feasibility survey report submitted successfully!',
-      });
+      const res = await jammuSurveyAdminService.storeRescoSurvey(formData);
+      setSuccessMsg(res.message || 'Survey Completed Successfully!');
 
       setTimeout(() => {
-        navigate('/vendor-management/jammu/survey/resco/verify');
+        navigate('/vendor-management/jammu/survey/resco/verify-survey');
       }, 1500);
     } catch (err: any) {
-      console.error('[AssignedSurveyVendor] submit error:', err);
-      setFeedback({
-        type: 'danger',
-        text: err?.message || 'Failed to submit survey. Please review required fields.',
-      });
+      console.error('Survey store error:', err);
+      setErrorMsg(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="solar-erp-page jammu-survey-form">
+    <div className="ax-page swp-inst-form">
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       {/* Page Head */}
       <PageHead
-        title="Jammu RESCO Conduct Field Survey"
-        subtitle="Complete on-ground rooftop technical feasibility, record electrical specifications, and capture geo-tagged inspection evidence."
+        title="JK Resco Assigned Site Vendor"
+        subtitle="The field labels marked with * are input fields."
         breadcrumbs={[
-          { label: 'Home', href: '/vendor-management' },
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu/survey/resco/dashboard' },
-          { label: 'Resco Survey', href: '/vendor-management/jammu/survey/resco/dashboard' },
-          { label: 'Conduct Field Survey' },
+          { label: 'JK Resco Assigned Vendor', href: '/vendor-management/jammu/survey/resco/assigned-vendor' },
+          { label: 'Site Feasibility Report' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 8 }}>
-            <Link
-              to="/vendor-management/jammu/survey/resco/view-assign"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-            >
-              &larr; View Assigned Batches
-            </Link>
-            <Link
-              to="/vendor-management/jammu/survey/resco/verify"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-            >
-              Verification Desk &rarr;
-            </Link>
-          </div>
+          <Link to="/vendor-management/jammu/survey/resco/verify-survey" className="ax-btn ax-btn--primary ax-btn--sm">
+            View Verified Surveys ↗
+          </Link>
         }
       />
 
-      <div className="ax-container" style={{ paddingBottom: 40 }}>
-        {feedback && (
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: 8,
-              marginBottom: 16,
-              fontSize: 13,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: feedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
-              border: `1px solid ${feedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-              color: feedback.type === 'success' ? '#065f46' : '#b91c1c',
-            }}
+      {/* Status Feedback Banners */}
+      {errorMsg && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#b91c1c',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✕ {errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMsg('')}
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontSize: 16 }}
           >
-            <span>{feedback.text}</span>
-            <button
-              type="button"
-              onClick={() => setFeedback(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: feedback.type === 'success' ? '#065f46' : '#b91c1c',
-                cursor: 'pointer',
-                fontSize: 16,
-              }}
-            >
-              &times;
+            ×
+          </button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✓ {successMsg}</span>
+          <span style={{ fontSize: 12, opacity: 0.8 }}>Redirecting to Verify Survey...</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="ax-card">
+        {/* Header with Section Nav Pills */}
+        <div className="ax-card__header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
+                Site Feasibility Report
+              </h2>
+              <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: '#ef4444', margin: '4px 0 0' }}>
+                The field labels marked with * are input fields.
+              </p>
+            </div>
+            {loadingDetail ? (
+              <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
+                Loading Site Details...
+              </span>
+            ) : siteDetail ? (
+              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
+                Site ID #{siteDetail.id}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="swp-section-pills">
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
+              <span className="pill-num">1</span> Site & Vendor
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
+              <span className="pill-num">2</span> General Info & Contacts
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
+              <span className="pill-num">3</span> Technical Information
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec4)}>
+              <span className="pill-num">4</span> Civil / Structural
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec5)}>
+              <span className="pill-num">5</span> Photos & PDF
             </button>
           </div>
-        )}
+        </div>
 
-        <form onSubmit={handleSubmit} className="ax-card">
-          {/* Card Header with Section Nav Pills */}
-          <div className="ax-card__header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-              <div>
-                <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong)' }}>
-                  RESCO Field Feasibility Survey Entry
-                </h2>
-                <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: '#ef4444', margin: '4px 0 0' }}>
-                  The field labels marked with * are required input fields.
-                </p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
-                  State: Jammu and Kashmir
+        <div className="ax-card__body">
+          {/* Section 1: Select Site & Select Vendor */}
+          <div ref={sec1} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Site Selection & Vendor Allocation</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Select assigned survey site and executing vendor partner
                 </span>
               </div>
             </div>
 
-            {/* Quick Section Nav Pills */}
-            <div className="swp-section-pills">
-              <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
-                <span className="pill-num">1</span> Site Selection
-              </button>
-              <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
-                <span className="pill-num">2</span> Location &amp; Contact
-              </button>
-              <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
-                <span className="pill-num">3</span> Electrical Specs
-              </button>
-              <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec4)}>
-                <span className="pill-num">4</span> Rooftop &amp; Civil
-              </button>
-              <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec5)}>
-                <span className="pill-num">5</span> Verdict &amp; Photos
-              </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {/* Select Site * */}
+              <div className="ax-float">
+                <select
+                  id="site_select"
+                  className="ax-float__input"
+                  value={selectedSiteId}
+                  onChange={(e) => setSelectedSiteId(e.target.value)}
+                  disabled={loadingInit || submitting}
+                  required
+                >
+                  <option value="">-- Select Site --</option>
+                  {sites.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      #{s.id} — {s.site_name}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="site_select" className="ax-float__label floating">
+                  Select Site <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
+
+              {/* Select Vendor * */}
+              <div className="ax-float">
+                <select
+                  id="vendor_select"
+                  className="ax-float__input"
+                  value={selectedVendor}
+                  onChange={(e) => setSelectedVendor(e.target.value)}
+                  disabled={loadingInit || submitting}
+                >
+                  <option value="">-- Vendor --</option>
+                  <option value="NA">NA</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} (ID: {v.id})
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="vendor_select" className="ax-float__label floating">
+                  Select Vendor <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
+            </div>
+
+            {/* General Information Auto-Loaded Box */}
+            {siteDetail && (
+              <div style={{ marginTop: 20, padding: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e40af', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  General Information
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12 }}>
+                  <div><span style={{ color: '#64748b' }}>Unique ID:</span> <strong style={{ fontFamily: 'monospace' }}>{siteDetail.unique_id || `#${siteDetail.id}`}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>State:</span> <strong>{siteDetail.state?.toUpperCase() || 'JAMMU'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>District:</span> <strong>{siteDetail.district || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>Division:</span> <strong>{siteDetail.division || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>Sub Division:</span> <strong>{siteDetail.sub_division || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>Department:</span> <strong>{siteDetail.department || siteDetail.dept_name || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>Site Name:</span> <strong>{siteDetail.site_name || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>Location:</span> <strong>{siteDetail.location || siteDetail.site_address || siteDetail.address || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b' }}>CA No.:</span> <strong style={{ fontFamily: 'monospace' }}>{siteDetail.ca_no || '—'}</strong></div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* Section 2: Fill this Form - Contacts & Location */}
+          <div ref={sec2} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Site Location & Nodal Contacts</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Detailed address, nearest landmarks, and agency / building nodal contacts
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: 16 }}>
+              <FloatingInput
+                label="Site Address (details)"
+                name="site_address"
+                value={siteAddress}
+                onChange={(e) => setSiteAddress(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Nearest Landmark"
+                name="landmark"
+                value={landmark}
+                onChange={(e) => setLandmark(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Name of Contact Person of Agency"
+                name="agency_person_name"
+                value={agencyPersonName}
+                onChange={(e) => setAgencyPersonName(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Contact Number"
+                name="agency_person_contact"
+                value={agencyPersonContact}
+                onChange={(e) => setAgencyPersonContact(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Nodal Person of concern building"
+                name="nodal_person"
+                value={nodalPerson}
+                onChange={(e) => setNodalPerson(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Contact Number of Nodal Person"
+                name="contact_nodal"
+                value={contactNodal}
+                onChange={(e) => setContactNodal(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Latitude"
+                name="latitude"
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                required
+                placeholder="e.g. 32.7266"
+              />
+              <FloatingInput
+                label="Longitude"
+                name="longitude"
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                required
+                placeholder="e.g. 74.8570"
+              />
             </div>
           </div>
 
-          <div className="ax-card__body">
-            {/* ── Section 1: Site Selection & Scope ── */}
-            <div ref={sec1} className="swp-section-block">
-              <div className="swp-section-header">
-                <div className="swp-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Site Selection &amp; Scope</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Choose assigned survey site to load allocation metadata
-                  </span>
-                </div>
-              </div>
+          <hr className="swp-section-divider" />
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                {/* Site Dropdown */}
-                <div className="ax-float">
-                  <select
-                    id="site_select"
-                    className="ax-float__input"
-                    value={selectedSiteId}
-                    onChange={(e) => setSelectedSiteId(e.target.value)}
-                    required
-                  >
-                    <option value="">
-                      {loadingSites ? 'Loading sites...' : '-- Select Assigned Site --'}
-                    </option>
-                    {sitesList.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.site_name} {s.district ? `(${s.district})` : ''} {s.capacity ? `[${s.capacity}]` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor="site_select" className="ax-float__label floating">
-                    Select Survey Site <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-
-                {/* Read-only District */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="site_district"
-                    className="ax-float__input"
-                    value={siteDetail?.district || '—'}
-                    readOnly
-                    disabled
-                  />
-                  <label htmlFor="site_district" className="ax-float__label floating">
-                    Allocated District
-                  </label>
-                </div>
-
-                {/* Read-only Capacity */}
-                <div className="ax-float">
-                  <input
-                    type="text"
-                    id="site_capacity"
-                    className="ax-float__input"
-                    value={siteDetail?.proposed_capacity || siteDetail?.capacity || '—'}
-                    readOnly
-                    disabled
-                  />
-                  <label htmlFor="site_capacity" className="ax-float__label floating">
-                    Proposed Capacity
-                  </label>
-                </div>
+          {/* Section 3: Technical Information */}
+          <div ref={sec3} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Technical Information</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Electrical loading, metering details, LTDB availability, and rooftop space
+                </span>
               </div>
             </div>
 
-            <hr className="swp-section-divider" />
-
-            {/* ── Section 2: Location, Nodal & GPS Details ── */}
-            <div ref={sec2} className="swp-section-block">
-              <div className="swp-section-header">
-                <div className="swp-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Location, Nodal &amp; GPS Details</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Detailed site address, institutional contact persons, and geo-coordinates
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleFetchLocation}
-                  disabled={gettingLocation}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 6,
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  {gettingLocation ? 'Fetching GPS...' : 'Fetch Live GPS'}
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                {/* Site Address */}
-                <FloatingInput
-                  label="Detailed Site Address"
-                  name="site_address"
-                  value={siteAddress}
-                  onChange={(e) => setSiteAddress(e.target.value)}
-                  placeholder="Street, ward, village or postal address"
-                />
-
-                {/* Nearest Landmark */}
-                <FloatingInput
-                  label="Nearest Landmark"
-                  name="landmark"
-                  value={landmark}
-                  onChange={(e) => setLandmark(e.target.value)}
-                  placeholder="e.g. Near Bus Stand / Police Station"
-                />
-
-                {/* Agency Contact Person */}
-                <FloatingInput
-                  label="Agency Contact Person"
-                  name="agency_person"
-                  value={agencyPersonName}
-                  onChange={(e) => setAgencyPersonName(e.target.value)}
-                  placeholder="Surveyor / Field Representative"
-                />
-
-                {/* Agency Contact No */}
-                <FloatingInput
-                  label="Agency Contact Number"
-                  name="agency_contact"
-                  value={agencyPersonContact}
-                  onChange={(e) => setAgencyPersonContact(e.target.value)}
-                  placeholder="10-digit mobile number"
-                />
-
-                {/* Nodal Officer Person */}
-                <FloatingInput
-                  label="Institutional Nodal Officer"
-                  name="nodal_person"
-                  value={nodalPerson}
-                  onChange={(e) => setNodalPerson(e.target.value)}
-                  placeholder="Departmental In-charge Name"
-                />
-
-                {/* Nodal Contact No */}
-                <FloatingInput
-                  label="Nodal Officer Contact Number"
-                  name="nodal_contact"
-                  value={contactNodal}
-                  onChange={(e) => setContactNodal(e.target.value)}
-                  placeholder="Nodal phone number"
-                />
-
-                {/* Latitude */}
-                <FloatingInput
-                  label="Latitude"
-                  name="latitude"
-                  value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  placeholder="e.g. 32.726601"
-                />
-
-                {/* Longitude */}
-                <FloatingInput
-                  label="Longitude"
-                  name="longitude"
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  placeholder="e.g. 74.857025"
-                />
-              </div>
-            </div>
-
-            <hr className="swp-section-divider" />
-
-            {/* ── Section 3: Electrical & Metering Specs ── */}
-            <div ref={sec3} className="swp-section-block">
-              <div className="swp-section-header">
-                <div className="swp-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Electrical &amp; Metering Specifications</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Utility power parameters, LTDB panel availability, and connected load measurements
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-                {/* Load Type */}
-                <FloatingInput
-                  as="select"
-                  label="Load Type"
-                  name="load_type"
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: 16 }}>
+              {/* Type of Load * */}
+              <div className="ax-float">
+                <select
+                  id="load_type"
+                  className="ax-float__input"
                   value={loadType}
                   onChange={(e) => setLoadType(e.target.value)}
+                  required
                 >
-                  <option value="Commercial">Commercial</option>
-                  <option value="Industrial">Industrial</option>
-                  <option value="Institutional">Institutional</option>
-                  <option value="Domestic">Domestic</option>
-                </FloatingInput>
+                  <option value="AC">AC</option>
+                  <option value="DC">DC</option>
+                </select>
+                <label htmlFor="load_type" className="ax-float__label floating">
+                  Type of Load <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
 
-                {/* Connection Phase */}
-                <FloatingInput
-                  as="select"
-                  label="Connection Phase"
-                  name="connection_phase"
+              {/* Connection Phase * */}
+              <div className="ax-float">
+                <select
+                  id="connection_phase"
+                  className="ax-float__input"
                   value={connectionPhase}
                   onChange={(e) => setConnectionPhase(e.target.value)}
+                  required
                 >
+                  <option value="1 Phase">1 Phase</option>
                   <option value="3 Phase">3 Phase</option>
-                  <option value="Single Phase">Single Phase</option>
-                </FloatingInput>
+                </select>
+                <label htmlFor="connection_phase" className="ax-float__label floating">
+                  Connection Phase <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
 
-                {/* Meter Connection */}
-                <FloatingInput
-                  as="select"
-                  label="Meter Connection Type"
-                  name="meter_connection"
+              {/* Meter Connection Type * */}
+              <div className="ax-float">
+                <select
+                  id="meter_connection"
+                  className="ax-float__input"
                   value={meterConnection}
                   onChange={(e) => setMeterConnection(e.target.value)}
+                  required
                 >
-                  <option value="3 Phase 4 Wire">3 Phase 4 Wire</option>
-                  <option value="Single Phase 2 Wire">Single Phase 2 Wire</option>
-                  <option value="HT Connection">HT Connection</option>
-                </FloatingInput>
+                  <option value="HT">HT</option>
+                  <option value="LT">LT</option>
+                </select>
+                <label htmlFor="meter_connection" className="ax-float__label floating">
+                  Meter Connection Type <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
 
-                {/* Meter Number */}
-                <FloatingInput
-                  label="Discom Meter Number"
-                  name="meter_number"
-                  value={meterNumber}
-                  onChange={(e) => setMeterNumber(e.target.value)}
-                  placeholder="e.g. MTR-JM-88412"
-                />
+              {/* Meter Number * */}
+              <FloatingInput
+                label="Meter Number"
+                name="meter_number"
+                value={meterNumber}
+                onChange={(e) => setMeterNumber(e.target.value)}
+                required
+              />
 
-                {/* Sanction Load */}
-                <FloatingInput
-                  label="Sanction Load (KW)"
-                  name="sanction_load"
-                  value={sanctionLoad}
-                  onChange={(e) => setSanctionLoad(e.target.value)}
-                  placeholder="e.g. 50"
-                />
+              {/* Meter Type * */}
+              <div className="ax-float">
+                <select
+                  id="meter_type"
+                  className="ax-float__input"
+                  value={meterType}
+                  onChange={(e) => setMeterType(e.target.value)}
+                  required
+                >
+                  <option value="Smart Meter">Smart Meter</option>
+                  <option value="Normal Meter">Normal Meter</option>
+                  <option value="LTCT Meter">LTCT Meter</option>
+                  <option value="HT Meter">HT Meter</option>
+                </select>
+                <label htmlFor="meter_type" className="ax-float__label floating">
+                  Meter Type <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
 
-                {/* Connected Load */}
-                <FloatingInput
-                  label="Instantaneous / Connected Load (KW)"
-                  name="connected_load"
-                  value={connectedLoad}
-                  onChange={(e) => setConnectedLoad(e.target.value)}
-                  placeholder="e.g. 35"
-                />
+              {/* Sanction Load (KW/KVA) * */}
+              <FloatingInput
+                label="Sanction Load (KW/KVA)"
+                name="sanction_load"
+                value={sanctionLoad}
+                onChange={(e) => setSanctionLoad(e.target.value)}
+                required
+              />
 
-                {/* Grid Power */}
-                <FloatingInput
-                  as="select"
-                  label="Grid Availability"
-                  name="grid_power"
+              {/* Instantaneous/Connected Load (KW) * */}
+              <FloatingInput
+                label="Instantaneous/Connected Load (KW)"
+                name="connected_load"
+                value={connectedLoad}
+                onChange={(e) => setConnectedLoad(e.target.value)}
+                required
+              />
+
+              {/* Grid power availability in hours * */}
+              <div className="ax-float">
+                <select
+                  id="grid_power"
+                  className="ax-float__input"
                   value={gridPower}
                   onChange={(e) => setGridPower(e.target.value)}
-                >
-                  <option value="Yes">Yes (Stable Grid)</option>
-                  <option value="No">No (Unstable / DG Backup)</option>
-                </FloatingInput>
-
-                {/* LTDB Present */}
-                <FloatingInput
-                  as="select"
-                  label="LTDB Panel Present"
-                  name="ltdb_present"
-                  value={ltdbPresent}
-                  onChange={(e) => setLtdbPresent(e.target.value)}
-                >
-                  <option value="Yes">Yes (Accessible LTDB)</option>
-                  <option value="No">No (Direct Main Busbar)</option>
-                </FloatingInput>
-
-                {/* All 3 Phase in LTDB */}
-                <FloatingInput
-                  as="select"
-                  label="All 3-Phases Available in LTDB"
-                  name="all_3phase_ltdb"
-                  value={all3PhaseLtdb}
-                  onChange={(e) => setAll3PhaseLtdb(e.target.value)}
+                  required
                 >
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
-                </FloatingInput>
+                </select>
+                <label htmlFor="grid_power" className="ax-float__label floating">
+                  Grid power availability in hours <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
 
-                {/* Missing Phase */}
-                <FloatingInput
-                  as="select"
-                  label="Missing Phase Detected"
-                  name="missing_phase"
-                  value={missingPhase}
-                  onChange={(e) => setMissingPhase(e.target.value)}
+              {/* Is all three-phase available in LTDB * */}
+              <div className="ax-float">
+                <select
+                  id="all_3_phase_ltdb"
+                  className="ax-float__input"
+                  value={all3PhaseLtdb}
+                  onChange={(e) => setAll3PhaseLtdb(e.target.value)}
+                  required
                 >
-                  <option value="No">No (All Phases Active)</option>
-                  <option value="Yes">Yes (Phase Discrepancy)</option>
-                </FloatingInput>
-              </div>
-            </div>
-
-            <hr className="swp-section-divider" />
-
-            {/* ── Section 4: Rooftop, Civil & Structural Feasibility ── */}
-            <div ref={sec4} className="swp-section-block">
-              <div className="swp-section-header">
-                <div className="swp-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Rooftop &amp; Civil Feasibility</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Rooftop structural integrity, available area for PV modules, building height, and earth pit positions
-                  </span>
-                </div>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+                <label htmlFor="all_3_phase_ltdb" className="ax-float__label floating">
+                  Is all three-phase available in LTDB <span style={{ color: '#ef4444' }}>*</span>
+                </label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-                {/* Roof Condition */}
-                <FloatingInput
-                  as="select"
-                  label="Roof Condition"
-                  name="roof_condition"
+              {/* If phase is missing, name i.e., R, Y, B, N * */}
+              <FloatingInput
+                label="If phase is missing, name i.e., R, Y, B, N"
+                name="missing_phase"
+                value={missingPhase}
+                onChange={(e) => setMissingPhase(e.target.value)}
+                required
+                placeholder="No or R, Y, B, N"
+              />
+
+              {/* Is LTDB Present * */}
+              <div className="ax-float">
+                <select
+                  id="ltdb_present"
+                  className="ax-float__input"
+                  value={ltdbPresent}
+                  onChange={(e) => setLtdbPresent(e.target.value)}
+                  required
+                >
+                  <option value="Present">Present</option>
+                  <option value="Not Present">Not Present</option>
+                </select>
+                <label htmlFor="ltdb_present" className="ax-float__label floating">
+                  Is LTDB Present <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
+
+              {/* Roof Condition of solar power plant installation * */}
+              <div className="ax-float">
+                <select
+                  id="roof_condition"
+                  className="ax-float__input"
                   value={roofCondition}
                   onChange={(e) => setRoofCondition(e.target.value)}
+                  required
                 >
-                  <option value="Good (RCC Slab)">Good (RCC Slab)</option>
-                  <option value="Tin Shed / Metal Sheet">Tin Shed / Metal Sheet</option>
-                  <option value="Tiled / Slanted">Tiled / Slanted</option>
-                  <option value="Old RCC (Repairs Needed)">Old RCC (Repairs Needed)</option>
-                </FloatingInput>
+                  <option value="Feasible">Feasible</option>
+                  <option value="Not Feasible">Not Feasible</option>
+                </select>
+                <label htmlFor="roof_condition" className="ax-float__label floating">
+                  Roof Condition <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
 
-                {/* Area of Roof */}
-                <FloatingInput
-                  label="Total Roof Area (Sq. Feet)"
-                  name="area_roof"
-                  value={areaRoof}
-                  onChange={(e) => setAreaRoof(e.target.value)}
-                  placeholder="e.g. 5000"
-                />
+              {/* Total Area of Roof (in Sq.Feet) * */}
+              <FloatingInput
+                label="Total Area of Roof (in Sq.Feet)"
+                name="area_roof"
+                value={areaRoof}
+                onChange={(e) => setAreaRoof(e.target.value)}
+                required
+              />
 
-                {/* Free Space Solar */}
-                <FloatingInput
-                  label="Shadow-Free Space for Solar (Sq. Ft.)"
-                  name="free_space_solar"
-                  value={freeSpaceSolar}
-                  onChange={(e) => setFreeSpaceSolar(e.target.value)}
-                  placeholder="e.g. 3500"
-                />
+              {/* Free space for solar Installation (in Sq.Feet) * */}
+              <FloatingInput
+                label="Free space for solar Installation (in Sq.Feet)"
+                name="free_space_solar"
+                value={freeSpaceSolar}
+                onChange={(e) => setFreeSpaceSolar(e.target.value)}
+                required
+              />
 
-                {/* Free Space Inverter */}
-                <FloatingInput
-                  label="Space for Inverter / Control Room (Sq. Ft.)"
-                  name="free_space_inverter"
-                  value={freeSpaceInverter}
-                  onChange={(e) => setFreeSpaceInverter(e.target.value)}
-                  placeholder="e.g. 150"
-                />
+              {/* Free space for Control Room/Inverter (in Sq.Feet) * */}
+              <FloatingInput
+                label="Free space for Control Room/Inverter (in Sq.Feet)"
+                name="free_space_inverter"
+                value={freeSpaceInverter}
+                onChange={(e) => setFreeSpaceInverter(e.target.value)}
+                required
+              />
 
-                {/* Earth Pit */}
-                <FloatingInput
-                  as="select"
-                  label="Earth Pit Position"
-                  name="earth_pit"
+              {/* Earth pit position * */}
+              <div className="ax-float">
+                <select
+                  id="earth_pit"
+                  className="ax-float__input"
                   value={earthPit}
                   onChange={(e) => setEarthPit(e.target.value)}
+                  required
                 >
-                  <option value="Available">Available (Ground Yard)</option>
-                  <option value="New Earth Pit Required">New Earth Pit Required</option>
-                  <option value="Nearby Building Pit">Nearby Building Pit</option>
-                </FloatingInput>
-
-                {/* Building Age */}
-                <FloatingInput
-                  label="Age of Building (Years)"
-                  name="building_age"
-                  value={buildingAge}
-                  onChange={(e) => setBuildingAge(e.target.value)}
-                  placeholder="e.g. 8"
-                />
-
-                {/* Roof Access */}
-                <FloatingInput
-                  as="select"
-                  label="Access to the Roof"
-                  name="roof_access"
-                  value={roofAccess}
-                  onChange={(e) => setRoofAccess(e.target.value)}
-                >
-                  <option value="Staircase">Staircase (Direct Walk)</option>
-                  <option value="Ladder / Monkey Ladder">Ladder / Monkey Ladder</option>
-                  <option value="Trapdoor / Hatch">Trapdoor / Hatch</option>
-                  <option value="Scaffolding Required">Scaffolding Required</option>
-                </FloatingInput>
-
-                {/* Rooftop Height */}
-                <FloatingInput
-                  label="Rooftop Height (Meters)"
-                  name="rooftop_height"
-                  value={rooftopHeight}
-                  onChange={(e) => setRooftopHeight(e.target.value)}
-                  placeholder="e.g. 12"
-                />
-
-                {/* Parapet Height */}
-                <FloatingInput
-                  label="Parapet Wall Height (Meters)"
-                  name="parapet_height"
-                  value={parapetHeight}
-                  onChange={(e) => setParapetHeight(e.target.value)}
-                  placeholder="e.g. 1.2"
-                />
-
-                {/* No. of Floors */}
-                <FloatingInput
-                  label="No. of Floors (G+...)"
-                  name="floors_number"
-                  value={floorsNumber}
-                  onChange={(e) => setFloorsNumber(e.target.value)}
-                  placeholder="e.g. G+2"
-                />
-
-                {/* Water Source */}
-                <FloatingInput
-                  as="select"
-                  label="Water Source for Module Cleaning"
-                  name="water_source"
-                  value={waterSource}
-                  onChange={(e) => setWaterSource(e.target.value)}
-                >
-                  <option value="Tap Water">Tap Water / Overhead Tank</option>
-                  <option value="Borewell Supply">Borewell Supply</option>
-                  <option value="External Water Tanker">External Water Tanker</option>
-                </FloatingInput>
-
-                {/* Site Access */}
-                <FloatingInput
-                  as="select"
-                  label="Vehicle Access to Site"
-                  name="site_access"
-                  value={siteAccess}
-                  onChange={(e) => setSiteAccess(e.target.value)}
-                >
-                  <option value="Direct Road Access">Direct Road Access (Truck)</option>
-                  <option value="Narrow Lane (Small LCV)">Narrow Lane (Small LCV)</option>
-                  <option value="Manual Carriage Required">Manual Carriage Required</option>
-                </FloatingInput>
+                  <option value="Ok">Ok</option>
+                  <option value="Not Ok">Not Ok</option>
+                </select>
+                <label htmlFor="earth_pit" className="ax-float__label floating">
+                  Earth pit position <span style={{ color: '#ef4444' }}>*</span>
+                </label>
               </div>
 
-              <div style={{ marginTop: 16 }}>
-                <FloatingInput
-                  as="textarea"
-                  label="Surveyor Feasibility Remarks & Scope Notes"
-                  name="survey_remarks"
-                  value={surveyRemarks}
-                  onChange={(e) => setSurveyRemarks(e.target.value)}
-                  placeholder="Enter structural assessment, cable route observations, or shading analysis..."
-                />
-              </div>
-            </div>
-
-            <hr className="swp-section-divider" />
-
-            {/* ── Section 5: Verdict & Media Evidence Uploads ── */}
-            <div ref={sec5} className="swp-section-block">
-              <div className="swp-section-header">
-                <div className="swp-section-title-wrap">
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Feasibility Verdict &amp; Media Uploads</h3>
-                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                    Provide technical verdict and upload required inspection photographs and feasibility report
-                  </span>
-                </div>
-              </div>
-
-              {/* Feasibility Verdict Radio / Select */}
-              <div style={{ marginBottom: 20, maxWidth: 360 }}>
-                <FloatingInput
-                  as="select"
-                  label="Site Solar Feasibility Verdict"
-                  name="site_feasible"
+              {/* Site Feasible * */}
+              <div className="ax-float">
+                <select
+                  id="site_feasible"
+                  className="ax-float__input"
                   value={siteFeasible}
                   onChange={(e) => setSiteFeasible(e.target.value)}
                   required
                 >
-                  <option value="Feasible">Feasible (Recommended for Solar PV)</option>
-                  <option value="Not Feasible">Not Feasible (Severe Obstacles / Structurally Unsound)</option>
-                  <option value="Conditionally Feasible">Conditionally Feasible (Subject to Structural Rework)</option>
-                </FloatingInput>
+                  <option value="Feasible">Feasible</option>
+                  <option value="Not Feasible">Not Feasible</option>
+                  <option value="Site Install">Site Install</option>
+                </select>
+                <label htmlFor="site_feasible" className="ax-float__label floating">
+                  Site Feasible <span style={{ color: '#ef4444' }}>*</span>
+                </label>
               </div>
 
-              {/* Upload Dropzones Grid */}
-              <div className="jammu-upload-grid">
-                {/* 1. Building Image */}
-                <UploadDropzone
-                  id="building_image"
-                  label="Building Front View Photo"
-                  file={buildingImage}
-                  preview={buildingImagePreview}
-                  onSelect={(file) => {
-                    setBuildingImage(file);
-                    setBuildingImagePreview(URL.createObjectURL(file));
-                  }}
-                  onRemove={() => {
-                    setBuildingImage(null);
-                    setBuildingImagePreview('');
-                  }}
-                />
-
-                {/* 2. Roof Image */}
-                <UploadDropzone
-                  id="roof_image"
-                  label="Rooftop Surface Photo"
-                  file={roofImage}
-                  preview={roofImagePreview}
-                  onSelect={(file) => {
-                    setRoofImage(file);
-                    setRoofImagePreview(URL.createObjectURL(file));
-                  }}
-                  onRemove={() => {
-                    setRoofImage(null);
-                    setRoofImagePreview('');
-                  }}
-                />
-
-                {/* 3. Control Room Image */}
-                <UploadDropzone
-                  id="control_room_image"
-                  label="Control Room / Inverter Space Photo"
-                  file={controlRoomImage}
-                  preview={controlRoomImagePreview}
-                  onSelect={(file) => {
-                    setControlRoomImage(file);
-                    setControlRoomImagePreview(URL.createObjectURL(file));
-                  }}
-                  onRemove={() => {
-                    setControlRoomImage(null);
-                    setControlRoomImagePreview('');
-                  }}
-                />
-
-                {/* 4. Other Image */}
-                <UploadDropzone
-                  id="other_image"
-                  label="LTDB Panel / Additional Photo"
-                  file={otherImage}
-                  preview={otherImagePreview}
-                  onSelect={(file) => {
-                    setOtherImage(file);
-                    setOtherImagePreview(URL.createObjectURL(file));
-                  }}
-                  onRemove={() => {
-                    setOtherImage(null);
-                    setOtherImagePreview('');
-                  }}
-                />
-
-                {/* 5. Feasibility PDF Dossier */}
-                <UploadDropzone
-                  id="pdf_file"
-                  label="Feasibility Dossier / Single Line Diagram (PDF)"
-                  accept=".pdf"
-                  file={pdfFile}
-                  onSelect={(file) => setPdfFile(file)}
-                  onRemove={() => setPdfFile(null)}
-                />
-              </div>
-            </div>
-
-            {/* Submit Footer */}
-            <div
-              style={{
-                marginTop: 32,
-                paddingTop: 20,
-                borderTop: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: 12,
-              }}
-            >
-              <Link to="/vendor-management/jammu/survey/resco/view-assign" className="ax-btn ax-btn--secondary">
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary"
-                disabled={submitting || !selectedSiteId}
-                style={{ minWidth: 200, fontWeight: 700 }}
-              >
-                {submitting ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <span className="ax-spinner" /> Submitting Survey...
-                  </span>
-                ) : (
-                  'Submit Feasibility Survey'
-                )}
-              </button>
+              {/* Survey Remarks * */}
+              <FloatingInput
+                label="Survey Remarks"
+                name="survey_remarks"
+                value={surveyRemarks}
+                onChange={(e) => setSurveyRemarks(e.target.value)}
+                required
+              />
             </div>
           </div>
-        </form>
-      </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* Section 4: Civil / Structural */}
+          <div ref={sec4} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Civil / Structural Information</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Building age, staircase access, rooftop heights, and approach road distance
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: 16 }}>
+              <FloatingInput
+                label="Age of Building"
+                name="building_age"
+                value={buildingAge}
+                onChange={(e) => setBuildingAge(e.target.value)}
+                required
+                placeholder="e.g. 5 Years"
+              />
+
+              <div className="ax-float">
+                <select
+                  id="roof_access"
+                  className="ax-float__input"
+                  value={roofAccess}
+                  onChange={(e) => setRoofAccess(e.target.value)}
+                  required
+                >
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
+                </select>
+                <label htmlFor="roof_access" className="ax-float__label floating">
+                  Access to the roof (Availability of Staircase) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+              </div>
+
+              <FloatingInput
+                label="Rooftop Height (Feet)"
+                name="rooftop_height"
+                value={rooftopHeight}
+                onChange={(e) => setRooftopHeight(e.target.value)}
+                required
+              />
+
+              <FloatingInput
+                label="Parapet Height (Feet)"
+                name="parapet_height"
+                value={parapetHeight}
+                onChange={(e) => setParapetHeight(e.target.value)}
+                required
+              />
+
+              <FloatingInput
+                label="No. of floors (G+...)"
+                name="floors_number"
+                value={floorsNumber}
+                onChange={(e) => setFloorsNumber(e.target.value)}
+                required
+                placeholder="e.g. G+2"
+              />
+
+              <FloatingInput
+                label="Water Source for Cleaning"
+                name="water_source"
+                value={waterSource}
+                onChange={(e) => setWaterSource(e.target.value)}
+                required
+                placeholder="e.g. Overhead Tank, Tap"
+              />
+
+              <FloatingInput
+                label="Access to Site"
+                name="site_access"
+                value={siteAccess}
+                onChange={(e) => setSiteAccess(e.target.value)}
+                required
+                placeholder="e.g. Paved Road, 20ft Wide"
+              />
+
+              <FloatingInput
+                label="Distance of site from main Road (km)"
+                name="site_distance"
+                value={siteDistance}
+                onChange={(e) => setSiteDistance(e.target.value)}
+                required
+                placeholder="e.g. 0.5"
+              />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* Section 5: Media Evidence & Documents */}
+          <div ref={sec5} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Photographic Evidence & Survey PDF</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Attach building, roof, control room, and meter photographs along with survey PDF report
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+              <UploadDropzone
+                id="building_image"
+                label="Building Image"
+                required
+                file={buildingImage}
+                preview={buildingImagePreview}
+                onSelect={(f) => {
+                  setBuildingImage(f);
+                  setBuildingImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setBuildingImage(null);
+                  if (buildingImagePreview) URL.revokeObjectURL(buildingImagePreview);
+                  setBuildingImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="roof_image"
+                label="Roof Image"
+                required
+                file={roofImage}
+                preview={roofImagePreview}
+                onSelect={(f) => {
+                  setRoofImage(f);
+                  setRoofImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setRoofImage(null);
+                  if (roofImagePreview) URL.revokeObjectURL(roofImagePreview);
+                  setRoofImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="control_room_image"
+                label="Control Room Image"
+                required
+                file={controlRoomImage}
+                preview={controlRoomImagePreview}
+                onSelect={(f) => {
+                  setControlRoomImage(f);
+                  setControlRoomImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setControlRoomImage(null);
+                  if (controlRoomImagePreview) URL.revokeObjectURL(controlRoomImagePreview);
+                  setControlRoomImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="meter_image"
+                label="Meter Image"
+                file={meterImage}
+                preview={meterImagePreview}
+                onSelect={(f) => {
+                  setMeterImage(f);
+                  setMeterImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setMeterImage(null);
+                  if (meterImagePreview) URL.revokeObjectURL(meterImagePreview);
+                  setMeterImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="other_image"
+                label="Other Image"
+                file={otherImage}
+                preview={otherImagePreview}
+                onSelect={(f) => {
+                  setOtherImage(f);
+                  setOtherImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setOtherImage(null);
+                  if (otherImagePreview) URL.revokeObjectURL(otherImagePreview);
+                  setOtherImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="survey_pdf"
+                label="Survey Report PDF"
+                accept=".pdf"
+                file={pdfFile}
+                onSelect={setPdfFile}
+                onRemove={() => setPdfFile(null)}
+              />
+            </div>
+          </div>
+
+          {/* Submit Footer */}
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+            <Link to="/vendor-management/jammu/survey/resco/verify-survey" className="ax-btn ax-btn--secondary">
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submitting || !selectedSiteId}
+              style={{ minWidth: 200, fontWeight: 700 }}
+            >
+              {submitting ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ax-spinner" /> Submitting Survey...
+                </span>
+              ) : (
+                'Submit Survey Feasibility'
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }

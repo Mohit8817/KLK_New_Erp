@@ -207,9 +207,8 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
 
 function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
   const t = TONE[tone];
-  const hasSpark = Array.isArray(spark) && spark.length > 1;
-  const allZeros = hasSpark && spark!.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
+  const hasSpark = Array.isArray(spark) && spark.length > 1 && spark.some((v) => v > 0);
+  const safeSpark = spark;
 
   return (
     <div
@@ -839,7 +838,7 @@ export function UP_Installation_SSL_Dashboard() {
           </span>
         }
         breadcrumbs={[
-          { label: 'Home', href: '/v' },
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Uttar Pradesh' },
           { label: 'Installation' },
           { label: 'SSL 18W Dashboard' },

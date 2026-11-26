@@ -1,7 +1,6 @@
-﻿import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+﻿import { useEffect, useMemo, useState, useCallback, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   Pagination,
   usePagination,
@@ -13,670 +12,371 @@ import {
 import {
   jammuRescoAdminService,
   resolveJammuMediaUrl,
-  type RescoClaimItem,
+  type RescoClaimRecord,
 } from './jammuRescoAdminService';
-
-/* ───────── Responsive page CSS (Exact Solar ERP reference, all columns scrollable) ───────── */
-const PAGE_CSS = `
-  .solar-erp-page {
-    --asw-primary: #2559bf;
-    --asw-primary-rgb: 37, 89, 191;
-    --ax-primary: #2559bf;
-    --ax-primary-hover: #1e4699;
-    --ax-primary-rgb: 37, 89, 191;
-  }
-  .solar-erp-page .ax-btn--primary,
-  .solar-erp-page .ax-button--primary {
-    background: #2559bf !important;
-    border-color: #2559bf !important;
-    color: #ffffff !important;
-  }
-  .solar-erp-page .ax-btn--primary:hover,
-  .solar-erp-page .ax-button--primary:hover {
-    background: #1e4699 !important;
-    border-color: #1e4699 !important;
-  }
-  .solar-erp-page .ax-card { min-width: 0; }
-  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
-  .solar-erp-page .ula-pagination-left {
-    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
-  }
-  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
-
-    .solar-erp-page .asw-cards-row {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--ax-space-4, 16px);
-    margin-bottom: var(--ax-space-5, 20px);
-  }
-  .solar-erp-page .asw-cards-row span svg {
-    width: 15px !important;
-    height: 15px !important;
-    display: block !important;
-  }
-  /* Compact table action buttons */
-  .solar-erp-page .ax-table .ax-btn--sm,
-  .solar-erp-page .ax-table .ax-btn--xs,
-  .solar-erp-page .ax-table button.ax-btn,
-  .solar-erp-page .ax-table a.ax-btn {
-    min-height: unset !important;
-    height: auto !important;
-    padding: 4px 8px !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-  }
-    @media (max-width: 1024px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-  @media (max-width: 640px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .solar-erp-page .ax-card__header {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .solar-erp-page .ax-card__titles {
-    flex: 1 1 220px;
-    min-width: 220px;
-    max-width: 100%;
-  }
-  .solar-erp-page .ax-card__title,
-  .solar-erp-page .ax-card__eyebrow,
-  .solar-erp-page .ax-card__subtitle {
-    max-width: none;
-    word-break: normal;
-    overflow-wrap: normal;
-    hyphens: none;
-  }
-  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
-
-  .solar-erp-page .ax-card__actions {
-    flex: 0 1 auto;
-    min-width: 0;
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: nowrap;
-    gap: 8px;
-  }
-  .solar-erp-page .ax-card__actions .ax-cluster {
-    flex-wrap: nowrap !important;
-    min-width: 0;
-    justify-content: flex-end;
-  }
-
-  .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] {
-    flex: 1 1 140px;
-    min-width: 200px;
-    max-width: 240px;
-  }
-  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-  .solar-erp-page .ax-export-toolbar__button {
-    padding-inline: 8px !important;
-    min-width: 0;
-  }
-
-  /* All table columns fully scrollable horizontally - no sticky/fixed columns */
-  .solar-erp-page .ax-table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-  }
-
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0;
-      gap: 0;
-      padding: 0 8px !important;
-      justify-content: center;
-    }
-    .solar-erp-page .ax-export-toolbar__button svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
-  }
-
-  @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header {
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .solar-erp-page .ax-card__titles {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 100%;
-      max-width: 100%;
-    }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
-    .solar-erp-page .ax-card__actions {
-      flex: 0 0 auto;
-      width: 100%;
-      margin-left: 0;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-    .solar-erp-page .ax-card__actions .ax-cluster {
-      flex-wrap: wrap !important;
-      width: 100%;
-      justify-content: flex-start;
-      gap: 8px;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] {
-      flex: 1 1 100%;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar,
-    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-      flex: 1 1 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      gap: 6px;
-    }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 11px;
-      height: 28px;
-      padding: 0 6px !important;
-    }
-    .solar-erp-page .ax-export-toolbar { gap: 4px; }
-  }
-`;
-
-/* ───────── Overlay CSS (modals) ───────── */
-const OVERLAY_CSS = `
-  .ax-modal {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(6px);
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-  }
-  .ax-modal__backdrop {
-    position: fixed; inset: 0; background: transparent;
-  }
-  .ax-modal__dialog {
-    position: relative; z-index: 1; background: #ffffff;
-    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    overflow: hidden; width: 100%;
-  }
-  .ax-modal__header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 24px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
-  }
-  .ax-modal__close {
-    width: 32px; height: 32px; padding: 0; border-radius: 50%;
-    border: none; background: transparent; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
-    transition: all 0.15s ease;
-  }
-  .ax-modal__close:hover {
-    background: var(--ax-surface-hover, #e2e8f0);
-    color: var(--ax-text-strong, #0f172a);
-  }
-  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
-  .ax-modal__footer {
-    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-    padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
-  }
-`;
-
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
-const footerStyle = {
-  borderTop: '1px solid var(--ax-border, #e2e8f0)',
-  padding: 'var(--ax-space-3) var(--ax-space-4)',
-  display: 'flex',
-  justifyContent: 'flex-start',
-  alignItems: 'center',
-  width: '100%',
-  boxSizing: 'border-box',
-} as const;
-const centerCell = { textAlign: 'center', padding: 24 } as const;
-
-function Modal({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
-  footer,
-  maxWidth = 640,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  footer?: ReactNode;
-  maxWidth?: number;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div className="ax-modal" role="dialog" aria-modal="true">
-      <div className="ax-modal__backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="ax-modal__header">
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>{subtitle}</p>}
-          </div>
-          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            ✕
-          </button>
-        </div>
-        <div className="ax-modal__body">{children}</div>
-        {footer && <div className="ax-modal__footer">{footer}</div>}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-/* ── Top KPI Card Component ── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
-}: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: string;
-}) {
-  const t = TONE[tone];
-  return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            {icon}
-          </span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
-          {label}
-        </span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
-        {sub}
-      </div>
-    </div>
-  );
-}
+import {
+  TABLE_PAGE_CSS,
+  OVERLAY_CSS,
+  actionsRowStyle,
+  footerStyle,
+  centerCell,
+  Modal,
+  KpiCard,
+  MediaFileThumbnail,
+  MediaLightbox,
+  StatusFeedbackBanners,
+  fmtDate,
+  fmtCurrency,
+  fmtNum,
+  DASH,
+  copyRowsToClipboard,
+  exportRowsCSV,
+  exportRowsExcel,
+  exportRowsPDF,
+} from '../../../up/Installation/upInstallationShared';
 
 export function ViewRescoClaim() {
-  const [claims, setClaims] = useState<RescoClaimItem[]>([]);
-  const [stats, setStats] = useState({
-    total: 3,
-    approved: 2,
-    pending: 1,
-    rejected: 0,
+  const [claims, setClaims] = useState<RescoClaimRecord[]>([]);
+  const [summary, setSummary] = useState<{
+    total: number;
+    claim_approved: number;
+    claim_pending: number;
+    claim_reject: number;
+  }>({
+    total: 0,
+    claim_approved: 0,
+    claim_pending: 0,
+    claim_reject: 0,
   });
-
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  // Audit modal
-  const [selectedClaimForAudit, setSelectedClaimForAudit] = useState<RescoClaimItem | null>(null);
-  const [auditStatus, setAuditStatus] = useState<'Approved' | 'Pending' | 'Reject'>('Approved');
-  const [auditRemarks, setAuditRemarks] = useState('');
-  const [submittingAudit, setSubmittingAudit] = useState(false);
+  // Verify Claim Modal (id, status: 2|3, remarks)
+  const [actionClaim, setActionClaim] = useState<RescoClaimRecord | null>(null);
+  const [claimStatus, setClaimStatus] = useState<'2' | '3'>('2');
+  const [claimRemarks, setClaimRemarks] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
+
+  const fetchClaims = useCallback(async () => {
     setLoading(true);
+    setErrorMsg('');
     try {
-      const data = await jammuRescoAdminService.getClaims();
-      setClaims(data.claims);
-      setStats(data.stats);
-    } catch (e) {
-      console.error('Failed to load RESCO claims:', e);
+      const res = await jammuRescoAdminService.getViewClaim();
+      const list: RescoClaimRecord[] = Array.isArray(res?.claims) ? res.claims : [];
+      setClaims(list);
+      const details = res?.claim_details;
+      setSummary({
+        total: Number(details?.total ?? list.length),
+        claim_approved: Number(details?.claim_approved ?? list.filter((c) => Number(c.claim_status) === 2 || Number(c.claim_status) === 1).length),
+        claim_pending: Number(details?.claim_pending ?? list.filter((c) => Number(c.claim_status ?? 0) === 0).length),
+        claim_reject: Number(details?.claim_reject ?? list.filter((c) => Number(c.claim_status) === 3).length),
+      });
+    } catch (err: any) {
+      console.error('Failed to fetch Jammu RESCO claim requests:', err);
+      setErrorMsg(err?.message || 'Failed to fetch Jammu RESCO claim requests.');
+      setClaims([]);
+      setSummary({ total: 0, claim_approved: 0, claim_pending: 0, claim_reject: 0 });
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchClaims();
+  }, [fetchClaims]);
 
-  const filteredClaims = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return claims;
-    return claims.filter(
-      (c) =>
-        (c.vendor_name && c.vendor_name.toLowerCase().includes(q)) ||
-        (c.claim_id && c.claim_id.toLowerCase().includes(q)) ||
-        c.claim_percent.toLowerCase().includes(q) ||
-        (c.remarks && c.remarks.toLowerCase().includes(q))
-    );
-  }, [claims, searchQuery]);
-
-  const pagination = usePagination(filteredClaims, { initialPageSize: 10 });
-
-  const handleAuditSubmit = async (e: React.FormEvent) => {
+  const handleVerifyClaim = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedClaimForAudit) return;
-
-    setSubmittingAudit(true);
+    if (!actionClaim) return;
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
     try {
-      setClaims((prev) =>
-        prev.map((c) =>
-          c.id === selectedClaimForAudit.id
-            ? { ...c, status: auditStatus, verify_remarks: auditRemarks }
-            : c
-        )
+      const res = await jammuRescoAdminService.verifyClaimStatus(
+        actionClaim.id,
+        Number(claimStatus),
+        claimRemarks.trim() || undefined
       );
-      setSelectedClaimForAudit(null);
-      setAuditRemarks('');
+      setSuccessMsg(res.message || 'Claim status updated successfully.');
+      setActionClaim(null);
+      setClaimRemarks('');
+      fetchClaims();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to update claim status.');
     } finally {
-      setSubmittingAudit(false);
+      setSubmitting(false);
     }
   };
 
+  const filteredClaims = useMemo(() => {
+    let list = claims;
+    if (statusFilter !== 'all') {
+      list = list.filter((c) => {
+        const st = Number(c.claim_status ?? 0);
+        if (statusFilter === '1' || statusFilter === '0') return st === 0 || st === 1;
+        if (statusFilter === '2') return st === 2;
+        if (statusFilter === '3') return st === 3;
+        return String(st) === statusFilter;
+      });
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((c) => {
+      const siteNames = Array.isArray(c.sites) ? c.sites.map((s) => s.site_name).join(' ') : String(c.site_id || '');
+      const district = Array.isArray(c.sites) && c.sites.length > 0 ? c.sites[0].district : (c as any).district || '';
+      const vendorName = c.vendors?.name || (c as any).vendor_name || (c.vendor_id ? `Vendor #${c.vendor_id}` : '');
+      const hay = [
+        c.id,
+        'JAMMU',
+        district,
+        siteNames,
+        vendorName,
+        c.amount,
+        c.remarks,
+        c.verify_remarks,
+        c.approved_remarks,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [claims, searchQuery, statusFilter]);
+
+  const pagination = usePagination(filteredClaims, { initialPageSize: 50 });
+
+  const exportCols = useMemo<ExportColumn<RescoClaimRecord>[]>(
+    () => [
+      { header: 'Sr. No.', accessor: ((_r: RescoClaimRecord, idx?: number) => (idx !== undefined ? idx + 1 : '')) as any },
+      { header: 'State', accessor: () => 'JAMMU' },
+      {
+        header: 'District',
+        accessor: (r) => (Array.isArray(r.sites) && r.sites.length > 0 ? r.sites[0].district : (r as any).district || DASH),
+      },
+      {
+        header: 'Vendor',
+        accessor: (r) => r.vendors?.name || (r as any).vendor_name || (r.vendor_id ? `Vendor #${r.vendor_id}` : DASH),
+      },
+      { header: 'Claim Date', accessor: (r) => fmtDate(r.date || (r as any).created_at) },
+      {
+        header: 'Site Name',
+        accessor: (r) =>
+          Array.isArray(r.sites) && r.sites.length > 0
+            ? r.sites.map((s) => s.site_name).join(', ')
+            : String(r.site_id || `Site #${r.id}`),
+      },
+      { header: 'Claim Amount', accessor: (r) => r.amount },
+      { header: 'Claim Update Date', accessor: (r) => fmtDate((r as any).updated_at || r.date) },
+      {
+        header: 'Claim Status',
+        accessor: (r) => {
+          const st = Number(r.claim_status);
+          return st === 2 ? 'Approved' : st === 3 ? 'Rejected' : 'Pending';
+        },
+      },
+      { header: 'Claim Verify Remarks', accessor: (r) => r.verify_remarks || r.approved_remarks || DASH },
+    ],
+    []
+  );
+
+  const stamp = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="solar-erp-page">
-      <style>{PAGE_CSS}</style>
+      <style>{TABLE_PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Page Header */}
       <PageHead
-        title="View Jammu Resco Installation Claim"
-        subtitle="Verification and audit desk for solar rooftop milestone invoices, 80% supply & 20% commissioning claims in Jammu & Kashmir."
+        title="Jammu RESCO Installation Claim"
+        subtitle="Verification and audit desk for rooftop solar RESCO milestone claims, vendor submission invoices, and DISCOM commissioning settlements across Jammu"
         breadcrumbs={[
-          { label: 'Home', href: '/' },
+          { label: 'ERP Dashboard', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu' },
-          { label: 'RESCO Installation', href: '/vendor-management/jammu/installation/resco/dashboard' },
-          { label: 'Jammu Resco Installation Claim' },
+          { label: 'Installation', href: '/vendor-management/jammu/installation/resco' },
+          { label: 'RESCO', href: '/vendor-management/jammu/installation/resco' },
+          { label: 'View Claim' },
         ]}
+        actions={
+          <Link
+            to="/vendor-management/jammu/installation/resco/view-payment"
+            className="ax-btn ax-btn--primary ax-btn--sm"
+          >
+            View Payments
+          </Link>
+        }
       />
 
-      {/* Top 4 KPI Metric Cards matching exact user format */}
+      <StatusFeedbackBanners
+        errorMsg={errorMsg}
+        successMsg={successMsg}
+        onClearError={() => setErrorMsg('')}
+        onClearSuccess={() => setSuccessMsg('')}
+      />
+
       <div className="asw-cards-row">
         <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-          }
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /></svg>}
           tone="accent"
-          label="Claim Request"
-          value={stats.total}
-          sub="Total raised vendor claims"
+          label="Total Claims"
+          value={fmtNum(summary.total)}
+          sub="All RESCO claim requests"
         />
-
         <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          }
-          tone="emerald"
-          label="Claim Approved"
-          value={stats.approved}
-          sub="Approved for treasury payment"
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
           tone="amber"
           label="Claim Pending"
-          value={stats.pending}
-          sub="Awaiting finance audit"
+          value={fmtNum(summary.claim_pending)}
+          sub="Awaiting approval"
         />
-
         <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
-          }
-          tone="violet"
-          label="Claim Reject"
-          value={stats.rejected}
-          sub="Returned with audit notes"
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+          tone="emerald"
+          label="Claim Approved"
+          value={fmtNum(summary.claim_approved)}
+          sub="Cleared for payment"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
+          tone="red"
+          label="Claim Rejected"
+          value={fmtNum(summary.claim_reject)}
+          sub="Rejected claims"
         />
       </div>
 
-      {/* Main Table Card */}
       <section className="ax-card ax-col--12">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">Jammu Resco Installation Claim</h2>
-            <p className="ax-card__subtitle">Showing {filteredClaims.length} vendor milestone claim requests</p>
+            <h2 className="ax-card__title">View Jammu RESCO Claim Request Data</h2>
+            <p className="ax-card__subtitle">Showing {filteredClaims.length} claim record(s)</p>
           </div>
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {searchQuery.trim() !== '' && (
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--ghost ax-btn--sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    pagination.setPage(1);
-                  }}
-                  style={{ height: 30, padding: '0 8px', fontSize: '11px' }}
-                >
-                  Reset
-                </button>
-              )}
-              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search vendor, claim ID..." size="sm" />
-              <TableExportToolbar onCopy={() => {}} onExportCSV={() => {}} onExportExcel={() => {}} onExportPDF={() => {}} />
+              <select
+                className="ax-input ax-input--sm"
+                style={{ width: 135, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  pagination.setPage(1);
+                }}
+              >
+                <option value="all">All Status</option>
+                <option value="1">Pending (1)</option>
+                <option value="2">Approved (2)</option>
+                <option value="3">Rejected (3)</option>
+              </select>
+              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search vendor, amount, remarks..." size="sm" />
+              <TableExportToolbar
+                onCopy={() => copyRowsToClipboard(filteredClaims, exportCols)}
+                onExportCSV={() => exportRowsCSV(filteredClaims, exportCols, `Jammu_RESCO_Claims_${stamp}`)}
+                onExportExcel={() => exportRowsExcel(filteredClaims, exportCols, `Jammu_RESCO_Claims_${stamp}`)}
+                onExportPDF={() => exportRowsPDF(filteredClaims, exportCols, 'View Jammu RESCO Claim Request Data')}
+              />
             </div>
           </div>
         </div>
 
-        {/* Responsive Table */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 1200 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1150 }}>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th">S.No.</th>
-                <th className="ax-table__th">Date</th>
-                <th className="ax-table__th">Claim %</th>
-                <th className="ax-table__th">Sites</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Invoice</th>
-                <th className="ax-table__th ax-table__th--num">Amount</th>
-                <th className="ax-table__th">Remarks</th>
-                <th className="ax-table__th">Verify Remarks</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Status</th>
+                <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">State</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">Claim Date</th>
+                <th className="ax-table__th">Site Name</th>
+                <th className="ax-table__th">Claim Invoice</th>
+                <th className="ax-table__th">Claim Amount</th>
+                <th className="ax-table__th">Claim Update Date</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Claim Status</th>
+                <th className="ax-table__th">Claim Verify Remarks</th>
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={centerCell}>Loading claim requests...</td>
+                  <td colSpan={12} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading Jammu RESCO claim requests...
+                  </td>
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={centerCell}>
-                    <TableEmptyState title="No claim requests found" description="No vendor claims match filter" />
+                  <td colSpan={12} style={centerCell}>
+                    <TableEmptyState title="No data available in table" description="No Jammu RESCO claim requests found." />
                   </td>
                 </tr>
               ) : (
                 pagination.paged.map((row, idx) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const invoicePath = row.invoice_file || (row as any).invoice || (row as any).file;
+                  const st = Number(row.claim_status ?? (row as any).inst_claim_status ?? 0);
+                  const siteTitle = Array.isArray(row.sites) && row.sites.length > 0
+                    ? row.sites.map((s) => s.site_name).join(', ')
+                    : String(row.site_id || `Site #${row.id}`);
+                  const districtName = Array.isArray(row.sites) && row.sites.length > 0
+                    ? row.sites[0].district
+                    : (row as any).district || DASH;
+
                   return (
                     <tr key={row.id}>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-                      <td className="ax-table__td" style={{ fontSize: 12 }}>{row.date}</td>
+                      <td className="ax-table__td">JAMMU</td>
+                      <td className="ax-table__td">{districtName}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        {row.vendors?.name || (row as any).vendor_name || (row.vendor_id ? `Vendor #${row.vendor_id}` : DASH)}
+                      </td>
+                      <td className="ax-table__td">{fmtDate(row.date || (row as any).inst_claim_date || (row as any).created_at)}</td>
                       <td className="ax-table__td">
-                        <span style={{ fontWeight: 700, padding: '2px 8px', background: '#eff6ff', color: '#2559bf', borderRadius: 4 }}>
-                          {row.claim_percent}
-                        </span>
+                        <span className="ax-badge ax-badge--soft ax-badge--info">{siteTitle}</span>
                       </td>
                       <td className="ax-table__td">
-                        <div style={{ fontWeight: 700 }}>{row.sites_count} Site{row.sites_count > 1 ? 's' : ''}</div>
-                        {row.sites_list && row.sites_list.length > 0 && (
-                          <div style={{ fontSize: 11, color: '#64748b' }}>{row.sites_list.join(', ')}</div>
-                        )}
+                        <MediaFileThumbnail
+                          url={invoicePath ? resolveJammuMediaUrl(invoicePath) : null}
+                          alt={`Claim #${row.id} Invoice`}
+                          onClick={(url, title) => setLightbox({ url, title })}
+                        />
                       </td>
-
+                      <td className="ax-table__td" style={{ fontWeight: 700 }}>{fmtCurrency(row.amount)}</td>
+                      <td className="ax-table__td">{fmtDate((row as any).updated_at || row.date)}</td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.invoice_file ? (
-                          <a
-                            href={resolveJammuMediaUrl(row.invoice_file)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ color: '#2559bf', fontWeight: 600 }}
-                          >
-                            📄 Invoice
-                          </a>
+                        {st === 2 || st === 1 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
+                        ) : st === 3 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                         )}
                       </td>
-
-                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 800, color: '#16a34a' }}>
-                        ₹{row.amount.toLocaleString('en-IN')}
+                      <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {row.verify_remarks || row.approved_remarks || DASH}
                       </td>
-                      <td className="ax-table__td" style={{ fontSize: 11, maxWidth: 180, whiteSpace: 'normal' }}>
-                        {row.remarks || '—'}
-                      </td>
-                      <td className="ax-table__td" style={{ fontSize: 11, maxWidth: 180, whiteSpace: 'normal', color: '#d97706' }}>
-                        {row.verify_remarks || '—'}
-                      </td>
-
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <span
-                          className={`ax-badge ax-badge--soft ${
-                            row.status === 'Approved'
-                              ? 'ax-badge--success'
-                              : row.status === 'Reject'
-                              ? 'ax-badge--danger'
-                              : 'ax-badge--warning'
-                          }`}
-                          style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {st === 0 || st === 1 ? (
                           <button
                             type="button"
+                            className="ax-btn ax-btn--primary ax-btn--xs"
                             onClick={() => {
-                              setSelectedClaimForAudit(row);
-                              setAuditStatus(row.status === 'Approved' ? 'Approved' : row.status === 'Reject' ? 'Reject' : 'Approved');
-                              setAuditRemarks(row.verify_remarks || '');
-                            }}
-                            className="ax-btn ax-btn--primary ax-btn--sm"
-                            style={{
-                              padding: '4px 12px',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              lineHeight: 1.2,
-                              height: 'auto',
-                              minHeight: 'unset',
+                              setActionClaim(row);
+                              setClaimStatus('2');
+                              setClaimRemarks(row.verify_remarks || row.approved_remarks || '');
                             }}
                           >
-                            Audit
+                            Verify Claim
                           </button>
-                        </td>
+                        ) : (
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Processed</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })
@@ -685,7 +385,6 @@ export function ViewRescoClaim() {
           </table>
         </div>
 
-        {/* Footer Pagination */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -700,57 +399,57 @@ export function ViewRescoClaim() {
         </div>
       </section>
 
-      {/* Audit Action Modal */}
+      {/* Verify Claim Modal */}
       <Modal
-        open={Boolean(selectedClaimForAudit)}
-        onClose={() => setSelectedClaimForAudit(null)}
-        title="Audit Jammu RESCO Installation Claim"
-        subtitle={selectedClaimForAudit ? `${selectedClaimForAudit.claim_id || 'Claim #' + selectedClaimForAudit.id} • ${selectedClaimForAudit.claim_percent} Milestone` : ''}
-        maxWidth={500}
-        footer={
-          <>
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setSelectedClaimForAudit(null)} disabled={submittingAudit}>
-              Cancel
-            </button>
-            <button type="button" className="ax-btn ax-btn--primary" onClick={handleAuditSubmit} disabled={submittingAudit}>
-              {submittingAudit ? 'Submitting...' : 'Save Audit Decision'}
-            </button>
-          </>
+        open={Boolean(actionClaim)}
+        onClose={() => setActionClaim(null)}
+        title="Verify Jammu RESCO Claim Request"
+        subtitle={
+          actionClaim
+            ? `Claim #${actionClaim.id} • ${Array.isArray(actionClaim.sites) && actionClaim.sites.length > 0 ? actionClaim.sites[0].site_name : 'RESCO Site'} • Amount: ${fmtCurrency(actionClaim.amount)}`
+            : ''
         }
+        maxWidth={480}
       >
-        <form onSubmit={handleAuditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleVerifyClaim} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Audit Decision Status <span style={{ color: '#ef4444' }}>*</span>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+              Claim Decision <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select
-              value={auditStatus}
-              onChange={(e) => setAuditStatus(e.target.value as any)}
-              className="ax-select"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+              className="ax-input"
+              value={claimStatus}
+              onChange={(e) => setClaimStatus(e.target.value as '2' | '3')}
+              style={{ width: '100%' }}
               required
             >
-              <option value="Approved">Approved</option>
-              <option value="Pending">Pending</option>
-              <option value="Reject">Reject</option>
+              <option value="2">Approve (2)</option>
+              <option value="3">Reject (3)</option>
             </select>
           </div>
-
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Auditor Remarks
-            </label>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Verify Remarks</label>
             <textarea
+              className="ax-input"
               rows={3}
-              value={auditRemarks}
-              onChange={(e) => setAuditRemarks(e.target.value)}
-              placeholder="Enter finance audit approval or deduction remarks..."
-              className="ax-textarea"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+              value={claimRemarks}
+              onChange={(e) => setClaimRemarks(e.target.value)}
+              placeholder="Optional approval or rejection notes..."
+              style={{ width: '100%', padding: 10 }}
             />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setActionClaim(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting}>
+              {submitting ? 'Updating...' : 'Submit Claim Status'}
+            </button>
           </div>
         </form>
       </Modal>
+
+      <MediaLightbox url={lightbox?.url || null} title={lightbox?.title} onClose={() => setLightbox(null)} />
     </div>
   );
 }

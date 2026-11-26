@@ -12,8 +12,13 @@ export const UP_COMPLAINT_API = {
     SAVE_COMPLAINT: `${BASE_URL}/up/complaint/resco/save-complaint`,
     GET_SITE_NAMES: (district: string) =>
       `${BASE_URL}/up/complaint/resco/get-site-names?district=${encodeURIComponent(district)}`,
-    GET_SITE_DETAILS: (siteIdOrName: string | number) =>
-      `${BASE_URL}/up/complaint/resco/get-sites-details?site_id=${encodeURIComponent(siteIdOrName)}&site_name=${encodeURIComponent(siteIdOrName)}`,
+    GET_SITE_DETAILS: (siteId: string | number, siteName?: string, district?: string) => {
+      const params = new URLSearchParams();
+      params.set('site_id', String(siteId));
+      params.set('site_name', String(siteName || siteId));
+      if (district) params.set('district', district);
+      return `${BASE_URL}/up/complaint/resco/get-sites-details?${params.toString()}`;
+    },
     VIEW_COMPLAINTS: `${BASE_URL}/up/complaint/resco/view-complaint`,
     ASSIGNED_COMPLAINTS: `${BASE_URL}/up/complaint/resco/assign-complaint`,
     EDIT_COMPLAINT: (id: string | number) =>
@@ -50,14 +55,14 @@ export const UP_COMPLAINT_API = {
     CLOSE_UPDATE: `${BASE_URL}/up/ssl/complaint/close-update`,
     CLOSE_UPDATE_COMPLAINT: `${BASE_URL}/up/ssl/complaint/close-update`,
     GET_DISTRICTS: `${BASE_URL}/up/ssl/complaint/getdistricts`,
-    GET_BLOCKS: (district: string) =>
-      `${BASE_URL}/up/ssl/complaint/getblock?district=${encodeURIComponent(district)}&district_name=${encodeURIComponent(district)}`,
-    GET_PANCHAYATS: (district: string, block: string) =>
-      `${BASE_URL}/up/ssl/complaint/getpanchyats?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&block_name=${encodeURIComponent(block)}`,
-    GET_BENEFICIARY_NAMES: (district: string, block: string, panchayat: string) =>
-      `${BASE_URL}/up/ssl/complaint/getbeneficiaryname?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&panchayat=${encodeURIComponent(panchayat)}`,
-    GET_BENEFICIARY_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/ssl/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(idOrName)}`,
+    GET_BLOCKS: (district: string, type?: string) =>
+      `${BASE_URL}/up/ssl/complaint/getblock?district=${encodeURIComponent(district)}&district_name=${encodeURIComponent(district)}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
+    GET_PANCHAYATS: (district: string, block: string, type?: string) =>
+      `${BASE_URL}/up/ssl/complaint/getpanchyats?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&block_name=${encodeURIComponent(block)}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
+    GET_BENEFICIARY_NAMES: (district: string, block: string, panchayat: string, type?: string) =>
+      `${BASE_URL}/up/ssl/complaint/getbeneficiaryname?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&panchayat=${encodeURIComponent(panchayat)}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
+    GET_BENEFICIARY_DETAILS: (idOrName: string | number, name?: string, type?: string) =>
+      `${BASE_URL}/up/ssl/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(name || idOrName)}${type ? `&type=${encodeURIComponent(type)}` : ''}`,
   },
 
   KUSUM_C: {
@@ -69,8 +74,8 @@ export const UP_COMPLAINT_API = {
       `${BASE_URL}/up/complaint/swp/get_village?district=${encodeURIComponent(district)}&post=${encodeURIComponent(post)}`,
     GET_BENEFICIARY_NAMES: (district: string, post: string, village: string) =>
       `${BASE_URL}/up/complaint/swp/getbeneficiarynames?district=${encodeURIComponent(district)}&post=${encodeURIComponent(post)}&village=${encodeURIComponent(village)}`,
-    GET_BENEFICIARY_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/complaint/swp/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&farmer_name=${encodeURIComponent(idOrName)}`,
+    GET_BENEFICIARY_DETAILS: (idOrName: string | number, name?: string) =>
+      `${BASE_URL}/up/complaint/swp/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&farmer_name=${encodeURIComponent(name || idOrName)}`,
     STORE_COMPLAINT: `${BASE_URL}/up/complaint/swp/store-complaint`,
     VIEW_COMPLAINT: `${BASE_URL}/up/complaint/swp/view-complaint`,
     ASSIGN_COMPLAINT: `${BASE_URL}/up/complaint/swp/assign-complaint`,
@@ -86,14 +91,13 @@ export const UP_COMPLAINT_API = {
   },
 
   KUSUM_B: {
-    // 5. UP KusumB Complaint
     ADD_COMPLAINT: `${BASE_URL}/up/kusumb/complaint/add-complaint`,
     GET_BENEFICIARY_VILLAGE: (district: string) =>
       `${BASE_URL}/up/kusumb/complaint/getbeneficiaryvillage?district=${encodeURIComponent(district)}`,
     GET_BENEFICIARY_NAMES: (district: string, village: string) =>
       `${BASE_URL}/up/kusumb/complaint/getbeneficiarynames?district=${encodeURIComponent(district)}&village=${encodeURIComponent(village)}`,
-    GET_BENEFICIARY_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/kusumb/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(idOrName)}`,
+    GET_BENEFICIARY_DETAILS: (idOrName: string | number, name?: string) =>
+      `${BASE_URL}/up/kusumb/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(name || idOrName)}`,
     STORE_DATA: `${BASE_URL}/up/kusumb/complaint/store-data`,
     VIEW_COMPLAINT: `${BASE_URL}/up/kusumb/complaint/view-complaint`,
     ASSIGN_COMPLAINT: `${BASE_URL}/up/kusumb/complaint/assign-complaint`,
@@ -113,8 +117,8 @@ export const UP_COMPLAINT_API = {
     ADD_COMPLAINT: `${BASE_URL}/up/ongrid/complaint/add-complaint`,
     GET_BENEFICIARY_NAMES: (district: string) =>
       `${BASE_URL}/up/ongrid/complaint/getbeneficiarynames?district=${encodeURIComponent(district)}`,
-    GET_BENEFICIARY_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/ongrid/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(idOrName)}`,
+    GET_BENEFICIARY_DETAILS: (idOrName: string | number, name?: string) =>
+      `${BASE_URL}/up/ongrid/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(name || idOrName)}`,
     SAVE_COMPLAINT: `${BASE_URL}/up/ongrid/complaint/save-complaint`,
     VIEW_COMPLAINT: `${BASE_URL}/up/ongrid/complaint/view-complaint`,
     ASSIGN_COMPLAINT: `${BASE_URL}/up/ongrid/complaint/assign-complaint`,
@@ -133,8 +137,8 @@ export const UP_COMPLAINT_API = {
     ADD_COMPLAINT: `${BASE_URL}/up/offgrid/complaint/add-complaint`,
     GET_BENEFICIARY_NAMES: (district: string) =>
       `${BASE_URL}/up/offgrid/complaint/getbeneficiarynames?district=${encodeURIComponent(district)}`,
-    GET_BENEFICIARY_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/offgrid/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(idOrName)}`,
+    GET_BENEFICIARY_DETAILS: (idOrName: string | number, name?: string) =>
+      `${BASE_URL}/up/offgrid/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(name || idOrName)}`,
     STORE: `${BASE_URL}/up/offgrid/complaint/store`,
     VIEW_COMPLAINT: `${BASE_URL}/up/offgrid/complaint/view-complaint`,
     ASSIGN_COMPLAINT: `${BASE_URL}/up/offgrid/complaint/assign-complaint`,
@@ -157,8 +161,8 @@ export const UP_COMPLAINT_API = {
       `${BASE_URL}/up/powerpack/complaint/getvillage?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}`,
     GET_BENEFICIARY_NAMES: (district: string, block: string, village: string) =>
       `${BASE_URL}/up/powerpack/complaint/getbeneficiarynames?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&village=${encodeURIComponent(village)}`,
-    GET_BENEFICIARY_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/powerpack/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(idOrName)}`,
+    GET_BENEFICIARY_DETAILS: (idOrName: string | number, name?: string) =>
+      `${BASE_URL}/up/powerpack/complaint/getbeneficiarydetails?id=${encodeURIComponent(idOrName)}&beneficiary_name=${encodeURIComponent(name || idOrName)}`,
     SAVE_COMPLAINT: `${BASE_URL}/up/powerpack/complaint/save-complaint`,
     VIEW_COMPLAINT: `${BASE_URL}/up/powerpack/complaint/view-complaint`,
     ASSIGN_COMPLAINT: `${BASE_URL}/up/powerpack/complaint/assign-complaint`,
@@ -179,8 +183,8 @@ export const UP_COMPLAINT_API = {
       `${BASE_URL}/up/srlmsrt/complaint/get-block-name?district=${encodeURIComponent(district)}`,
     GET_SITE_NAME: (district: string, block: string) =>
       `${BASE_URL}/up/srlmsrt/complaint/get-site-name?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}`,
-    GET_SITE_DETAILS: (idOrName: string | number) =>
-      `${BASE_URL}/up/srlmsrt/complaint/get-site-details?id=${encodeURIComponent(idOrName)}&site_name=${encodeURIComponent(idOrName)}`,
+    GET_SITE_DETAILS: (idOrName: string | number, name?: string) =>
+      `${BASE_URL}/up/srlmsrt/complaint/get-site-details?id=${encodeURIComponent(idOrName)}&site_name=${encodeURIComponent(name || idOrName)}`,
     SAVE_COMPLAINT: `${BASE_URL}/up/srlmsrt/complaint/save-complaint`,
     VIEW_COMPLAINT: `${BASE_URL}/up/srlmsrt/complaint/view-complaint`,
     ASSIGN_COMPLAINT: `${BASE_URL}/up/srlmsrt/complaint/assign-complaint`,

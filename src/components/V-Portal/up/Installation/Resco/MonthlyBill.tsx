@@ -233,6 +233,23 @@ const PAGE_CSS = `
       max-width: 100%;
     }
   }
+  .ula-action-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed; z-index: 99999; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 4px; text-align: left;
+    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 6px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 12px;
+    font: inherit; font-size: 12.5px; font-weight: 500; text-align: left; text-decoration: none;
+    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 4px; cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
 `;
 
 const X_ICON = (
@@ -300,6 +317,204 @@ function Modal({
   );
 }
 
+/* ── Modern Image Placeholder ── */
+function ImagePlaceholder({
+  size = 32,
+  label = 'No file uploaded',
+}: {
+  size?: number;
+  label?: string;
+}) {
+  return (
+    <div
+      className="ax-img-placeholder"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        border: '1px dashed var(--ax-border, #cbd5e1)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--ax-text-muted, #94a3b8)',
+        flexShrink: 0,
+        cursor: 'default',
+        userSelect: 'none',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        transition: 'all 0.18s ease',
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={Math.max(14, Math.round(size * 0.48))}
+        height={Math.max(14, Math.round(size * 0.48))}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ opacity: 0.7 }}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </div>
+  );
+}
+
+/* ── Action Dropdown (Portal to <body> — Exact Kusum-C Pattern) ── */
+const MENU_W = 160;
+
+function RowActionDropdown({
+  onGenerateBill,
+  onViewDetails,
+}: {
+  onGenerateBill: () => void;
+  onViewDetails: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuH = 80;
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < menuH + 8 && r.top > menuH + 8 ? r.top - menuH - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={btnRef}
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span>Action</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{ top: pos.top, left: pos.left, width: MENU_W }}
+          >
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onGenerateBill();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 14, height: 14, color: '#2563eb', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span>Generate Bill</span>
+            </button>
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onViewDetails();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 14, height: 14, color: '#059669', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View Details</span>
+            </button>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
+
 /* ───────── Flattened Reading Item for View Bills ───────── */
 interface FlattenedReadingRow {
   srNo: number;
@@ -317,7 +532,6 @@ interface FlattenedReadingRow {
   amount: string | number;
   documentFile?: string | null;
   verifyStatus: number | string;
-  remarks: string;
   billRaw: UpRescoBillItem;
 }
 
@@ -342,7 +556,7 @@ export function UP_Installation_Resco_MonthlyBill() {
   const [billingFrom, setBillingFrom] = useState('');
   const [billingTo, setBillingTo] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState('');
-  const [perUnitPrice, setPerUnitPrice] = useState<number>(4.9);
+  const [perUnitPrice, setPerUnitPrice] = useState<number>(0);
   const [inverterRows, setInverterRows] = useState<{
     inverter_no: string;
     previous_reading: number;
@@ -358,6 +572,9 @@ export function UP_Installation_Resco_MonthlyBill() {
   const [sitePastBills, setSitePastBills] = useState<UpRescoBillItem[]>([]);
   const [loadingPastBills, setLoadingPastBills] = useState(false);
   const [billsSearch, setBillsSearch] = useState('');
+
+  // Document image preview modal state
+  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
 
   // Voucher modal state for printing/viewing a bill
   const [voucherModalBill, setVoucherModalBill] = useState<UpRescoBillItem | null>(null);
@@ -419,12 +636,16 @@ export function UP_Installation_Resco_MonthlyBill() {
 
     try {
       const data = await upInstallationService.getRescoBillFormData(site.id);
-      const rate = Number(data?.readingAmount || (Number(site.sanction_load) >= 200 ? 4.85 : 4.90));
-      setPerUnitPrice(rate);
+      const rate = Number(data?.readingAmount ?? 0);
+      setPerUnitPrice(Number.isFinite(rate) ? rate : 0);
 
       const rawInverters = data?.resco?.inverter_no
         ? String(data.resco.inverter_no).split(',').map((s) => s.trim()).filter(Boolean)
-        : (site.inverter_no ? String(site.inverter_no).split(',').map((s) => s.trim()).filter(Boolean) : ['INV-1']);
+        : (site.inverter_no ? String(site.inverter_no).split(',').map((s) => s.trim()).filter(Boolean) : []);
+
+      if (rawInverters.length === 0) {
+        setFormError('No inverter numbers found for this site from the API.');
+      }
 
       const prevMap = data?.previousReadings || {};
 
@@ -467,6 +688,9 @@ export function UP_Installation_Resco_MonthlyBill() {
 
     try {
       const res = await upInstallationService.getRescoSiteBills(site.id);
+      if (res.rescos) {
+        setSelectedSite((prev) => (prev ? { ...prev, ...res.rescos } : res.rescos));
+      }
       setSitePastBills(res.bills || []);
     } catch (err: any) {
       console.warn('Error fetching site bills:', err);
@@ -638,6 +862,49 @@ export function UP_Installation_Resco_MonthlyBill() {
     sitePastBills.forEach((b) => {
       const readings = Array.isArray(b.readings) && b.readings.length > 0 ? b.readings : [null];
       readings.forEach((rd) => {
+        // Document file: check doc_file on reading first, then file on reading, then doc_file on bill, then file on bill
+        const docFile = rd?.doc_file || rd?.file || (b as any)?.doc_file || (b as any)?.file || null;
+
+        // Total Reading: in API it is "reading": "987609.00", also check total_reading or generated_reading
+        const totalReadingVal =
+          b.reading != null && b.reading !== ''
+            ? b.reading
+            : b.total_reading != null && b.total_reading !== ''
+            ? b.total_reading
+            : rd?.generated_reading ?? DASH;
+
+        // Inverter No: rd.inverter_no or b.inverter_no
+        const invNo =
+          (rd && rd.inverter_no != null && String(rd.inverter_no).trim()) ||
+          (b.inverter_no != null && String(b.inverter_no).trim()) ||
+          DASH;
+
+        // Previous reading: can be 0 or string
+        const prevReading =
+          rd?.previous_reading !== undefined && rd?.previous_reading !== null && rd?.previous_reading !== ''
+            ? rd.previous_reading
+            : DASH;
+
+        // Current reading: can be 0 or string
+        const currReading =
+          rd?.current_reading !== undefined && rd?.current_reading !== null && rd?.current_reading !== ''
+            ? rd.current_reading
+            : DASH;
+
+        // Generated reading: from rd.generated_reading or computed
+        const genReading =
+          rd?.generated_reading != null && rd?.generated_reading !== ''
+            ? rd.generated_reading
+            : rd?.current_reading != null && rd?.previous_reading != null
+            ? (Number(rd.current_reading) - Number(rd.previous_reading)).toFixed(2)
+            : DASH;
+
+        // Amount: reading amount or bill amount
+        const rowAmount = rd?.amount != null && rd?.amount !== '' ? rd.amount : b.bill_amount;
+
+        // Verify Status: 0 = Pending, 1 = Verified/Generated, 2 = Generated
+        const vStatus = b.verify_status ?? b.bill_status ?? 0;
+
         rows.push({
           srNo: counter++,
           billId: b.id,
@@ -645,16 +912,15 @@ export function UP_Installation_Resco_MonthlyBill() {
           billingTo: b.billing_to || DASH,
           dueDate: b.due_date || DASH,
           billNo: b.bill_no || DASH,
-          totalReading: b.total_reading || b.reading || DASH,
+          totalReading: totalReadingVal,
           billAmount: b.bill_amount,
-          inverterNo: rd ? rd.inverter_no : (b as any).inverter_no || DASH,
-          previousReading: rd ? rd.previous_reading : DASH,
-          currentReading: rd ? rd.current_reading : DASH,
-          generatedReading: rd ? (rd.generated_reading ?? (Number(rd.current_reading || 0) - Number(rd.previous_reading || 0))) : DASH,
-          amount: rd ? rd.amount : b.bill_amount,
-          documentFile: rd?.file || b.file,
-          verifyStatus: b.verify_status ?? b.bill_status ?? 1,
-          remarks: b.remarks || rd?.remarks || '—',
+          inverterNo: invNo,
+          previousReading: prevReading,
+          currentReading: currReading,
+          generatedReading: genReading,
+          amount: rowAmount,
+          documentFile: docFile,
+          verifyStatus: vStatus,
           billRaw: b,
         });
       });
@@ -663,7 +929,17 @@ export function UP_Installation_Resco_MonthlyBill() {
     if (billsSearch.trim()) {
       const q = billsSearch.toLowerCase();
       return rows.filter((r) =>
-        [r.billNo, r.inverterNo, r.billingFrom, r.billingTo, String(r.billAmount), r.remarks]
+        [
+          r.billNo,
+          r.inverterNo,
+          r.billingFrom,
+          r.billingTo,
+          r.dueDate,
+          String(r.billAmount),
+          String(r.amount),
+          String(r.totalReading),
+          String(r.generatedReading),
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -831,7 +1107,7 @@ export function UP_Installation_Resco_MonthlyBill() {
                       <th className="ax-table__th">Inverter No.</th>
                       <th className="ax-table__th">Net/Smart Meter No.</th>
                       <th className="ax-table__th">Loger No.</th>
-                      <th className="ax-table__th" style={{ width: 180, textAlign: 'center' }}>Action</th>
+                      <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody aria-busy={loadingSites}>
@@ -872,24 +1148,10 @@ export function UP_Installation_Resco_MonthlyBill() {
                             <td className="ax-table__td">{txt(item.net_smart_meter_no || item.nm_sm_no)}</td>
                             <td className="ax-table__td">{txt(item.loger_no)}</td>
                             <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="ax-btn ax-btn--primary ax-btn--sm"
-                                  style={{ padding: '3px 10px', fontSize: 11.5, fontWeight: 600 }}
-                                  onClick={() => handleOpenGenerateBill(item)}
-                                >
-                                  Generate Bill
-                                </button>
-                                <button
-                                  type="button"
-                                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                                  style={{ padding: '3px 10px', fontSize: 11.5, fontWeight: 600 }}
-                                  onClick={() => handleOpenViewDetails(item)}
-                                >
-                                  View Details
-                                </button>
-                              </div>
+                              <RowActionDropdown
+                                onGenerateBill={() => handleOpenGenerateBill(item)}
+                                onViewDetails={() => handleOpenViewDetails(item)}
+                              />
                             </td>
                           </tr>
                         );
@@ -1337,7 +1599,7 @@ export function UP_Installation_Resco_MonthlyBill() {
             </div>
 
             <div className="ax-table-wrap">
-              <table className="ax-table ax-table--hover" style={{ minWidth: 1450, fontSize: 13 }}>
+              <table className="ax-table ax-table--hover" style={{ minWidth: 1400, fontSize: 13 }}>
                 <thead className="ax-table__head">
                   <tr>
                     <th className="ax-table__th" style={{ width: 55 }}>Sr No</th>
@@ -1352,23 +1614,22 @@ export function UP_Installation_Resco_MonthlyBill() {
                     <th className="ax-table__th">Current Reading</th>
                     <th className="ax-table__th">Generated Reading</th>
                     <th className="ax-table__th">Amount</th>
-                    <th className="ax-table__th">Document File</th>
+                    <th className="ax-table__th" style={{ textAlign: 'center' }}>Document File</th>
                     <th className="ax-table__th">Verify Status</th>
-                    <th className="ax-table__th">Remarks</th>
                     <th className="ax-table__th" style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody aria-busy={loadingPastBills}>
                   {loadingPastBills && (
                     <tr>
-                      <td className="ax-table__td" colSpan={16} style={{ textAlign: 'center', padding: 36 }}>
+                      <td className="ax-table__td" colSpan={15} style={{ textAlign: 'center', padding: 36 }}>
                         <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading bills & inverter readings…
                       </td>
                     </tr>
                   )}
                   {!loadingPastBills && flattenedBillRows.length === 0 && (
                     <tr>
-                      <td className="ax-table__td" colSpan={16} style={{ padding: 0 }}>
+                      <td className="ax-table__td" colSpan={15} style={{ padding: 0 }}>
                         <TableEmptyState
                           title="No bills generated yet"
                           message="No monthly energy bills have been created for this site yet."
@@ -1388,7 +1649,7 @@ export function UP_Installation_Resco_MonthlyBill() {
                         </td>
                         <td className="ax-table__td ax-num">{row.totalReading}</td>
                         <td className="ax-table__td ax-num" style={{ fontWeight: 700 }}>
-                          ₹{Number(row.billAmount).toLocaleString('en-IN')}
+                          ₹{Number(row.billAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.inverterNo}</td>
                         <td className="ax-table__td ax-num">{row.previousReading}</td>
@@ -1397,32 +1658,73 @@ export function UP_Installation_Resco_MonthlyBill() {
                           {row.generatedReading}
                         </td>
                         <td className="ax-table__td ax-num" style={{ fontWeight: 700 }}>
-                          ₹{Number(row.amount).toLocaleString('en-IN')}
+                          ₹{Number(row.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="ax-table__td">
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {row.documentFile ? (
-                            <a
-                              href={resolveUpMediaUrl(row.documentFile)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ color: '#2563eb', fontWeight: 600 }}
-                            >
-                              View File
-                            </a>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <a
+                                href={resolveUpMediaUrl(row.documentFile)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ax-btn ax-btn--ghost ax-btn--xs"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  color: '#2563eb',
+                                  fontWeight: 600,
+                                  textDecoration: 'none',
+                                  padding: '3px 8px',
+                                  borderRadius: 4,
+                                  background: '#eff6ff',
+                                  border: '1px solid #bfdbfe',
+                                }}
+                                title={`Open document: ${row.documentFile}`}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="16" y1="13" x2="8" y2="13" />
+                                  <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                                <span>View Doc</span>
+                              </a>
+                              {/\.(jpe?g|png|webp|gif|bmp)$/i.test(row.documentFile) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewDocUrl(resolveUpMediaUrl(row.documentFile))}
+                                  className="ax-btn ax-btn--ghost ax-btn--xs"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '3px 6px',
+                                    color: '#059669',
+                                    background: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: 4,
+                                  }}
+                                  title="Quick preview image"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
                           ) : (
-                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                            <ImagePlaceholder size={30} label="No bill document uploaded" />
                           )}
                         </td>
                         <td className="ax-table__td">
-                          {Number(row.verifyStatus) === 2 || Number(row.verifyStatus) === 1 ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--success">Generated</span>
+                          {Number(row.verifyStatus) === 1 ? (
+                            <span className="ax-badge ax-badge--soft ax-badge--success">Verified</span>
+                          ) : Number(row.verifyStatus) === 2 ? (
+                            <span className="ax-badge ax-badge--soft ax-badge--primary">Generated</span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                           )}
-                        </td>
-                        <td className="ax-table__td" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {row.remarks}
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
@@ -1545,6 +1847,78 @@ export function UP_Installation_Resco_MonthlyBill() {
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
               onClick={() => setVoucherModalBill(null)}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+       * 5. DOCUMENT IMAGE PREVIEW MODAL
+       * ───────────────────────────────────────────────────────────── */}
+      {previewDocUrl && (
+        <Modal
+          open={!!previewDocUrl}
+          onClose={() => setPreviewDocUrl(null)}
+          labelledBy="preview-reading-doc-title"
+          dialogStyle={{ maxWidth: 760, width: '95%' }}
+        >
+          <div
+            className="ax-modal__header"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px 20px',
+              borderBottom: '1px solid var(--ax-border)',
+            }}
+          >
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>
+                Reading Document File
+              </span>
+              <h3 id="preview-reading-doc-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                Document Preview
+              </h3>
+            </div>
+            <button
+              type="button"
+              className="ax-modal__close"
+              onClick={() => setPreviewDocUrl(null)}
+              aria-label="Close dialog"
+            >
+              {X_ICON}
+            </button>
+          </div>
+          <div className="ax-modal__body" style={{ padding: 16, textAlign: 'center', background: '#0f172a' }}>
+            <img
+              src={previewDocUrl}
+              alt="Reading Document"
+              style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 6 }}
+            />
+          </div>
+          <div
+            className="ax-modal__footer"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '12px 20px',
+              borderTop: '1px solid var(--ax-border)',
+            }}
+          >
+            <a
+              href={previewDocUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+            >
+              Open Full Image in New Tab
+            </a>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => setPreviewDocUrl(null)}
             >
               Close
             </button>

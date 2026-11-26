@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -12,31 +12,19 @@ import {
 } from '../../../../../common';
 import {
   jammuSslAdminService,
+  resolveJammuSslMediaUrl,
   type SslPaymentRegisterItem,
+  type VendorItem,
+  type ViewPaymentData,
 } from './jammuSslAdminService';
 
-const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
-const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+type TabType = 'pending' | 'completed' | 'all';
 
-/* ───────── Responsive page CSS (Exact Solar ERP reference, all columns scrollable) ───────── */
+/* ───────── Responsive page CSS (Exact Reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2559bf;
-    --asw-primary-rgb: 37, 89, 191;
-    --ax-primary: #2559bf;
-    --ax-primary-hover: #1e4699;
-    --ax-primary-rgb: 37, 89, 191;
-  }
-  .solar-erp-page .ax-btn--primary,
-  .solar-erp-page .ax-button--primary {
-    background: #2559bf !important;
-    border-color: #2559bf !important;
-    color: #ffffff !important;
-  }
-  .solar-erp-page .ax-btn--primary:hover,
-  .solar-erp-page .ax-button--primary:hover {
-    background: #1e4699 !important;
-    border-color: #1e4699 !important;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -47,56 +35,57 @@ const PAGE_CSS = `
 
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
   }
-  @media (max-width: 1280px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-  @media (max-width: 768px) {
+  @media (max-width: 992px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
   }
 
-  .solar-erp-page .asw-bifurcation-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
+  .solar-erp-page .asw-filter-card {
+    background: var(--ax-surface, #ffffff);
+    border: 1px solid var(--ax-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
   }
-  .solar-erp-page .asw-pill-btn {
-    display: inline-flex;
-    align-items: center;
+
+  .solar-erp-page .asw-tabs-wrap {
+    display: flex;
     gap: 8px;
-    padding: 7px 16px;
-    border-radius: 9999px;
+    margin-bottom: 20px;
+  }
+  .solar-erp-page .asw-tab-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.15s ease;
     border: 1px solid var(--ax-border, #cbd5e1);
     background: var(--ax-surface, #ffffff);
     color: var(--ax-text-muted, #64748b);
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2559bf;
-    color: #2559bf;
+  .solar-erp-page .asw-tab-btn:hover {
+    color: var(--ax-accent, #2563eb);
+    border-color: var(--ax-accent, #2563eb);
   }
-  .solar-erp-page .asw-pill-btn.active {
-    background: #2559bf;
-    color: #ffffff;
-    border-color: #2559bf;
-    box-shadow: 0 2px 4px rgba(37, 89, 191, 0.2);
+  .solar-erp-page .asw-tab-btn--active {
+    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb)) !important;
+    color: var(--ax-on-accent, #ffffff) !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
   }
 
   .solar-erp-page .ax-card__header {
@@ -131,7 +120,7 @@ const PAGE_CSS = `
     flex-wrap: nowrap;
     gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster {
+  .solar-erp-page .ax-cluster {
     flex-wrap: nowrap !important;
     min-width: 0;
     justify-content: flex-end;
@@ -311,7 +300,7 @@ function Modal({
   subtitle,
   children,
   footer,
-  maxWidth = 640,
+  maxWidth = 540,
 }: {
   open: boolean;
   onClose: () => void;
@@ -363,14 +352,13 @@ function Modal({
 }
 
 /* ── Top KPI Card Component ── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
 };
 
 function KpiCard({
@@ -419,152 +407,326 @@ function KpiCard({
   );
 }
 
-export function SslPaymentRequest() {
-  const [activeTab, setActiveTab] = useState<'all' | 'settled' | 'pending'>('all');
-  const [list, setList] = useState<SslPaymentRegisterItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+const escapeHtml = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
 
-  // Settlement Recording Modal State
-  const [selectedForSettlement, setSelectedForSettlement] = useState<SslPaymentRegisterItem | null>(null);
-  const [utrNumber, setUtrNumber] = useState('');
-  const [paymentMode, setPaymentMode] = useState('RTGS');
-  const [settlementDate, setSettlementDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [settlementRemarks, setSettlementRemarks] = useState('');
-  const [submittingSettlement, setSubmittingSettlement] = useState(false);
-
-  // View Details Modal
-  const [selectedDetails, setSelectedDetails] = useState<SslPaymentRegisterItem | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const res = await jammuSslAdminService.getPaymentSettlements();
-      setList(res);
-    } catch (err: any) {
-      console.error('Failed to load Jammu SSL payments:', err);
-      setErrorMsg(err?.message || 'Failed to fetch payment settlements.');
-    } finally {
-      setLoading(false);
+const fmtDate = (val?: string | null): string => {
+  if (!val) return '—';
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     }
-  }, []);
+  } catch {}
+  return String(val).slice(0, 10);
+};
+
+/* ── In-Row Media File Thumbnail Component ── */
+function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: (url: string) => void }) {
+  if (!file) {
+    return <span style={{ color: 'var(--ax-text-muted)', fontSize: 12 }}>—</span>;
+  }
+
+  const url = resolveJammuSslMediaUrl(file);
+  const isPdf = /\.pdf($|\?)/i.test(file);
+  const isHeic = /\.heic($|\?)/i.test(file);
+  const isImage = /\.(jpe?g|png|webp|gif|bmp|svg)($|\?)/i.test(file);
+
+  return (
+    <div
+      onClick={() => onClick(url)}
+      title="Click to preview file"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 44,
+        height: 44,
+        borderRadius: 8,
+        border: '1px solid #cbd5e1',
+        background: '#f8fafc',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'scale(1.06)';
+        e.currentTarget.style.borderColor = 'var(--ax-accent, #2563eb)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
+        e.currentTarget.style.borderColor = '#cbd5e1';
+      }}
+    >
+      {isImage ? (
+        <img
+          src={url}
+          alt="Thumbnail"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = 'none';
+            if (e.currentTarget.parentElement) {
+              const span = document.createElement('span');
+              span.innerText = 'IMG';
+              span.style.fontSize = '10px';
+              span.style.fontWeight = '700';
+              span.style.color = 'var(--ax-accent, #2563eb)';
+              e.currentTarget.parentElement.appendChild(span);
+            }
+          }}
+        />
+      ) : isPdf ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>PDF</span>
+        </div>
+      ) : isHeic ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#8b5cf6', lineHeight: 1 }}>HEIC</span>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', lineHeight: 1 }}>DOC</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SslPaymentRequest() {
+  const [activeTab, setActiveTab] = useState<TabType>('pending');
+  const [payments, setPayments] = useState<SslPaymentRegisterItem[]>([]);
+  const [vendors, setVendors] = useState<VendorItem[]>([]);
+  const [summaryData, setSummaryData] = useState<ViewPaymentData | null>(null);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
+
+  // Filters
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [selectedVendor, setSelectedVendor] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
+
+  // Search input
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Payment Disbursement Modal state
+  const [payTarget, setPayTarget] = useState<SslPaymentRegisterItem | null>(null);
+  const [disburseAmount, setDisburseAmount] = useState<string>('');
+  const [disburseDate, setDisburseDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [disburseRemarks, setDisburseRemarks] = useState<string>('');
+  const [submittingDisburse, setSubmittingDisburse] = useState<boolean>(false);
+
+  // Lightbox preview state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const fetchPayments = useCallback(
+    async (overrideParams?: { from_date?: string; to_date?: string; vendor?: string }) => {
+      setLoading(true);
+      setErrorMsg('');
+      try {
+        const params = {
+          from_date: overrideParams?.from_date !== undefined ? overrideParams.from_date : fromDate || undefined,
+          to_date: overrideParams?.to_date !== undefined ? overrideParams.to_date : toDate || undefined,
+          vendor: overrideParams?.vendor !== undefined ? overrideParams.vendor : selectedVendor || undefined,
+        };
+
+        const res: ViewPaymentData = await jammuSslAdminService.getViewPayment(params);
+        setPayments(Array.isArray(res.payments) ? res.payments : []);
+        setVendors(Array.isArray(res.vendors) ? res.vendors : []);
+        setSummaryData(res);
+      } catch (err: any) {
+        console.error('Failed to load Jammu SSL payment records:', err);
+        setErrorMsg(err?.message || 'Failed to fetch payment records.');
+        setPayments([]);
+        setVendors([]);
+        setSummaryData(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fromDate, toDate, selectedVendor]
+  );
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchPayments();
+  }, [fetchPayments]);
 
-  const handleSettlementSubmit = async (e: React.FormEvent) => {
+  const currentFilters = () => ({
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+    vendor: selectedVendor || undefined,
+  });
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedForSettlement) return;
-    if (!utrNumber.trim()) {
-      return setErrorMsg('Please enter a valid UTR / Transaction Reference number.');
+    if (fromDate && toDate && fromDate > toDate) {
+      return setErrorMsg('From date cannot be greater than To date.');
+    }
+    fetchPayments();
+  };
+
+  const handleResetFilters = () => {
+    setFromDate('');
+    setToDate('');
+    setSelectedVendor('');
+    setSelectedStatus('All');
+    setSearchQuery('');
+    fetchPayments({ from_date: '', to_date: '', vendor: '' });
+  };
+
+  // Open Disburse Modal
+  const handleOpenPay = (row: SslPaymentRegisterItem) => {
+    if (Number(row.status) === 1 || Number(row.payment_status) === 1) {
+      setErrorMsg('This payment has already been disbursed and is locked.');
+      return;
+    }
+    setPayTarget(row);
+    setErrorMsg('');
+    const claim = parseFloat(String(row.claim_amount || 0));
+    setDisburseAmount(
+      row.pay_amount
+        ? String(row.pay_amount)
+        : !isNaN(claim) && claim > 0
+        ? String(claim)
+        : ''
+    );
+    setDisburseDate(row.payment_date ? row.payment_date.slice(0, 10) : new Date().toISOString().split('T')[0]);
+    setDisburseRemarks(row.payment_remark || row.payment_remarks || '');
+  };
+
+  // Submit Disburse
+  const handleDisburseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payTarget) return;
+
+    const amt = parseFloat(disburseAmount);
+    if (isNaN(amt) || amt < 0) {
+      return setErrorMsg('Please enter a valid disbursement amount.');
+    }
+    if (!disburseDate) {
+      return setErrorMsg('Disbursement date is required.');
     }
 
-    setSubmittingSettlement(true);
+    setSubmittingDisburse(true);
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const res = await jammuSslAdminService.recordPaymentSettlement(
-        selectedForSettlement.id,
-        utrNumber.trim(),
-        paymentMode,
-        settlementDate,
-        settlementRemarks.trim()
-      );
-      setSuccessMsg(res.message);
-      setList((prev) =>
-        prev.map((item) =>
-          item.id === selectedForSettlement.id
-            ? {
-                ...item,
-                payment_status: 1,
-                utr_no: utrNumber.trim(),
-                payment_mode: paymentMode,
-                disbursed_date: settlementDate,
-                remarks: settlementRemarks.trim(),
-              }
-            : item
-        )
-      );
-      setSelectedForSettlement(null);
-      setUtrNumber('');
-      setSettlementRemarks('');
+      const res = await jammuSslAdminService.updatePaymentStatus({
+        update_id: payTarget.id,
+        id: payTarget.id,
+        payment_amount: amt,
+        amount: amt,
+        date: disburseDate,
+        payment_remarks: disburseRemarks.trim() || undefined,
+        remarks: disburseRemarks.trim() || undefined,
+      });
+
+      setSuccessMsg(res?.message || 'Payment recorded successfully!');
+      setPayTarget(null);
+      setDisburseAmount('');
+      setDisburseRemarks('');
+      await fetchPayments(currentFilters());
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to record payment settlement.');
+      console.error('Payment disbursement submit error:', err);
+      setErrorMsg(err?.message || 'Failed to update payment disbursement.');
     } finally {
-      setSubmittingSettlement(false);
+      setSubmittingDisburse(false);
     }
   };
 
-  // Top 5 KPI Metrics
-  const totalSettlementsCount = list.length;
-  const settledCount = useMemo(() => list.filter((p) => p.payment_status === 1).length, [list]);
-  const pendingCount = useMemo(() => list.filter((p) => p.payment_status !== 1).length, [list]);
-  const totalDisbursedAmount = useMemo(
-    () => list.filter((p) => p.payment_status === 1).reduce((acc, curr) => acc + (Number(curr.disbursed_amount) || 0), 0),
-    [list]
-  );
-  const settlementSuccessRate = Math.round((settledCount / (totalSettlementsCount || 1)) * 100);
+  // Filtered payments by tab, status and search
+  const filteredPayments = useMemo(() => {
+    let list = payments;
 
-  // Tab Filtering
-  const filteredByTab = useMemo(() => {
-    if (activeTab === 'settled') return list.filter((p) => p.payment_status === 1);
-    if (activeTab === 'pending') return list.filter((p) => p.payment_status !== 1);
-    return list;
-  }, [list, activeTab]);
+    // Tab filter
+    if (activeTab === 'pending') {
+      list = list.filter((r) => Number(r.status) !== 1 && Number(r.payment_status) !== 1);
+    } else if (activeTab === 'completed') {
+      list = list.filter((r) => Number(r.status) === 1 || Number(r.payment_status) === 1);
+    }
 
-  // Search Filter
-  const filteredList = useMemo(() => {
+    // Pay Status dropdown filter
+    if (selectedStatus !== 'All') {
+      const isDoneRequired = selectedStatus === '1';
+      list = list.filter((r) => {
+        const isDone = Number(r.status) === 1 || Number(r.payment_status) === 1;
+        return isDoneRequired ? isDone : !isDone;
+      });
+    }
+
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return filteredByTab;
+    if (!q) return list;
 
-    return filteredByTab.filter((item) => {
-      const vNo = (item.voucher_no || `JK-VOU-${item.id}`).toLowerCase();
-      const vName = (item.vendor_name || '').toLowerCase();
-      const claim = String(item.claim_id || '').toLowerCase();
-      const utr = (item.utr_no || '').toLowerCase();
-      const bank = (item.bank_name || '').toLowerCase();
-      const acc = (item.account_no || '').toLowerCase();
+    return list.filter((r) =>
+      [
+        r.vendor_name,
+        r.state,
+        r.district,
+        r.claim_invoice,
+        r.claim_amount,
+        r.claim_approved_by,
+        r.pay_amount,
+        r.payment_amount,
+        r.payment_by,
+        r.payment_remark,
+        r.payment_remarks,
+      ].some((v) => String(v ?? '').toLowerCase().includes(q))
+    );
+  }, [payments, activeTab, selectedStatus, searchQuery]);
 
-      return (
-        vNo.includes(q) ||
-        vName.includes(q) ||
-        claim.includes(q) ||
-        utr.includes(q) ||
-        bank.includes(q) ||
-        acc.includes(q)
-      );
-    });
-  }, [filteredByTab, searchQuery]);
+  const pagination = usePagination(filteredPayments, { initialPageSize: 100 });
 
-  const pagination = usePagination(filteredList, { initialPageSize: 50 });
+  // Top 4 KPI counters
+  const totalRequests = summaryData?.payment_request ?? payments.length;
+  const totalComplete = summaryData?.payment_complete ?? payments.filter((p) => Number(p.status) === 1 || Number(p.payment_status) === 1).length;
+  const totalPending = summaryData?.payment_pending ?? payments.filter((p) => Number(p.status) !== 1 && Number(p.payment_status) !== 1).length;
+  const totalDisbursedAmount = useMemo(() => {
+    return payments.reduce((acc, p) => {
+      const isPaid = Number(p.status) === 1 || Number(p.payment_status) === 1;
+      return acc + (isPaid ? Number(p.pay_amount || p.payment_amount || 0) : 0);
+    }, 0);
+  }, [payments]);
 
   // Export Columns definition
   const exportCols: ExportColumn<SslPaymentRegisterItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: SslPaymentRegisterItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: () => 'JAMMU & KASHMIR' },
-      { header: 'Voucher ID', accessor: (r: SslPaymentRegisterItem) => r.voucher_no || `JK-VOU-${r.id}` },
-      { header: 'Claim Ref', accessor: (r: SslPaymentRegisterItem) => `JK-CLM-${r.claim_id}` },
-      { header: 'Vendor Name', accessor: (r: SslPaymentRegisterItem) => r.vendor_name },
-      { header: 'Bank Name', accessor: (r: SslPaymentRegisterItem) => r.bank_name || '—' },
-      { header: 'Account No', accessor: (r: SslPaymentRegisterItem) => r.account_no || '—' },
-      { header: 'IFSC Code', accessor: (r: SslPaymentRegisterItem) => r.ifsc_code || '—' },
-      { header: 'Disbursed Amount (₹)', accessor: (r: SslPaymentRegisterItem) => `₹${num(r.disbursed_amount)}` },
-      { header: 'Mode', accessor: (r: SslPaymentRegisterItem) => r.payment_mode || 'RTGS' },
-      { header: 'UTR / Transaction Ref', accessor: (r: SslPaymentRegisterItem) => r.utr_no || '—' },
-      { header: 'Settlement Date', accessor: (r: SslPaymentRegisterItem) => r.disbursed_date || '—' },
-      { header: 'Status', accessor: (r: SslPaymentRegisterItem) => (r.payment_status === 1 ? 'Settled' : 'Pending Disbursement') },
+      { header: 'Vendor', accessor: (r) => r.vendor_name || `Vendor #${r.vendor_id ?? r.id}` },
+      { header: 'State', accessor: () => 'JAMMU' },
+      { header: 'Site Count', accessor: (r) => r.site_count ?? r.claim_site_count ?? 1 },
+      { header: 'Claim Invoice', accessor: (r) => r.claim_invoice || '—' },
+      { header: 'Claim Amount', accessor: (r) => `₹ ${num(r.claim_amount)}` },
+      { header: 'Claim Approved Date', accessor: (r) => fmtDate(r.claim_approved_date) },
+      { header: 'Claim Approved by', accessor: (r) => r.claim_approved_by || 'Admin' },
+      { header: 'Payment Date', accessor: (r) => fmtDate(r.payment_date) },
+      { header: 'Payment By', accessor: (r) => r.payment_by || '—' },
+      { header: 'Payment Amount', accessor: (r) => (r.pay_amount ? `₹ ${num(r.pay_amount)}` : '—') },
+      { header: 'Payment Remarks', accessor: (r) => r.payment_remark || r.payment_remarks || r.remarks || '—' },
+      { header: 'Payment Status', accessor: (r) => (Number(r.status) === 1 || Number(r.payment_status) === 1 ? 'Complete' : 'Pending') },
     ],
     []
   );
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const fileBase = `Jammu_SSL_Payments_${activeTab}`;
-  const fileTitle = `Jammu SSL Payment Settlements (${activeTab.toUpperCase()})`;
+  const fileBase = `Jammu_SSL_Payment_${activeTab}`;
+  const fileTitle = `Jammu SSL Installation Payment Desk - ${activeTab === 'pending' ? 'Pending' : activeTab === 'completed' ? 'Completed' : 'All'}`;
 
   const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
     if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
@@ -585,21 +747,21 @@ export function SslPaymentRequest() {
     URL.revokeObjectURL(url);
   };
 
-  const exportToCSV = <T,>(listData: T[], columns: ExportColumn<T>[], filename: string) => {
-    if (!listData.length || !columns.length) return;
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
     const out = [
       columns.map((c) => c.header),
-      ...listData.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
-  const copyToClipboard = async <T,>(listData: T[], columns: ExportColumn<T>[]) => {
-    if (!listData.length || !columns.length) return;
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
     const t = [
       columns.map((c) => c.header).join('\t'),
-      ...listData.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(t);
@@ -617,16 +779,16 @@ export function SslPaymentRequest() {
     }
   };
 
-  const exportToExcel = <T,>(listData: T[], columns: ExportColumn<T>[], filename: string) => {
-    if (!listData.length || !columns.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${listData.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
     downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
   };
 
-  const exportToPDF = <T,>(listData: T[], columns: ExportColumn<T>[], title: string) => {
-    if (!listData.length || !columns.length) return;
-    const body = listData.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
     const w = window.open('', '_blank', 'width=1200,height=800');
     if (!w) return;
     w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
@@ -644,13 +806,14 @@ export function SslPaymentRequest() {
       <style>{OVERLAY_CSS}</style>
 
       <PageHead
-        title="Jammu SSL Payment & Settlement Register"
-        subtitle="Tracking solar street light milestone disbursements, RTGS/NEFT transaction references, and contractor accounts"
+        title="Jammu SSL Installation Payment Desk"
+        subtitle="Process and disburse installation payments against approved Jammu SSL claims"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
-          { label: 'Jammu SSL', href: '/vendor-management/jammu/installation/ssl/dashboard' },
-          { label: 'Payment Request' },
+          { label: 'Jammu' },
+          { label: 'SSL', href: '/vendor-management/jammu/installation/ssl' },
+          { label: 'View Payment' },
         ]}
       />
 
@@ -707,43 +870,19 @@ export function SslPaymentRequest() {
         </div>
       )}
 
-      {/* ── Top 5 KPI Metric Cards in .asw-cards-row ── */}
+      {/* ── Top 4 KPI Metric Cards in .asw-cards-row ── */}
       <div className="asw-cards-row">
         <KpiCard
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+              <line x1="1" y1="10" x2="23" y2="10" />
             </svg>
           }
           tone="accent"
-          label="Total Vouchers"
-          value={totalSettlementsCount}
-          sub="Disbursement vouchers issued"
-        />
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          }
-          tone="cyan"
-          label="Total Disbursed"
-          value={`₹${num(totalDisbursedAmount)}`}
-          sub="Total funds released to EPCs"
-        />
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-          tone="amber"
-          label="Pending Settlement"
-          value={pendingCount}
-          sub="Sanctioned awaiting treasury RTGS"
+          label="Total Payment Request"
+          value={totalRequests}
+          sub="Approved installation claims"
         />
         <KpiCard
           icon={
@@ -753,57 +892,156 @@ export function SslPaymentRequest() {
             </svg>
           }
           tone="emerald"
-          label="Settled & Paid"
-          value={settledCount}
-          sub="UTR confirmed & paid to vendors"
+          label="Complete Payments"
+          value={totalComplete}
+          sub="Disbursements completed"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          }
+          tone="cyan"
+          label="Total Disbursed (₹)"
+          value={`₹ ${totalDisbursedAmount.toLocaleString('en-IN')}`}
+          sub="Disbursed payment value"
         />
         <KpiCard
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
           }
-          tone="violet"
-          label="Settlement Rate"
-          value={`${settlementSuccessRate}%`}
-          sub="Treasury transfer throughput"
+          tone="amber"
+          label="Pending Payments"
+          value={totalPending}
+          sub="Awaiting disbursement"
         />
       </div>
 
-      {/* ── Report Wise Bifurcation Pills ── */}
-      <div className="asw-bifurcation-row">
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
+      {/* ── Filter By Date & Status Card ── */}
+      <div className="asw-filter-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+            Filter By Date & Status
+          </h4>
+        </div>
+        <form onSubmit={handleFilterSubmit} style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+          <div style={{ flex: '1 1 150px', minWidth: 140 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              From Date
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="ax-input"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 150px', minWidth: 140 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              To Date
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="ax-input"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            />
+          </div>
+
+          <div style={{ flex: '1 1 170px', minWidth: 150 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              Vendor
+            </label>
+            <select
+              value={selectedVendor}
+              onChange={(e) => setSelectedVendor(e.target.value)}
+              className="ax-select"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            >
+              <option value="">All Vendors</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={String(v.id)}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ flex: '1 1 150px', minWidth: 130 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
+              Pay Status
+            </label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="ax-select"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+            >
+              <option value="All">All Statuses</option>
+              <option value="1">Complete / Done</option>
+              <option value="0">Pending</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              style={{ height: 34, padding: '0 14px', fontSize: 12 }}
+            >
+              Apply Filter
+            </button>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              style={{ height: 34, padding: '0 12px', fontSize: 12 }}
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ── Payment Tabs ── */}
+      <div className="asw-tabs-wrap">
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveTab('all')}
+          className={`asw-tab-btn ${activeTab === 'pending' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('pending');
+            pagination.setPage(1);
+          }}
         >
-          All Settlements
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {list.length}
-          </span>
+          Pending Payments ({totalPending})
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'settled' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settled')}
+          className={`asw-tab-btn ${activeTab === 'completed' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('completed');
+            pagination.setPage(1);
+          }}
         >
-          Settled / Paid
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'settled' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {settledCount}
-          </span>
+          Completed Payments ({totalComplete})
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pending')}
+          className={`asw-tab-btn ${activeTab === 'all' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('all');
+            pagination.setPage(1);
+          }}
         >
-          Pending Disbursement
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {pendingCount}
-          </span>
+          All Records ({payments.length})
         </button>
       </div>
 
@@ -812,10 +1050,14 @@ export function SslPaymentRequest() {
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">
-              {activeTab === 'settled' ? 'Settled SSL Vendor Payment Vouchers' : activeTab === 'pending' ? 'Pending SSL Disbursement Vouchers' : 'All Jammu SSL Payment & Settlement Registers'}
+              {activeTab === 'pending'
+                ? 'Pending Payment Requests'
+                : activeTab === 'completed'
+                ? 'Completed Disbursements'
+                : 'All Jammu SSL Payment Requests'}
             </h2>
             <p className="ax-card__subtitle">
-              Showing {filteredList.length} payment voucher{filteredList.length === 1 ? '' : 's'} with bank account and UTR transaction references
+              Showing {filteredPayments.length} payment record{filteredPayments.length === 1 ? '' : 's'}
             </p>
           </div>
           <div className="ax-card__actions">
@@ -836,14 +1078,14 @@ export function SslPaymentRequest() {
               <SearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search voucher, vendor, UTR, bank..."
+                placeholder="Search vendor, district, invoice..."
                 size="sm"
               />
               <TableExportToolbar
-                onCopy={() => copyToClipboard(filteredList, exportCols)}
-                onExportCSV={() => exportToCSV(filteredList, exportCols, `${fileBase}_${stamp}`)}
-                onExportExcel={() => exportToExcel(filteredList, exportCols, `${fileBase}_${stamp}`)}
-                onExportPDF={() => exportToPDF(filteredList, exportCols, fileTitle)}
+                onCopy={() => copyToClipboard(filteredPayments, exportCols)}
+                onExportCSV={() => exportToCSV(filteredPayments, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filteredPayments, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filteredPayments, exportCols, fileTitle)}
               />
             </div>
           </div>
@@ -851,22 +1093,22 @@ export function SslPaymentRequest() {
 
         {/* ── Responsive Horizontal Scroll Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1550 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1400 }}>
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">Vendor</th>
                 <th className="ax-table__th">State</th>
-                <th className="ax-table__th">Voucher ID</th>
-                <th className="ax-table__th">Claim Ref</th>
-                <th className="ax-table__th">Vendor Name</th>
-                <th className="ax-table__th">Bank Name</th>
-                <th className="ax-table__th">Account No</th>
-                <th className="ax-table__th">IFSC Code</th>
-                <th className="ax-table__th ax-table__th--num">Disbursed (₹)</th>
-                <th className="ax-table__th">Mode</th>
-                <th className="ax-table__th">UTR / RTGS Ref</th>
-                <th className="ax-table__th">Settlement Date</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Status</th>
+                <th className="ax-table__th">Site Count</th>
+                <th className="ax-table__th">Claim Invoice</th>
+                <th className="ax-table__th">Claim Amount</th>
+                <th className="ax-table__th">Claim Approved Date</th>
+                <th className="ax-table__th">Claim Approved by</th>
+                <th className="ax-table__th">Payment Date</th>
+                <th className="ax-table__th">Payment By</th>
+                <th className="ax-table__th">Payment Amount</th>
+                <th className="ax-table__th">Payment Remarks</th>
+                <th className="ax-table__th">Payment Status</th>
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
@@ -876,7 +1118,7 @@ export function SslPaymentRequest() {
                   <td colSpan={14} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
-                      <span>Loading payment settlement records...</span>
+                      <span>Loading payment records...</span>
                     </div>
                   </td>
                 </tr>
@@ -885,55 +1127,49 @@ export function SslPaymentRequest() {
                   <td colSpan={14} style={centerCell}>
                     <TableEmptyState
                       title="No payment records found"
-                      description={searchQuery ? 'Try adjusting your search criteria' : 'No records match this bifurcation view'}
+                      description={searchQuery || fromDate || toDate ? 'Try adjusting your search filters' : 'No records pending payment disbursement'}
                     />
                   </td>
                 </tr>
               ) : (
                 pagination.paged.map((row: SslPaymentRegisterItem, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
-                  const isPaid = row.payment_status === 1;
+                  const isDone = Number(row.status) === 1 || Number(row.payment_status) === 1;
+                  const claimAmt = Number(row.claim_amount || 0);
+                  const payAmt = Number(row.pay_amount || row.payment_amount || 0);
+                  const payDate = row.payment_date || row.disbursed_date || row.date;
+                  const remark = row.payment_remark || row.payment_remarks || row.remarks;
 
                   return (
-                    <tr key={row.id}>
+                    <tr key={row.id ?? idx}>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-                      <td className="ax-table__td">JAMMU & KASHMIR</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#2559bf', fontFamily: 'monospace' }}>
-                        {row.voucher_no || `JK-VOU-${row.id}`}
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {row.vendor_name || `Vendor #${row.vendor_id ?? row.id}`}
                       </td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>
-                        JK-CLM-{row.claim_id}
-                      </td>
+                      <td className="ax-table__td">JAMMU</td>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                        {row.vendor_name}
-                      </td>
-                      <td className="ax-table__td">{row.bank_name || 'J&K Bank'}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.account_no || '—'}
-                      </td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.ifsc_code || '—'}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 800, color: '#16a34a' }}>
-                        ₹{num(row.disbursed_amount)}
+                        {row.site_count ?? row.claim_site_count ?? 1}
                       </td>
                       <td className="ax-table__td">
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', background: '#e0f2fe', color: '#0369a1', borderRadius: 4 }}>
-                          {row.payment_mode || 'RTGS'}
-                        </span>
+                        <MediaFileThumbnail file={row.claim_invoice} onClick={setLightboxUrl} />
                       </td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: row.utr_no ? '#2559bf' : '#94a3b8', fontSize: 12 }}>
-                        {row.utr_no || 'Pending UTR'}
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                        ₹ {claimAmt.toLocaleString('en-IN')}
                       </td>
-                      <td className="ax-table__td" style={{ fontSize: 12 }}>
-                        {row.disbursed_date || 'Awaiting Transfer'}
+                      <td className="ax-table__td">{fmtDate(row.claim_approved_date)}</td>
+                      <td className="ax-table__td">{row.claim_approved_by || 'Admin'}</td>
+                      <td className="ax-table__td">{fmtDate(payDate)}</td>
+                      <td className="ax-table__td">{row.payment_by || (isDone ? 'Finance' : '—')}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#16a34a' }}>
+                        {payAmt > 0 ? `₹ ${payAmt.toLocaleString('en-IN')}` : '—'}
                       </td>
-
-                      {/* Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {isPaid ? (
+                      <td className="ax-table__td" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }} title={remark || ''}>
+                        {remark || '—'}
+                      </td>
+                      <td className="ax-table__td">
+                        {isDone ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Settled
+                            Complete
                           </span>
                         ) : (
                           <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
@@ -941,57 +1177,37 @@ export function SslPaymentRequest() {
                           </span>
                         )}
                       </td>
-
-                      {/* Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {isDone ? (
                           <button
                             type="button"
-                            onClick={() => setSelectedDetails(row)}
+                            disabled
+                            title="Payment completed & disbursed. Further action is locked."
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              background: '#f1f5f9',
-                              color: '#1e293b',
-                              border: '1px solid #cbd5e1',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 3,
+                              justifyContent: 'center',
+                              gap: '4px',
+                              opacity: 0.65,
+                              cursor: 'not-allowed',
                             }}
-                            title="View full settlement details"
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="10" r="3" />
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                             </svg>
-                            Details
+                            Locked
                           </button>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => {
-                              setSelectedForSettlement(row);
-                              setUtrNumber(row.utr_no || '');
-                              setPaymentMode(row.payment_mode || 'RTGS');
-                              setSettlementDate(row.disbursed_date || new Date().toISOString().slice(0, 10));
-                              setSettlementRemarks(row.remarks || '');
-                            }}
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              background: '#2559bf',
-                              color: '#ffffff',
-                              border: 'none',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                            }}
+                            onClick={() => handleOpenPay(row)}
+                            className="ax-btn ax-btn--primary ax-btn--sm"
                           >
-                            {isPaid ? 'Edit UTR' : 'Settle'}
+                            Disburse
                           </button>
-                        </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1016,254 +1232,180 @@ export function SslPaymentRequest() {
         </div>
       </section>
 
-      {/* ── Comprehensive Payment Details Modal ── */}
+      {/* ── Action Disbursement Modal ── */}
       <Modal
-        open={Boolean(selectedDetails)}
-        onClose={() => setSelectedDetails(null)}
-        title="Jammu SSL Settlement Voucher Details"
-        subtitle={
-          selectedDetails
-            ? `Voucher: ${selectedDetails.voucher_no || 'JK-VOU-' + selectedDetails.id} • Vendor: ${selectedDetails.vendor_name}`
-            : ''
-        }
-        maxWidth={760}
-        footer={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div>
-              {selectedDetails && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const row = selectedDetails;
-                    setSelectedDetails(null);
-                    setSelectedForSettlement(row);
-                    setUtrNumber(row.utr_no || '');
-                    setPaymentMode(row.payment_mode || 'RTGS');
-                    setSettlementDate(row.disbursed_date || new Date().toISOString().slice(0, 10));
-                    setSettlementRemarks(row.remarks || '');
-                  }}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 6,
-                    background: '#2559bf',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                  {selectedDetails.payment_status === 1 ? 'Update UTR Reference' : 'Record Treasury Settlement'}
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              className="ax-button ax-button--secondary"
-              onClick={() => setSelectedDetails(null)}
-              style={{ padding: '6px 16px', fontSize: 13 }}
-            >
-              Close
-            </button>
-          </div>
-        }
-      >
-        {selectedDetails && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Overview Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Voucher No</span>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#2559bf', fontFamily: 'monospace', marginTop: 2 }}>
-                  {selectedDetails.voucher_no || `JK-VOU-${selectedDetails.id}`}
-                </div>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Claim Ref</span>
-                <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'monospace', marginTop: 2 }}>
-                  JK-CLM-{selectedDetails.claim_id}
-                </div>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Disbursed Amount</span>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#16a34a', marginTop: 2 }}>
-                  ₹{num(selectedDetails.disbursed_amount)}
-                </div>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Settlement Status</span>
-                <div style={{ marginTop: 2 }}>
-                  {selectedDetails.payment_status === 1 ? (
-                    <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
-                      Settled
-                    </span>
-                  ) : (
-                    <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
-                      Pending Disbursement
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Vendor Bank Details */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2559bf', marginBottom: 10, letterSpacing: '0.04em' }}>
-                Beneficiary Contractor & Bank Account
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', rowGap: 8, fontSize: 13 }}>
-                <span style={{ color: '#64748b' }}>Vendor Name:</span>
-                <span style={{ fontWeight: 600 }}>{selectedDetails.vendor_name}</span>
-
-                <span style={{ color: '#64748b' }}>Bank Name:</span>
-                <span>{selectedDetails.bank_name || 'Jammu & Kashmir Bank Ltd.'}</span>
-
-                <span style={{ color: '#64748b' }}>Account Number:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{selectedDetails.account_no || '—'}</span>
-
-                <span style={{ color: '#64748b' }}>IFSC Code:</span>
-                <span style={{ fontFamily: 'monospace' }}>{selectedDetails.ifsc_code || '—'}</span>
-              </div>
-            </div>
-
-            {/* Treasury Settlement Reference */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2559bf', marginBottom: 10, letterSpacing: '0.04em' }}>
-                Treasury Transfer Reference
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', rowGap: 8, fontSize: 13 }}>
-                <span style={{ color: '#64748b' }}>UTR Reference:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2559bf' }}>
-                  {selectedDetails.utr_no || 'Pending UTR Generation'}
-                </span>
-
-                <span style={{ color: '#64748b' }}>Transfer Mode:</span>
-                <span>{selectedDetails.payment_mode || 'RTGS'}</span>
-
-                <span style={{ color: '#64748b' }}>Settlement Date:</span>
-                <span>{selectedDetails.disbursed_date || 'Awaiting Treasury Transfer'}</span>
-
-                {selectedDetails.remarks && (
-                  <>
-                    <span style={{ color: '#64748b' }}>Remarks:</span>
-                    <span>{selectedDetails.remarks}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Action Popup Modal: Settle Payment ── */}
-      <Modal
-        open={Boolean(selectedForSettlement)}
+        open={Boolean(payTarget)}
         onClose={() => {
-          if (!submittingSettlement) setSelectedForSettlement(null);
+          if (!submittingDisburse) {
+            setPayTarget(null);
+          }
         }}
-        title="Record Payment Settlement"
+        title="Process Installation Payment"
         subtitle={
-          selectedForSettlement
-            ? `Voucher: ${selectedForSettlement.voucher_no || 'JK-VOU-' + selectedForSettlement.id} • Vendor: ${selectedForSettlement.vendor_name} • Amount: ₹${num(selectedForSettlement.disbursed_amount)}`
+          payTarget
+            ? `Vendor: ${payTarget.vendor_name || '—'} • Claim: ₹ ${Number(payTarget.claim_amount || 0).toLocaleString('en-IN')} (${payTarget.site_count ?? 1} Lights)`
             : ''
         }
-        maxWidth={520}
+        maxWidth={500}
         footer={
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
-              onClick={() => setSelectedForSettlement(null)}
-              disabled={submittingSettlement}
-              style={{ padding: '6px 14px', fontSize: 13 }}
+              className="ax-btn ax-btn--secondary"
+              onClick={() => setPayTarget(null)}
+              disabled={submittingDisburse}
+              style={{ padding: '7px 14px', fontSize: 13 }}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="ax-button ax-button--primary"
-              onClick={handleSettlementSubmit}
-              disabled={submittingSettlement}
-              style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={handleDisburseSubmit}
+              disabled={submittingDisburse}
+              className="ax-btn ax-btn--primary"
+              style={{
+                padding: '7px 18px',
+                fontSize: 13,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
             >
-              {submittingSettlement && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
-              Confirm Settlement
+              {submittingDisburse && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
+              Record Payment
             </button>
           </>
         }
       >
-        <form onSubmit={handleSettlementSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleDisburseSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-              UTR / Bank Transaction Reference <span style={{ color: '#ef4444' }}>*</span>
+              Payment Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input
-              type="text"
-              value={utrNumber}
-              onChange={(e) => setUtrNumber(e.target.value)}
+              type="number"
+              step="0.01"
+              value={disburseAmount}
+              onChange={(e) => setDisburseAmount(e.target.value)}
               required
-              placeholder="e.g. JKBBR520261113009988"
+              placeholder="e.g. 15000"
               className="ax-input"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-                Transfer Mode <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <select
-                value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value)}
-                className="ax-select"
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
-              >
-                <option value="RTGS">RTGS</option>
-                <option value="NEFT">NEFT</option>
-                <option value="IMPS">IMPS</option>
-                <option value="Treasury Transfer">Treasury Transfer</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-                Settlement Date <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="date"
-                value={settlementDate}
-                onChange={(e) => setSettlementDate(e.target.value)}
-                required
-                className="ax-input"
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
-              />
-            </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
+              Payment Date <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="date"
+              value={disburseDate}
+              onChange={(e) => setDisburseDate(e.target.value)}
+              required
+              className="ax-input"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            />
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-              Settlement Remarks
+              Payment Remarks / Reference UTR
             </label>
             <textarea
               rows={3}
-              value={settlementRemarks}
-              onChange={(e) => setSettlementRemarks(e.target.value)}
-              placeholder="Enter treasury disbursement notes or bank confirmation details..."
+              value={disburseRemarks}
+              onChange={(e) => setDisburseRemarks(e.target.value)}
+              placeholder="Enter bank UTR / transaction remarks…"
               className="ax-textarea"
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
             />
           </div>
         </form>
       </Modal>
+
+      {/* ── Document / Invoice Lightbox Preview Modal ── */}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              background: '#ffffff',
+              borderRadius: 12,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 18px',
+                borderBottom: '1px solid #e2e8f0',
+                background: '#f8fafc',
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Claim Invoice Preview</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <a
+                  href={lightboxUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  style={{
+                    textDecoration: 'none',
+                  }}
+                >
+                  Open in New Tab ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 18,
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    padding: '0 4px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: 16, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              {/\.pdf($|\?)/i.test(lightboxUrl) ? (
+                <iframe src={lightboxUrl} style={{ width: '80vw', height: '75vh', border: 'none' }} title="PDF Preview" />
+              ) : (
+                <img src={lightboxUrl} alt="Invoice Preview" style={{ maxWidth: '85vw', maxHeight: '75vh', objectFit: 'contain' }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default SslPaymentRequest;
+export { SslPaymentRequest as ViewSslPayment };

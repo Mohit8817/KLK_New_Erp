@@ -21,7 +21,12 @@ export function getJammuSwpMediaCandidates(path?: string | null): string[] {
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/pole/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/document/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/payment/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/verify/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/verify_file/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/swp/verify/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/swp/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/verify/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/${filename}`);
 
   const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');

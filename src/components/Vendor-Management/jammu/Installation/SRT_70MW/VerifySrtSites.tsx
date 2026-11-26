@@ -12,10 +12,11 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 import {
-  jammuSrt70mwService,
+  jammuSrt70mwAdminService,
   resolveJammuMediaUrl,
-  type JammuCompleteSiteItem,
-} from '../../../../V-Portal/jammu/jammu-services';
+  type InstallationVerificationItem,
+  type ViewInstallationData,
+} from './jammuSrt70mwAdminService';
 
 /* ───────── Responsive page CSS (Exact Bihar SRT / Assam reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
@@ -496,188 +497,79 @@ export interface JammuVerifyInstallationItem {
   rawStatus: number; // 0 = Pending, 1 = Approved, 2 = Rejected
 }
 
-const MOCK_VERIFY_ITEMS: JammuVerifyInstallationItem[] = [
-  {
-    id: 1,
-    vendor: 'utkarsh',
-    state: 'Jammu',
-    district: 'Jammu',
-    siteName: 'Amit Gupta (Rooftop 5kW)',
-    contactPerson: 'Amit Gupta',
-    contactNumber: '9419123451',
-    solarMeterNo: 'SM-GEN-8832',
-    inverterNo: 'INV-GRW-2026-9812',
-    netSmartMeterNo: 'NM-LNT-2026-4410',
-    panelNo: 'MD-WAA-540-01 to 10 (10 Panels)',
-    logerNo: 'LOG-SRT-70M-101',
-    systemImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-    inverterImage: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-    panelImage: 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-    netSmartMeterImage: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-    logerImage: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-    latitude: '32.7058',
-    longitude: '74.8690',
-    remark: 'Module azimuth 180° true south, tilt 30°, earth resistance 1.8 ohms.',
-    verifyFile: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&auto=format&fit=crop&q=60',
-    verifyRemarks: 'Awaiting Assistant Executive Engineer final meter testing report.',
-    verifyStatus: 'Pending',
-    rawStatus: 0,
-  },
-  {
-    id: 2,
-    vendor: 'bharti',
-    state: 'Jammu',
-    district: 'Kathua',
-    siteName: 'Kathua Cold Storage Unit',
-    contactPerson: 'Suresh Kumar',
-    contactNumber: '9419188722',
-    solarMeterNo: 'SM-HPL-4419',
-    inverterNo: 'INV-SOL-2026-5521',
-    netSmartMeterNo: 'NM-HPL-2026-9021',
-    panelNo: 'MD-AD-540-01 to 28 (28 Panels)',
-    logerNo: 'LOG-SRT-70M-102',
-    systemImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-    inverterImage: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-    panelImage: 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-    netSmartMeterImage: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-    logerImage: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-    latitude: '32.3812',
-    longitude: '75.5188',
-    remark: 'Industrial shed mounting completed with double-earthing pits.',
-    verifyFile: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&auto=format&fit=crop&q=60',
-    verifyRemarks: 'Verified and approved by Executive Engineer JPDCL Kathua.',
-    verifyStatus: 'Approved',
-    rawStatus: 1,
-  },
-  {
-    id: 3,
-    vendor: 'Jammu TEsting',
-    state: 'Jammu',
-    district: 'Samba',
-    siteName: 'Ashok Kumar (Samba RTS 5kW)',
-    contactPerson: 'Ashok Kumar',
-    contactNumber: '9419155410',
-    solarMeterNo: 'SM-GEN-8834',
-    inverterNo: 'INV-FRO-2026-7782',
-    netSmartMeterNo: 'NM-LNT-2026-3391',
-    panelNo: 'MD-TATA-540-01 to 10 (10 Panels)',
-    logerNo: 'LOG-SRT-70M-103',
-    systemImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-    inverterImage: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-    panelImage: 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-    netSmartMeterImage: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-    logerImage: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-    latitude: '32.5590',
-    longitude: '75.1180',
-    remark: 'Commissioning checklist signed by consumer.',
-    verifyFile: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&auto=format&fit=crop&q=60',
-    verifyRemarks: 'Net meter sync certified. Approved.',
-    verifyStatus: 'Approved',
-    rawStatus: 1,
-  },
-  {
-    id: 4,
-    vendor: 'mohit',
-    state: 'Jammu',
-    district: 'Udhampur',
-    siteName: 'Community Health Centre Chenani',
-    contactPerson: 'Dr. Rakesh Sharma',
-    contactNumber: '9419199831',
-    solarMeterNo: 'SM-GEN-8835',
-    inverterNo: 'INV-SMA-2026-3190',
-    netSmartMeterNo: 'NM-SEC-2026-1192',
-    panelNo: 'MD-VIK-540-01 to 20 (20 Panels)',
-    logerNo: 'LOG-SRT-70M-104',
-    systemImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-    inverterImage: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-    panelImage: 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-    netSmartMeterImage: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-    logerImage: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-    latitude: '32.9150',
-    longitude: '75.1320',
-    remark: 'Hill zone rooftop structure under installation.',
-    verifyFile: '',
-    verifyRemarks: 'Inspection pending by district engineer.',
-    verifyStatus: 'Pending',
-    rawStatus: 0,
-  },
-  {
-    id: 5,
-    vendor: 'App Testing',
-    state: 'Jammu',
-    district: 'Rajouri',
-    siteName: 'Tariq Hussain Shah (5kW RTS)',
-    contactPerson: 'Tariq Hussain Shah',
-    contactNumber: '9419133211',
-    solarMeterNo: 'SM-GEN-8836',
-    inverterNo: 'INV-DEL-2026-1188',
-    netSmartMeterNo: 'NM-SEC-2026-7729',
-    panelNo: 'MD-WAA-540-20 to 29 (10 Panels)',
-    logerNo: 'LOG-SRT-70M-105',
-    systemImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-    inverterImage: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-    panelImage: 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-    netSmartMeterImage: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-    logerImage: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-    latitude: '33.3780',
-    longitude: '74.3120',
-    remark: 'Heavy snow rating structure verified.',
-    verifyFile: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&auto=format&fit=crop&q=60',
-    verifyRemarks: 'Approved by technical audit team.',
-    verifyStatus: 'Approved',
-    rawStatus: 1,
-  },
-  {
-    id: 6,
-    vendor: 'bharti ks',
-    state: 'Jammu',
-    district: 'Reasi',
-    siteName: 'Katra Commercial Complex',
-    contactPerson: 'Manoj Kohli',
-    contactNumber: '9419166744',
-    solarMeterNo: 'SM-GEN-8837',
-    inverterNo: 'INV-GRW-2026-9815',
-    netSmartMeterNo: 'NM-LNT-2026-4415',
-    panelNo: 'MD-WAA-540-30 to 49 (20 Panels)',
-    logerNo: 'LOG-SRT-70M-106',
-    systemImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-    inverterImage: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-    panelImage: 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-    netSmartMeterImage: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-    logerImage: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-    latitude: '32.9910',
-    longitude: '74.9310',
-    remark: 'Shrine area commercial grid injection.',
-    verifyFile: '',
-    verifyRemarks: 'Pending submission of bi-directional meter serial photo.',
-    verifyStatus: 'Pending',
-    rawStatus: 0,
-  },
-];
-
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+function cleanPanelNo(val: any): string {
+  if (!val) return '—';
+  if (Array.isArray(val)) return val.join(', ');
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.join(', ');
+      } catch {
+        return trimmed.replace(/[\[\]"]/g, '').trim() || '—';
+      }
+    }
+    return trimmed || '—';
+  }
+  return String(val);
+}
+
+function extractFilePath(raw: any): string | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return undefined;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) return String(parsed[0]);
+      } catch {}
+    }
+    return trimmed;
+  }
+  if (Array.isArray(raw) && raw.length > 0) return String(raw[0]);
+  return undefined;
+}
+
 export function VerifySrtSites() {
-  const [items, setItems] = useState<JammuVerifyInstallationItem[]>(MOCK_VERIFY_ITEMS);
+  const [items, setItems] = useState<JammuVerifyInstallationItem[]>([]);
+  const [stats, setStats] = useState({
+    totalsite: 0,
+    complete: 0,
+    pendingsite: 0,
+    approvedsite: 0,
+    rejectsite: 0,
+    verifypending: 0,
+    claimedapplicable: 0,
+    claimraised: 0,
+    docsubmit: 0,
+    payment80: 0,
+    payment20: 0,
+    paymentsitecount: 0,
+  });
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'processed'>('pending');
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'processed'>('all');
   const [search, setSearch] = useState('');
 
   // Modals state
   const [selectedSiteForAction, setSelectedSiteForAction] = useState<JammuVerifyInstallationItem | null>(null);
-  const [actionStatus, setActionStatus] = useState<string>('1'); // 1 = Approved, 2 = Rejected, 0 = Pending
+  const [actionStatus, setActionStatus] = useState<string>(''); // '' = -- Select Status --, 1 = Approved, 2 = Rejected
   const [actionRemarks, setActionRemarks] = useState<string>('');
+  const [actionFile, setActionFile] = useState<File | null>(null);
   const [submittingAction, setSubmittingAction] = useState(false);
 
   const [selectedSiteForDetails, setSelectedSiteForDetails] = useState<JammuVerifyInstallationItem | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null);
 
   // Top 5 KPI Metrics matching reference style
-  const totalSitesCount = 39;
-  const installedSitesCount = 31;
-  const verifyPendingCount = 11;
-  const verifiedApprovedCount = 20;
-  const verifiedRejectedCount = 0;
+  const totalSitesCount = stats.totalsite || 0;
+  const installedSitesCount = stats.complete || 0;
+  const verifyPendingCount = stats.verifypending || 0;
+  const verifiedApprovedCount = stats.approvedsite || 0;
+  const verifiedRejectedCount = stats.rejectsite || 0;
 
   // Load from API if available
   useEffect(() => {
@@ -685,45 +577,73 @@ export function VerifySrtSites() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const summary = await jammuSrt70mwService.getInstallationSummary();
+        const resp = await jammuSrt70mwAdminService.getViewInstallation();
         if (!active) return;
-        if (summary && Array.isArray(summary.completesite) && summary.completesite.length > 0) {
-          const mapped: JammuVerifyInstallationItem[] = summary.completesite.map((item: JammuCompleteSiteItem, idx: number) => {
-            const rawStatus = Number(item.inst_verify_status ?? (idx % 2 === 0 ? 0 : 1));
-            const verifyStatus: 'Pending' | 'Approved' | 'Rejected' =
-              rawStatus === 1 ? 'Approved' : rawStatus === 2 ? 'Rejected' : 'Pending';
+        setStats({
+          totalsite: Number(resp.totalsite || 0),
+          complete: Number(resp.complete || 0),
+          pendingsite: Number(resp.pendingsite || 0),
+          approvedsite: Number(resp.approvedsite || 0),
+          rejectsite: Number(resp.rejectsite || 0),
+          verifypending: Number(resp.verifypending || 0),
+          claimedapplicable: Number(resp.claimedapplicable || 0),
+          claimraised: Number(resp.claimraised || 0),
+          docsubmit: Number(resp.docsubmit || 0),
+          payment80: Number(resp.payment80 || 0),
+          payment20: Number(resp.payment20 || 0),
+          paymentsitecount: Number(resp.paymentsitecount || 0),
+        });
 
-            return {
-              id: item.id || idx + 1,
-              vendor: (item as any).vendor || (item as any).vendor_name || 'utkarsh',
-              state: 'Jammu',
-              district: item.district || 'Jammu',
-              siteName: item.site_name || `Site #${item.id || idx + 1}`,
-              contactPerson: (item as any).contact_person || 'Consumer Incharge',
-              contactNumber: (item as any).contact_number || '9419123450',
-              solarMeterNo: (item as any).solarmeter_no || `SM-GEN-${8000 + idx}`,
-              inverterNo: (item as any).inverter_no || `INV-JAM-2026-${5000 + idx}`,
-              netSmartMeterNo: (item as any).nm_sm_no || `NM-LNT-2026-${7000 + idx}`,
-              panelNo: `MD-JK-540 (Total: ${item.total_panels || 10})`,
-              logerNo: (item as any).loger_no || `LOG-70M-${100 + idx}`,
-              systemImage: (item as any).system_image ? resolveJammuMediaUrl((item as any).system_image) : 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400&auto=format&fit=crop&q=60',
-              inverterImage: (item as any).inverter_image ? resolveJammuMediaUrl((item as any).inverter_image) : 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?w=400&auto=format&fit=crop&q=60',
-              panelImage: (item as any).panel_image ? resolveJammuMediaUrl((item as any).panel_image) : 'https://images.unsplash.com/photo-1545209584-6012356c2d1b?w=400&auto=format&fit=crop&q=60',
-              netSmartMeterImage: (item as any).nm_sm_image ? resolveJammuMediaUrl((item as any).nm_sm_image) : 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=400&auto=format&fit=crop&q=60',
-              logerImage: (item as any).loger_image ? resolveJammuMediaUrl((item as any).loger_image) : 'https://images.unsplash.com/photo-1541888946425-d0fbb1861563?w=400&auto=format&fit=crop&q=60',
-              latitude: (item as any).latitude || '32.7058',
-              longitude: (item as any).longitude || '74.8690',
-              remark: (item as any).remarks || 'Installation completed as per JPDCL & MNRE standards.',
-              verifyFile: (item as any).verify_file ? resolveJammuMediaUrl((item as any).verify_file) : undefined,
-              verifyRemarks: (item as any).verify_remarks || '',
-              verifyStatus,
-              rawStatus,
-            };
-          });
-          setItems(mapped);
-        }
-      } catch (err) {
-        console.warn('Using fallback Jammu verification sites data:', err);
+        const mapItem = (item: InstallationVerificationItem, defaultSt: number): JammuVerifyInstallationItem => {
+          const rawStatus = Number(item.inst_verify_status ?? defaultSt);
+          const verifyStatus: 'Pending' | 'Approved' | 'Rejected' =
+            rawStatus === 1 ? 'Approved' : rawStatus === 2 ? 'Rejected' : (defaultSt === 1 ? 'Approved' : 'Pending');
+
+          const rawVerifyFile =
+            item.inst_verify_file ||
+            (item as any).verify_file ||
+            (item as any).file ||
+            (item as any).verify_doc ||
+            (item as any).document ||
+            (item as any).inst_verify_doc;
+          const cleanFile = extractFilePath(rawVerifyFile);
+
+          return {
+            id: item.id,
+            vendor: item.vendor_name || (item as any).vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
+            state: 'Jammu',
+            district: item.district || '—',
+            siteName: item.site_name || `Site #${item.id}`,
+            contactPerson: item.contact_person || '—',
+            contactNumber: item.contact_number || '—',
+            solarMeterNo: item.solarmeter_no || '—',
+            inverterNo: item.inverter_no || '—',
+            netSmartMeterNo: item.nm_sm_no || '—',
+            panelNo: cleanPanelNo(item.panel_no),
+            logerNo: item.loger_no || '—',
+            systemImage: item.system_image ? resolveJammuMediaUrl(item.system_image) : undefined,
+            inverterImage: item.inverter_image ? resolveJammuMediaUrl(item.inverter_image) : undefined,
+            panelImage: item.panel_image ? resolveJammuMediaUrl(item.panel_image) : undefined,
+            netSmartMeterImage: item.nm_sm_image ? resolveJammuMediaUrl(item.nm_sm_image) : undefined,
+            logerImage: item.loger_image ? resolveJammuMediaUrl(item.loger_image) : undefined,
+            latitude: item.inst_latitude || (item as any).latitude || '—',
+            longitude: item.inst_longitude || (item as any).longitude || '—',
+            remark: item.inst_remarks || (item as any).remarks || '—',
+            verifyFile: cleanFile ? resolveJammuMediaUrl(cleanFile) : undefined,
+            verifyRemarks: item.inst_verify_remark || (item as any).verify_remarks || (item as any).remark || '',
+            verifyStatus,
+            rawStatus,
+          };
+        };
+
+        const combined: JammuVerifyInstallationItem[] = [
+          ...(resp.verification || []).map((x) => mapItem(x, 0)),
+          ...(resp.verified || []).map((x) => mapItem(x, 1)),
+        ];
+        setItems(combined);
+      } catch (err: any) {
+        console.error('Failed to load live Jammu SRT verification data:', err);
+        setItems([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -739,7 +659,7 @@ export function VerifySrtSites() {
     let result = items;
     if (activeTab === 'pending') {
       result = result.filter((s) => s.verifyStatus === 'Pending');
-    } else {
+    } else if (activeTab === 'processed') {
       result = result.filter((s) => s.verifyStatus === 'Approved' || s.verifyStatus === 'Rejected');
     }
 
@@ -751,18 +671,26 @@ export function VerifySrtSites() {
           s.vendor.toLowerCase().includes(q) ||
           s.district.toLowerCase().includes(q) ||
           s.contactPerson.toLowerCase().includes(q) ||
+          s.contactNumber.toLowerCase().includes(q) ||
           s.inverterNo.toLowerCase().includes(q) ||
           s.solarMeterNo.toLowerCase().includes(q) ||
           s.netSmartMeterNo.toLowerCase().includes(q) ||
+          s.panelNo.toLowerCase().includes(q) ||
+          s.logerNo.toLowerCase().includes(q) ||
           String(s.id).includes(q)
       );
     }
     return result;
   }, [items, activeTab, search]);
 
-  const { pagedData = [], paginationProps } = usePagination(filteredItems, 100);
+  const pagination = usePagination(filteredItems, { initialPageSize: 100 });
 
-  // Export Columns (covering all 23 columns)
+  // Reset page to 1 when changing tabs or search
+  useEffect(() => {
+    pagination.setPage(1);
+  }, [activeTab, search]);
+
+  // Export Columns (covering all 23 columns matching user's exact specification)
   const exportColumns: ExportColumn[] = [
     { header: 'Sr. No.', accessor: 'id' },
     { header: 'Vendor', accessor: 'vendor' },
@@ -776,11 +704,17 @@ export function VerifySrtSites() {
     { header: 'Net/Smart Meter No.', accessor: 'netSmartMeterNo' },
     { header: 'Panel No.', accessor: 'panelNo' },
     { header: 'Loger No.', accessor: 'logerNo' },
+    { header: 'System Image', accessor: 'systemImage' },
+    { header: 'Inverter Image', accessor: 'inverterImage' },
+    { header: 'Panel Image', accessor: 'panelImage' },
+    { header: 'Net Meter/Smart Meter Image', accessor: 'netSmartMeterImage' },
+    { header: 'Loger Image', accessor: 'logerImage' },
     { header: 'Latitude', accessor: 'latitude' },
     { header: 'Longitude', accessor: 'longitude' },
     { header: 'Remark', accessor: 'remark' },
-    { header: 'Verify Remarks', accessor: 'verifyRemarks' },
     { header: 'Verify Status', accessor: 'verifyStatus' },
+    { header: 'Verify File', accessor: 'verifyFile' },
+    { header: 'Verify Remarks', accessor: 'verifyRemarks' },
   ];
 
   const downloadTextFile = (content: string, filename: string, mimeType: string) => {
@@ -854,22 +788,71 @@ export function VerifySrtSites() {
     e.preventDefault();
     if (!selectedSiteForAction) return;
 
+    if (!actionStatus) {
+      alert('Please select status.');
+      return;
+    }
+    if (!actionFile && !selectedSiteForAction.verifyFile) {
+      alert('Please choose a file.');
+      return;
+    }
+
     setSubmittingAction(true);
     try {
-      await new Promise((res) => setTimeout(res, 500));
-      const targetStatus = Number(actionStatus);
-      const newStatusLabel: 'Pending' | 'Approved' | 'Rejected' =
-        targetStatus === 1 ? 'Approved' : targetStatus === 2 ? 'Rejected' : 'Pending';
+      const fd = new FormData();
+      fd.append('id', String(selectedSiteForAction.id));
+      fd.append('status', String(actionStatus)); // 1=Approved, 2=Rejected
+      if (actionRemarks) {
+        fd.append('remark', actionRemarks);
+        fd.append('remarks', actionRemarks);
+        fd.append('inst_verify_remarks', actionRemarks);
+      }
+      if (actionFile) {
+        fd.append('file', actionFile);
+        fd.append('inst_verify_file', actionFile);
+      }
 
-      setItems((prev) =>
-        prev.map((s) =>
-          s.id === selectedSiteForAction.id
-            ? { ...s, rawStatus: targetStatus, verifyStatus: newStatusLabel, verifyRemarks: actionRemarks }
-            : s
-        )
-      );
-      setSelectedSiteForAction(null);
-      setActionRemarks('');
+      const res = await jammuSrt70mwAdminService.verifyInstallationStatus(fd);
+      if (res.success) {
+        const targetStatus = Number(actionStatus);
+        const newStatusLabel: 'Pending' | 'Approved' | 'Rejected' =
+          targetStatus === 1 ? 'Approved' : targetStatus === 2 ? 'Rejected' : 'Pending';
+
+        const updatedFileUrl = actionFile
+          ? URL.createObjectURL(actionFile)
+          : selectedSiteForAction.verifyFile;
+
+        setItems((prev) =>
+          prev.map((s) =>
+            s.id === selectedSiteForAction.id
+              ? {
+                  ...s,
+                  rawStatus: targetStatus,
+                  verifyStatus: newStatusLabel,
+                  verifyRemarks: actionRemarks,
+                  verifyFile: updatedFileUrl,
+                }
+              : s
+          )
+        );
+
+        setStats((prev) => ({
+          ...prev,
+          verifypending: Math.max(0, (prev.verifypending || 0) - 1),
+          approvedsite: targetStatus === 1 ? (prev.approvedsite || 0) + 1 : prev.approvedsite,
+          rejectsite: targetStatus === 2 ? (prev.rejectsite || 0) + 1 : prev.rejectsite,
+        }));
+
+        setSelectedSiteForAction(null);
+        setActionStatus('');
+        setActionRemarks('');
+        setActionFile(null);
+        alert(res.message || 'Verification status updated successfully.');
+      } else {
+        alert(res.message || 'Failed to update verification status.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error updating verification status.');
     } finally {
       setSubmittingAction(false);
     }
@@ -883,7 +866,7 @@ export function VerifySrtSites() {
       {/* ── Page Header ── */}
       <PageHead
         title="Jammu SRT 70MW Installation - Verify Sites"
-        subtitle="Technical audit desk for grid-connected rooftop solar installations, bi-directional net meters, solar inverters, and DISCOM commissioning across Jammu & Kashmir"
+        subtitle="Technical audit desk for grid-connected rooftop solar installations, bi-directional net meters, solar inverters, and DISCOM commissioning across Jammu"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
@@ -979,6 +962,17 @@ export function VerifySrtSites() {
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
+          onClick={() => setActiveTab('all')}
+          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
+        >
+          All Sites
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {items.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('pending')}
           className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
         >
@@ -1005,7 +999,11 @@ export function VerifySrtSites() {
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">
-              {activeTab === 'pending' ? 'Jammu SRT 70MW Installations Pending Verification' : 'Jammu SRT 70MW Verified Installations Register'}
+              {activeTab === 'all'
+                ? 'All Jammu SRT 70MW Installed Sites'
+                : activeTab === 'pending'
+                ? 'Jammu SRT 70MW Installations Pending Verification'
+                : 'Jammu SRT 70MW Verified Installations Register'}
             </h2>
             <p className="ax-card__subtitle">
               Showing {filteredItems.length} site{filteredItems.length === 1 ? '' : 's'} with on-site equipment barcodes & high-resolution proof photos
@@ -1065,24 +1063,27 @@ export function VerifySrtSites() {
                 <th className="ax-table__th">Latitude</th>
                 <th className="ax-table__th">Longitude</th>
                 <th className="ax-table__th">Remark</th>
-                <th className="ax-table__th" style={{ width: 85, textAlign: 'center' }}>Verify File</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Verify Status</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Verify File</th>
                 <th className="ax-table__th">Verify Remarks</th>
-                <th className="ax-table__th" style={{ width: 140, textAlign: 'center' }}>Action</th>
+                {activeTab === 'pending' && (
+                  <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={23} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading installation verification records...</span>
                     </div>
                   </td>
                 </tr>
-              ) : (pagedData || []).length === 0 ? (
+              ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={23} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
                     <TableEmptyState
                       title="No Verification Records Found"
                       description={`No records found under "${activeTab === 'pending' ? 'Verification Pending' : 'Approved/Rejected Data'}" matching your criteria.`}
@@ -1090,8 +1091,8 @@ export function VerifySrtSites() {
                   </td>
                 </tr>
               ) : (
-                (pagedData || []).map((row, idx) => {
-                  const serialNo = (paginationProps.page - 1) * paginationProps.pageSize + idx + 1;
+                pagination.paged.map((row, idx) => {
+                  const serialNo = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   return (
                     <tr key={row.id}>
                       {/* 1. Sr. No. */}
@@ -1299,93 +1300,132 @@ export function VerifySrtSites() {
                         </div>
                       </td>
 
-                      {/* 21. Verify File */}
+                      {/* 21. Verify Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '3px 10px',
+                            borderRadius: 9999,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            background:
+                              row.verifyStatus === 'Approved'
+                                ? '#ecfdf5'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fef2f2'
+                                : '#fffbeb',
+                            color:
+                              row.verifyStatus === 'Approved'
+                                ? '#059669'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#dc2626'
+                                : '#d97706',
+                            border: `1px solid ${
+                              row.verifyStatus === 'Approved'
+                                ? '#a7f3d0'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fecaca'
+                                : '#fde68a'
+                            }`,
+                          }}
+                        >
+                          {row.verifyStatus}
+                        </span>
+                      </td>
+
+                      {/* 22. Verify File */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {row.verifyFile ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl({ url: row.verifyFile!, title: `Verify File - ${row.siteName}` })}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: 32,
-                              height: 32,
-                              borderRadius: 6,
-                              background: '#eff4fc',
-                              color: '#2559bf',
-                              cursor: 'pointer',
-                              border: '1px solid #bfd3f8',
-                            }}
-                            title="View Verify File"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                          </button>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/\.(jpe?g|png|webp|gif|svg)$/i.test(row.verifyFile) ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightboxUrl({ url: row.verifyFile!, title: `Verify File - ${row.siteName}` })}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: 6,
+                                  padding: 2,
+                                  background: '#fff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                }}
+                                title="Click to preview Verify File image"
+                              >
+                                <img
+                                  src={row.verifyFile}
+                                  alt="Verify File"
+                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={row.verifyFile}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '5px 10px',
+                                  borderRadius: 6,
+                                  background: '#eff4fc',
+                                  color: '#2559bf',
+                                  textDecoration: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  border: '1px solid #bfd3f8',
+                                }}
+                                title="Open / Download Verify File"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>View File</span>
+                              </a>
+                            )}
+                          </div>
                         ) : (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         )}
                       </td>
 
-                      {/* 22. Verify Remarks */}
+                      {/* 23. Verify Remarks */}
                       <td className="ax-table__td" style={{ maxWidth: 160 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
                           {row.verifyRemarks || '—'}
                         </div>
                       </td>
 
-                      {/* 23. Action */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSiteForDetails(row)}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              background: '#f1f5f9',
-                              color: '#1e293b',
-                              border: '1px solid #cbd5e1',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
-                            }}
-                            title="View full site details"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                            Details
-                          </button>
+                      {/* 24. Action (ONLY on Verification Pending tab) */}
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
                             type="button"
                             onClick={() => {
                               setSelectedSiteForAction(row);
-                              setActionStatus(String(row.rawStatus || 1));
+                              setActionStatus('');
                               setActionRemarks(row.verifyRemarks || '');
+                              setActionFile(null);
                             }}
                             style={{
-                              padding: '4px 10px',
+                              padding: '5px 12px',
                               borderRadius: 6,
                               background: '#2559bf',
                               color: '#ffffff',
                               border: 'none',
-                              fontSize: 11,
+                              fontSize: 11.5,
                               fontWeight: 700,
                               cursor: 'pointer',
                             }}
-                            title="Verify Site"
+                            title="Verify Site Status"
                           >
                             Verify
                           </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -1397,7 +1437,14 @@ export function VerifySrtSites() {
         {/* ── Left Aligned Pagination in Footer ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
-            <Pagination {...paginationProps} />
+            <Pagination
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
+            />
           </div>
         </div>
       </section>
@@ -1405,48 +1452,93 @@ export function VerifySrtSites() {
       {/* ── Verification Action Modal ── */}
       <Modal
         open={Boolean(selectedSiteForAction)}
-        onClose={() => setSelectedSiteForAction(null)}
-        title="Verify Jammu SRT 70MW Installation Status"
-        subtitle={`Site: ${selectedSiteForAction?.siteName} • Vendor: ${selectedSiteForAction?.vendor}`}
-        maxWidth={540}
+        onClose={() => {
+          setSelectedSiteForAction(null);
+          setActionStatus('');
+          setActionRemarks('');
+          setActionFile(null);
+        }}
+        title="Verify Status"
+        subtitle={selectedSiteForAction ? `Site: ${selectedSiteForAction.siteName} • Vendor: ${selectedSiteForAction.vendor}` : undefined}
+        maxWidth={480}
       >
         {selectedSiteForAction && (
           <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                Verification Decision <span style={{ color: '#ef4444' }}>*</span>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                Status <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <select
                 value={actionStatus}
                 onChange={(e) => setActionStatus(e.target.value)}
-                style={{ width: '100%', height: 42, padding: '0 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                style={{
+                  width: '100%',
+                  height: 42,
+                  padding: '0 12px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 13,
+                  color: actionStatus ? '#0f172a' : '#64748b',
+                  background: '#fff',
+                }}
                 required
               >
+                <option value="">-- Select Status --</option>
                 <option value="1">Verify Approve</option>
                 <option value="2">Verify Reject</option>
-                <option value="0">Keep Pending</option>
               </select>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                Verify Remarks <span style={{ color: '#ef4444' }}>*</span>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                File <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <textarea
-                rows={4}
-                value={actionRemarks}
-                onChange={(e) => setActionRemarks(e.target.value)}
-                placeholder="Enter technical audit comments, inspection findings, or reasons for rejection..."
-                style={{ width: '100%', padding: '10px 12px', fontSize: 13, resize: 'vertical', borderRadius: 8, border: '1px solid #cbd5e1' }}
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                onChange={(e) => setActionFile(e.target.files?.[0] || null)}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 12.5,
+                  background: '#f8fafc',
+                }}
                 required
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                Remark
+              </label>
+              <textarea
+                rows={3}
+                value={actionRemarks}
+                onChange={(e) => setActionRemarks(e.target.value)}
+                placeholder="Enter remark"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  resize: 'vertical',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary"
-                onClick={() => setSelectedSiteForAction(null)}
+                onClick={() => {
+                  setSelectedSiteForAction(null);
+                  setActionStatus('');
+                  setActionRemarks('');
+                  setActionFile(null);
+                }}
                 disabled={submittingAction}
               >
                 Cancel
@@ -1455,8 +1547,9 @@ export function VerifySrtSites() {
                 type="submit"
                 className="ax-btn ax-btn--primary"
                 disabled={submittingAction}
+                style={{ background: '#2559bf', color: '#fff' }}
               >
-                {submittingAction ? 'Updating Status...' : 'Save Verification Status'}
+                {submittingAction ? 'Updating...' : 'Submit'}
               </button>
             </div>
           </form>

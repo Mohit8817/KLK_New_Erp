@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ComplaintFormLayout,
   FloatingInput,
@@ -9,9 +9,10 @@ import {
   SectionHeader,
   opts,
   getTodayFormatted,
+  formatDateForInput,
   type SectionItem,
 } from '../CommonSharedComplaints';
-import { upComplaintService, type UpRescoSiteDetails } from '../../up-services';
+import { getMediaUrl, upComplaintService, type UpRescoSiteDetails } from '../../up-services';
 
 const SECTIONS: SectionItem[] = [
   { id: 'rs-sec-1', num: '1', title: 'Site & Location' },
@@ -48,10 +49,17 @@ type FormKey = keyof typeof INITIAL_FORM;
 
 export function UP_Complaint_Resco_AddComplaint() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
 
   const [form, setForm] = useState(INITIAL_FORM);
+  const [complaintCode, setComplaintCode] = useState('');
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
+  const [existingFile1, setExistingFile1] = useState('');
+  const [existingFile2, setExistingFile2] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -87,6 +95,82 @@ export function UP_Complaint_Resco_AddComplaint() {
       active = false;
     };
   }, []);
+
+  // 1b. Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const dist = String(rec.district || '').trim();
+      const sName = String(rec.site_name || '').trim();
+      const sId = String(rec.resco_id || rec.site_id || sName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'Yes').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile1(getMediaUrl(rec.file1 || rec.file || rec.document) || '');
+      setExistingFile2(getMediaUrl(rec.file2) || '');
+
+      setForm({
+        complaint_date: formatDateForInput(rec.complaint_date || rec.start_date || rec.created_at) || getTodayFormatted(),
+        district: dist,
+        site_name: sName,
+        site_id: sId,
+        department: String(rec.dept_name || rec.department || ''),
+        address: String(rec.address || ''),
+        contact_person: String(rec.contact_person || ''),
+        contact_number: String(rec.contact_number || rec.contact_no || ''),
+        ca_no: String(rec.ca_no || ''),
+        sanction_load: rec.sanction_load !== undefined && rec.sanction_load !== null ? String(rec.sanction_load) : '',
+        plant_capacity: String(rec.plant_capacity ?? rec.plant_sc ?? ''),
+        inverter_no: String(rec.inverter_no || ''),
+        solarmeter_no: String(rec.solarmeter_no || rec.solar_meter_no || ''),
+        nm_sm_no: String(rec.nm_sm_no || ''),
+        logger_no: String(rec.loger_no || rec.logger_no || ''),
+        panel_no: String(rec.panel_no || ''),
+        wo_no: String(rec.wo_no || ''),
+        latitude: rec.latitude !== undefined && rec.latitude !== null ? String(rec.latitude) : '',
+        longitude: rec.longitude !== undefined && rec.longitude !== null ? String(rec.longitude) : '',
+        phase: String(rec.phase || ''),
+        complaint: String(rec.complaint || ''),
+        sms: rawSms === 'no' || rawSms === '0' || rawSms === 'false' ? 'No' : 'Yes',
+      });
+
+      if (dist) {
+        try {
+          const siteList = await upComplaintService.getRescoSiteNames(dist);
+          if (!active) return;
+          const hasMatch = siteList.some((s) => String(s.id) === sId || s.site_name === sName);
+          if (!hasMatch && (sId || sName)) {
+            setSites([{ id: sId || sName, site_name: sName || sId }, ...siteList]);
+          } else {
+            const matched = siteList.find((s) => String(s.id) === sId || s.site_name === sName);
+            setSites(siteList);
+            if (matched) {
+              setForm((p) => ({ ...p, site_id: String(matched.id), site_name: matched.site_name }));
+            }
+          }
+        } catch {
+          if (active && (sId || sName)) setSites([{ id: sId || sName, site_name: sName || sId }]);
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getRescoEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
 
   // 2. District change -> load sites
   const handleDistrictChange = async (d: string) => {
@@ -140,9 +224,7 @@ export function UP_Complaint_Resco_AddComplaint() {
     if (!val) return;
 
     try {
-      // FIX: API needs district + site_id + site_name (previously only the id was sent,
-      // which caused 422 "The district field is required").
-      const details: UpRescoSiteDetails | null = await (upComplaintService as any).getRescoSiteDetails(
+      const details: UpRescoSiteDetails | null = await upComplaintService.getRescoSiteDetails(
         siteId,
         siteName,
         form.district,
@@ -191,7 +273,7 @@ export function UP_Complaint_Resco_AddComplaint() {
       errs.contact_number = 'Must be exactly 10 digits';
     }
     if (!form.complaint.trim()) errs.complaint = 'Complaint description is required';
-    if (!file1) errs.file1 = 'Upload File - 1 is required';
+    if (!isEdit && !file1) errs.file1 = 'Upload File - 1 is required';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -209,6 +291,10 @@ export function UP_Complaint_Resco_AddComplaint() {
     setLoading(true);
     try {
       const fd = new FormData();
+      if (isEdit && editId) {
+        fd.append('id', String(editId));
+        if (complaintCode) fd.append('complaint_id', complaintCode);
+      }
       fd.append('district', form.district);
       fd.append('site_name', form.site_name);
       if (form.site_id) fd.append('resco_id', form.site_id);
@@ -241,15 +327,20 @@ export function UP_Complaint_Resco_AddComplaint() {
       }
       if (file2) fd.append('file2', file2);
 
-      const res = await upComplaintService.saveRescoComplaint(fd);
+      const res = isEdit
+        ? await upComplaintService.updateRescoComplaint(fd)
+        : await upComplaintService.saveRescoComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'Complaint submitted successfully!' });
-        handleReset();
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'Complaint updated successfully!' : 'Complaint submitted successfully!'),
+        });
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/resco-view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        setToast({ type: 'error', message: res.message || (isEdit ? 'Failed to update complaint.' : 'Failed to submit complaint.') });
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Error occurred during submission.' });
@@ -260,21 +351,23 @@ export function UP_Complaint_Resco_AddComplaint() {
 
   return (
     <ComplaintFormLayout
-      title="Add Vendor UP Resco Complaint"
-      subtitle="File a new solar rooftop / RESCO complaint with complete site equipment information"
+      title={isEdit ? 'Edit Vendor UP Resco Complaint' : 'Add Vendor UP Resco Complaint'}
+      subtitle={isEdit ? 'Update solar rooftop / RESCO complaint details' : 'File a new solar rooftop / RESCO complaint with complete site equipment information'}
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'Vendor UP Resco Complaints', href: '/v/complaint/up/resco-view-complaint' },
-        { label: 'Add UP Resco Complaint' },
+        { label: isEdit ? 'Edit UP Resco Complaint' : 'Add UP Resco Complaint' },
       ]}
       viewLink="/v/complaint/up/resco-view-complaint"
       eyebrow="RESCO Rooftop Solar"
-      formTitle="Add UP Resco Complaint"
-      formSubtitle="Fill in complaint details across 3 dedicated sections with automatic site data population."
+      formTitle={isEdit ? `Edit UP Resco Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add UP Resco Complaint'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Fill in complaint details across 3 dedicated sections with automatic site data population.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={loading}
+      submitLabel={isEdit ? 'Update Complaint' : 'Submit Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* ── Section 1: Site & Location ── */}
@@ -380,8 +473,9 @@ export function UP_Complaint_Resco_AddComplaint() {
           <FloatingFileInput
             id="rs-file1"
             label="Upload File - 1 (Proof)"
-            required
+            required={!isEdit}
             file={file1}
+            existingUrl={existingFile1}
             onChange={setFile1}
             error={errors.file1}
           />
@@ -389,6 +483,7 @@ export function UP_Complaint_Resco_AddComplaint() {
             id="rs-file2"
             label="Upload File - 2 (Optional)"
             file={file2}
+            existingUrl={existingFile2}
             onChange={setFile2}
           />
         </div>

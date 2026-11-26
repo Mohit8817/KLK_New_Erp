@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -17,13 +17,20 @@ import {
   type JammuSwpPaymentRecord,
 } from './jammuSwpAdminService';
 
-const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
-
-/* ───────── Responsive page CSS (Exact Solar ERP reference) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP / Jammu SRT 70MW reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
+  }
+  .solar-erp-page .ax-btn--primary {
+    background-color: #2559bf !important;
+    border-color: #2559bf !important;
+    color: #ffffff !important;
+  }
+  .solar-erp-page .ax-btn--primary:hover {
+    background-color: #1d4699 !important;
+    border-color: #1d4699 !important;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -89,7 +96,7 @@ const PAGE_CSS = `
     flex-wrap: nowrap;
     gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster {
+  .solar-erp-page .ax-cluster {
     flex-wrap: nowrap !important;
     min-width: 0;
     justify-content: flex-end;
@@ -114,96 +121,14 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  .solar-erp-page .ax-table-wrap,
-  .solar-erp-page .ax-table-wrapper {
-    width: 100%;
-    max-width: 100%;
+  .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-  }
-  .solar-erp-page .ax-table { min-width: 950px; }
-
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0;
-      gap: 0;
-      padding: 0 8px !important;
-      justify-content: center;
-    }
-    .solar-erp-page .ax-export-toolbar__button svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
-  }
-
-  @media (max-width: 760px) {
-    .solar-erp-page {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: hidden;
-      box-sizing: border-box;
-    }
-    .solar-erp-page .ax-card__header {
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .solar-erp-page .ax-card__titles {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 100%;
-      max-width: 100%;
-    }
-    .solar-erp-page .ax-card__actions {
-      flex: 0 0 auto;
-      width: 100%;
-      margin-left: 0;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-    .solar-erp-page .ax-card__actions .ax-cluster {
-      flex-wrap: wrap !important;
-      width: 100%;
-      justify-content: flex-start;
-      gap: 8px;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] {
-      flex: 1 1 100%;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar,
-    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-      flex: 1 1 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      gap: 6px;
-    }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 11px;
-      height: 28px;
-      padding: 0 6px !important;
-    }
-    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+    width: 100%;
   }
 `;
 
-/* ───────── Overlay CSS (modals & lightbox) ───────── */
+/* ───────── Overlay CSS (modals) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -264,6 +189,64 @@ const X_ICON = (
   </svg>
 );
 
+/* ── Top KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'red';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#fff', border: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+/* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
   onClose,
@@ -271,7 +254,7 @@ function Modal({
   subtitle,
   children,
   footer,
-  maxWidth = 640,
+  maxWidth = 540,
 }: {
   open: boolean;
   onClose: () => void;
@@ -298,23 +281,17 @@ function Modal({
   return createPortal(
     <div className="ax-modal" role="dialog" aria-modal="true">
       <div className="ax-modal__backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-      >
+      <div ref={dialogRef} className="ax-modal__dialog" style={{ maxWidth }} tabIndex={-1}>
         <div className="ax-modal__header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#64748b' }}>{subtitle}</p>}
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
             {X_ICON}
           </button>
         </div>
-        <div className="ax-modal__body">
-          {children}
-        </div>
+        <div className="ax-modal__body">{children}</div>
         {footer && <div className="ax-modal__footer">{footer}</div>}
       </div>
     </div>,
@@ -322,314 +299,440 @@ function Modal({
   );
 }
 
-/* ───────── Top KPI Card Component ───────── */
-type KpiTone = 'accent' | 'emerald' | 'cyan' | 'amber';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
+/* ───────── Lightbox Modal ───────── */
+function LightboxModal({
+  open,
+  onClose,
+  url,
+  title,
 }: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: string;
+  open: boolean;
+  onClose: () => void;
+  url: string;
+  title: string;
 }) {
-  const t = TONE[tone];
-  return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#ffffff', border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {label}
-        </span>
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 10000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: isPdf ? 1000 : 800,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            <span style={{ fontSize: 11.5, color: '#64748b' }}>Invoice Inspection</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ fontSize: 12 }}
+            >
+              Open Original ↗
+            </a>
+            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+              {X_ICON}
+            </button>
+          </div>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', background: '#0b1120', minHeight: 460 }}>
+          {isPdf ? (
+            <iframe src={url} title={title} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8, background: '#fff' }} />
+          ) : (
+            <img src={url} alt={title} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 8 }} />
+          )}
+        </div>
       </div>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
+export interface JammuSwpPaymentTableItem {
+  id: number;
+  date: string;
+  vendorId?: number;
+  vendor: string;
+  sites: Array<{ id: number; farmer_name?: string }>;
+  invoice?: string;
+  amount: number;
+  remarks: string;
+  payAmount: number;
+  balanceAmount: number;
+  payDate: string;
+  payRemarks: string;
+  payStatus: number; // 0 = Pending, 1 = Complete, 2 = Partially
+  allpayment: any[];
+}
+
+const fmtCurrency = (val: number | string | undefined | null) =>
+  `₹${Number(val || 0).toLocaleString('en-IN')}`;
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 export function ViewSwpPayment() {
-  const [payments, setPayments] = useState<JammuSwpPaymentRecord[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [payments, setPayments] = useState<JammuSwpPaymentTableItem[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    complete: 0,
+    partially: 0,
+    pending: 0,
+  });
+  const [vendorList, setVendorList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  // Filters & Search
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [vendorFilter, setVendorFilter] = useState<string>('all');
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
+  // Filters
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [vendorFilter, setVendorFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Disburse modal
-  const [disburseModalOpen, setDisburseModalOpen] = useState<boolean>(false);
-  const [activePayment, setActivePayment] = useState<JammuSwpPaymentRecord | null>(null);
-  const [payAmount, setPayAmount] = useState<string>('');
-  const [utrNo, setUtrNo] = useState<string>('');
-  const [paymentDate, setPaymentDate] = useState<string>('');
-  const [paymentMode, setPaymentMode] = useState<string>('NEFT');
-  const [disburseRemarks, setDisburseRemarks] = useState<string>('');
-  const [disbursing, setDisbursing] = useState<boolean>(false);
+  // Disburse / Record Payment Modal
+  const [actionPayment, setActionPayment] = useState<JammuSwpPaymentTableItem | null>(null);
+  const [payAmountInput, setPayAmountInput] = useState<string>('');
+  const [payDateInput, setPayDateInput] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [payRemarksInput, setPayRemarksInput] = useState<string>('');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
 
-  // Details modal
-  const [detailModalOpen, setDetailModalOpen] = useState<boolean>(false);
-  const [detailItem, setDetailItem] = useState<JammuSwpPaymentRecord | null>(null);
+  // Installments and Sites View Modals & Lightbox
+  const [selectedSitesModal, setSelectedSitesModal] = useState<JammuSwpPaymentTableItem | null>(null);
+  const [selectedInstallmentsModal, setSelectedInstallmentsModal] = useState<JammuSwpPaymentTableItem | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
 
-  // Fetch payments
-  const loadData = useCallback(async () => {
+  const fetchPayments = useCallback(async () => {
     setLoading(true);
-    setApiError(null);
+    setErrorMsg('');
     try {
-      const res = await jammuAdminSwpService.getPayments();
-      setPayments(res.payments || []);
+      const res = await jammuAdminSwpService.getViewPayment({
+        from_date: fromDate || undefined,
+        to_date: toDate || undefined,
+        vendor: vendorFilter !== 'all' ? vendorFilter : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+      });
+
+      if (res.payment_detail) {
+        setStats({
+          total: Number(res.payment_detail.total || 0),
+          complete: Number(res.payment_detail.complete || 0),
+          partially: Number(res.payment_detail.partially || 0),
+          pending: Number(res.payment_detail.pending || 0),
+        });
+      }
+      if (Array.isArray(res.vendor)) {
+        setVendorList(res.vendor);
+      }
+
+      const rawPayments = Array.isArray(res.payments) ? res.payments : [];
+      const mapped: JammuSwpPaymentTableItem[] = rawPayments.map((p: any) => {
+        const installments = Array.isArray(p.allpayment) ? p.allpayment : [];
+        const totalPaid = installments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+        const claimAmt = Number(p.amount ?? p.claim_amount ?? 0);
+        const balance = Math.max(0, claimAmt - totalPaid);
+
+        const latestInst = installments.length > 0 ? installments[installments.length - 1] : null;
+
+        let st = Number(p.pay_status ?? p.status ?? 0);
+        if (installments.length > 0) {
+          if (balance === 0) st = 1; // Complete
+          else st = 2; // Partially
+        }
+
+        const rawInvoice = p.invoice || p.file || p.claim_invoice;
+
+        return {
+          id: p.id,
+          date: p.payment_date || p.date || p.created_at || '—',
+          vendorId: p.vendor_id,
+          vendor: p.vendor_name || p.vendor || (p.vendor_id ? `Vendor #${p.vendor_id}` : '—'),
+          sites: Array.isArray(p.sites) ? p.sites : [],
+          invoice: rawInvoice ? resolveJammuSwpMediaUrl(rawInvoice) : undefined,
+          amount: claimAmt,
+          remarks: p.remarks || '—',
+          payAmount: totalPaid,
+          balanceAmount: balance,
+          payDate: latestInst?.date || latestInst?.created_at || '—',
+          payRemarks: latestInst?.pay_remarks || '—',
+          payStatus: st,
+          allpayment: installments,
+        };
+      });
+
+      setPayments(mapped);
     } catch (err: any) {
-      setApiError(err.message || 'Failed to load payment disbursement records.');
+      console.error('Failed to fetch Jammu SWP payment records:', err);
+      setErrorMsg(err?.message || 'Failed to fetch Jammu SWP payment disbursement records.');
+      setPayments([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fromDate, toDate, vendorFilter, statusFilter]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchPayments();
+  }, [fetchPayments]);
 
-  // Open disburse modal
-  const openDisburseModal = (item: JammuSwpPaymentRecord) => {
-    setActivePayment(item);
-    setPayAmount(String(item.balance_amount || item.claim_amount));
-    setUtrNo('');
-    setPaymentDate(new Date().toISOString().split('T')[0]);
-    setPaymentMode('NEFT');
-    setDisburseRemarks('');
-    setDisburseModalOpen(true);
-  };
-
-  // Submit disbursement
-  const handleDisburseSubmit = async (e: React.FormEvent) => {
+  // Submit Payment / Disburse
+  const handlePaymentSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!activePayment) return;
-    if (!payAmount || Number(payAmount) <= 0) {
+    if (!actionPayment) return;
+
+    const amt = Number(payAmountInput);
+    if (!amt || amt <= 0) {
       alert('Please enter a valid disbursement amount.');
       return;
     }
-    if (!utrNo.trim()) {
-      alert('Please enter UTR or Transaction Reference number.');
+    if (amt > actionPayment.balanceAmount) {
+      alert(`Amount cannot exceed the balance amount of ${fmtCurrency(actionPayment.balanceAmount)}`);
       return;
     }
 
-    setDisbursing(true);
+    setSubmittingPayment(true);
     try {
-      const amountNum = Number(payAmount);
-      await jammuAdminSwpService.disbursePayment({
-        id: activePayment.id,
-        amount: amountNum,
-        utr_no: utrNo,
-        payment_date: paymentDate,
-        payment_mode: paymentMode,
-        remarks: disburseRemarks,
+      const res = await jammuAdminSwpService.updatePaymentStatus({
+        id: actionPayment.id,
+        amount: amt,
+        date: payDateInput,
+        remarks: payRemarksInput.trim() || undefined,
       });
 
-      // Update state
-      setPayments((prev) =>
-        prev.map((p) => {
-          if (p.id === activePayment.id) {
-            const newPaid = p.paid_amount + amountNum;
-            const newBal = Math.max(0, p.claim_amount - newPaid);
-            const newStatus = newBal === 0 ? 3 : 2;
-            return {
-              ...p,
-              paid_amount: newPaid,
-              balance_amount: newBal,
-              status: newStatus,
-              utr_no: utrNo,
-              payment_date: paymentDate,
-              payment_mode: paymentMode,
-            };
-          }
-          return p;
-        })
-      );
-      setDisburseModalOpen(false);
+      if (res.success || res.status) {
+        alert(res.message || 'Payment successfully recorded.');
+        setActionPayment(null);
+        setPayAmountInput('');
+        setPayRemarksInput('');
+        fetchPayments();
+      } else {
+        alert(res.message || 'Failed to record payment.');
+      }
     } catch (err: any) {
-      alert(err.message || 'Disbursement action failed.');
+      alert(err?.message || 'Error recording payment.');
     } finally {
-      setDisbursing(false);
+      setSubmittingPayment(false);
     }
   };
 
-  // Filtered dataset
+  // Local text search
   const filteredPayments = useMemo(() => {
-    return payments.filter((item) => {
-      const st = Number(item.status);
-      if (statusFilter === 'complete' && st !== 3) return false;
-      if (statusFilter === 'partial' && st !== 2) return false;
-      if (statusFilter === 'pending' && st !== 1) return false;
-
-      if (vendorFilter !== 'all') {
-        if ((item.vendor || '').toLowerCase() !== vendorFilter.toLowerCase()) return false;
-      }
-
-      if (fromDate && item.payment_date && item.payment_date < fromDate) return false;
-      if (toDate && item.payment_date && item.payment_date > toDate) return false;
-
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
-      return (
-        String(item.id).includes(q) ||
-        (item.vendor || '').toLowerCase().includes(q) ||
-        (item.claim_no || '').toLowerCase().includes(q) ||
-        (item.utr_no || '').toLowerCase().includes(q) ||
-        String(item.claim_amount).includes(q)
-      );
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return payments;
+    return payments.filter((p) => {
+      const hay = [
+        p.id,
+        p.vendor,
+        p.date,
+        p.amount,
+        p.remarks,
+        p.payRemarks,
+        p.payDate,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
     });
-  }, [payments, statusFilter, vendorFilter, fromDate, toDate, searchQuery]);
+  }, [payments, searchQuery]);
 
-  // Pagination
-  const pagination = usePagination({
-    totalItems: filteredPayments.length,
-    initialPageSize: 10,
-  });
+  const pagination = usePagination(filteredPayments, { initialPageSize: 50 });
 
-  const pagedPayments = useMemo(() => {
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    return filteredPayments.slice(start, start + pagination.pageSize);
-  }, [filteredPayments, pagination.currentPage, pagination.pageSize]);
+  useEffect(() => {
+    pagination.setPage(1);
+  }, [searchQuery]);
 
-  // KPI calculations
-  const totalAmountRequested = useMemo(
-    () => payments.reduce((acc, curr) => acc + (Number(curr.claim_amount) || 0), 0),
-    [payments]
-  );
-  const totalAmountDisbursed = useMemo(
-    () => payments.reduce((acc, curr) => acc + (Number(curr.paid_amount) || 0), 0),
-    [payments]
-  );
-  const totalBalanceDue = useMemo(
-    () => payments.reduce((acc, curr) => acc + (Number(curr.balance_amount) || 0), 0),
-    [payments]
-  );
-  const completedCount = payments.filter((p) => Number(p.status) === 3).length;
+  // Export columns
+  const exportCols: ExportColumn[] = [
+    { header: 'S.No.', accessor: 'id' },
+    { header: 'Date', accessor: 'date' },
+    { header: 'Vendor', accessor: 'vendor' },
+    { header: 'Sites Count', accessor: 'sitesCount' },
+    { header: 'Invoice', accessor: 'invoice' },
+    { header: 'Amount (₹)', accessor: 'amount' },
+    { header: 'Remarks', accessor: 'remarks' },
+    { header: 'Pay Amount (₹)', accessor: 'payAmount' },
+    { header: 'Balance Amount (₹)', accessor: 'balanceAmount' },
+    { header: 'Pay Date', accessor: 'payDate' },
+    { header: 'Pay Remarks', accessor: 'payRemarks' },
+    { header: 'Pay Status', accessor: 'payStatus' },
+  ];
 
-  const vendorOptions = useMemo(
-    () => [...new Set(payments.map((p) => p.vendor).filter(Boolean))].sort(),
-    [payments]
-  );
+  const exportDataFormatted = useMemo(() => {
+    return filteredPayments.map((p, idx) => ({
+      id: idx + 1,
+      date: p.date,
+      vendor: p.vendor,
+      sitesCount: p.sites.length,
+      invoice: p.invoice || '—',
+      amount: p.amount,
+      remarks: p.remarks,
+      payAmount: p.payAmount,
+      balanceAmount: p.balanceAmount,
+      payDate: p.payDate,
+      payRemarks: p.payRemarks,
+      payStatus: p.payStatus === 1 ? 'Complete' : p.payStatus === 2 ? 'Partially' : 'Pending',
+    }));
+  }, [filteredPayments]);
 
-  // Export Columns
-  const exportColumns: ExportColumn[] = useMemo(
-    () => [
-      { key: 'id', header: 'Payment ID' },
-      { key: 'vendor', header: 'Vendor Name' },
-      { key: 'claim_no', header: 'Claim Ref' },
-      { key: 'total_sites', header: 'Sites' },
-      { key: 'claim_amount', header: 'Claim Amount (₹)' },
-      { key: 'paid_amount', header: 'Paid Amount (₹)' },
-      { key: 'balance_amount', header: 'Balance (₹)' },
-      { key: 'utr_no', header: 'UTR / Ref' },
-      { key: 'payment_date', header: 'Payment Date' },
-      { key: 'payment_mode', header: 'Payment Mode' },
-    ],
-    []
-  );
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = async () => {
+    if (!exportDataFormatted.length) return;
+    const t = [
+      exportCols.map((c) => c.header).join('\t'),
+      ...exportDataFormatted.map((row) =>
+        exportCols.map((c) => String((row as any)[c.accessor as string] || '')).join('\t')
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert('Data copied to clipboard!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Data copied to clipboard!');
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!exportDataFormatted.length) return;
+    const out = [
+      exportCols.map((c) => c.header),
+      ...exportDataFormatted.map((row) =>
+        exportCols.map((c) => `"${String((row as any)[c.accessor as string] || '').replace(/"/g, '""')}"`)
+      ),
+    ];
+    downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `Jammu_SWP_Payments.csv`, 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!exportDataFormatted.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((row) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_SWP_Payments.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = () => {
+    if (!exportDataFormatted.length) return;
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8"/><title>Jammu SWP Payments</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Jammu SWP Payment & Disbursement Register</h1><table><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((r) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
 
   return (
     <div className="solar-erp-page ax-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <PageHead
-        eyebrow="Super Admin · Vendor Management"
-        title="Jammu SWP Payment & Disbursement Register"
-        subtitle="Tracking solar water pump milestone disbursements, RTGS/NEFT transaction references, and settlement accounts in Jammu & Kashmir."
+        title="Jammu SWP Installation - View Payment"
+        subtitle="Tracking solar water pump milestone disbursements, vendor bank settlements, and tranche disbursement logs across Jammu"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Jammu', href: '/vendor-management/jammu' },
+          { label: 'SWP', href: '/vendor-management/jammu/installation/swp/dashboard' },
+          { label: 'View Payment' },
+        ]}
       />
 
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" style={{ marginBottom: 16 }}>
-        <ol className="ax-breadcrumb" style={{ display: 'flex', gap: 6, listStyle: 'none', padding: 0, margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-          <li><Link to="/vendor-management" style={{ color: '#2563eb' }}>Home</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management" style={{ color: '#2563eb' }}>Vendor Management</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu" style={{ color: '#2563eb' }}>Jammu</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu/installation/swp/dashboard" style={{ color: '#2563eb' }}>SWP Installation</Link></li>
-          <li>/</li>
-          <li style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>View Payment</li>
-        </ol>
-      </nav>
-
-      {/* Error Alert */}
-      {apiError && (
+      {errorMsg && (
         <div className="ax-card" style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, marginBottom: 16, color: '#dc2626', fontSize: 13 }}>
-          {apiError}
+          {errorMsg}
         </div>
       )}
 
-      {/* 4 KPI Cards */}
+      {/* ── 4 Top KPI Metric Cards ── */}
       <div className="asw-cards-row">
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="2" y="5" width="20" height="14" rx="2" />
+              <line x1="2" y1="10" x2="22" y2="10" />
+            </svg>
+          }
           tone="accent"
-          label="Total Payment Request"
-          value={`₹${num(totalAmountRequested)}`}
-          sub="Sanctioned claim invoices"
+          label="Payment Request"
+          value={stats.total || payments.length}
+          sub="Sanctioned claim accounts"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
           tone="emerald"
-          label="Total Settled"
-          value={`₹${num(totalAmountDisbursed)}`}
-          sub={`${completedCount} claims paid in full`}
+          label="Payment Complete"
+          value={stats.complete || payments.filter((p) => p.payStatus === 1).length}
+          sub="Claims fully settled"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+          }
           tone="cyan"
-          label="Partially Paid"
-          value={payments.filter((p) => Number(p.status) === 2).length}
+          label="Payment Partially"
+          value={stats.partially || payments.filter((p) => p.payStatus === 2).length}
           sub="Tranche released in part"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
           tone="amber"
-          label="Balance Payable"
-          value={`₹${num(totalBalanceDue)}`}
-          sub="Awaiting disbursement"
+          label="Payment Pending"
+          value={stats.pending || payments.filter((p) => p.payStatus === 0).length}
+          sub="Awaiting first disbursement"
         />
       </div>
 
-      {/* Filter Card */}
+      {/* ── Filter Card ── */}
       <div className="asw-filter-card">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, alignItems: 'flex-end' }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Date From:</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>From Date:</label>
             <input
               type="date"
               value={fromDate}
@@ -639,7 +742,7 @@ export function ViewSwpPayment() {
             />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Date To:</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>To Date:</label>
             <input
               type="date"
               value={toDate}
@@ -649,164 +752,306 @@ export function ViewSwpPayment() {
             />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Filter by Vendor:</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Select Vendor:</label>
             <select
               value={vendorFilter}
               onChange={(e) => setVendorFilter(e.target.value)}
               className="ax-form-control"
               style={{ width: '100%', padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
             >
-              <option value="all">All Vendors ({vendorOptions.length})</option>
-              {vendorOptions.map((v) => (
-                <option key={v} value={v}>{v}</option>
+              <option value="all">All Vendors</option>
+              {vendorList.map((v) => (
+                <option key={v.id || v.inst_vendor} value={v.id || v.inst_vendor}>
+                  {v.name || v.vendor_name || `Vendor #${v.id}`}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Disbursement Status:</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Payment Status:</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="ax-form-control"
               style={{ width: '100%', padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
             >
-              <option value="all">All Statuses</option>
-              <option value="complete">Complete Paid</option>
-              <option value="partial">Partially Paid</option>
-              <option value="pending">Pending Payment</option>
+              <option value="all">All Status</option>
+              <option value="1">Complete (1)</option>
+              <option value="2">Partially (2)</option>
+              <option value="0">Pending (0)</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="ax-card" style={{ borderRadius: 12, background: '#ffffff', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div className="ax-card__header" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+      {/* ── Main Data Card ── */}
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h3 className="ax-card__title" style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-              Milestone Payment Disbursement Register
-            </h3>
-            <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
-              Showing {filteredPayments.length} vendor disbursement accounts across Jammu & Kashmir
-            </p>
+            <h2 className="ax-card__title">Milestone Payment Disbursement Register</h2>
+            <p className="ax-card__subtitle">Showing {filteredPayments.length} payment disbursement record(s)</p>
           </div>
-
           <div className="ax-card__actions">
-            <div className="ax-cluster">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              {searchQuery.trim() !== '' && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={() => setSearchQuery('')}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
               <SearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search vendor, UTR..."
+                placeholder="Search vendor, amount, remarks..."
+                size="sm"
               />
-
               <TableExportToolbar
-                data={filteredPayments}
-                columns={exportColumns}
-                filename="Jammu_SWP_Disbursements"
+                onCopy={copyToClipboard}
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
               />
             </div>
           </div>
         </div>
 
+        {/* ── Horizontally Scrollable Table with Exact 13 Columns ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontWeight: 700, textAlign: 'left' }}>
-                <th style={{ padding: '12px 16px' }}>Sr. No.</th>
-                <th style={{ padding: '12px 14px' }}>Vendor Name</th>
-                <th style={{ padding: '12px 14px' }}>Claim Ref</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Sites</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Claim Amount</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Paid Amount</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Balance Due</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>UTR / Txn Ref</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Actions</th>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1500 }}>
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th" style={{ width: 60, textAlign: 'center' }}>S.No.</th>
+                <th className="ax-table__th">Date</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Sites</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Invoice</th>
+                <th className="ax-table__th" style={{ textAlign: 'right' }}>Amount</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th" style={{ textAlign: 'right' }}>Pay Amount</th>
+                <th className="ax-table__th" style={{ textAlign: 'right' }}>Balance Amount</th>
+                <th className="ax-table__th">Pay Date</th>
+                <th className="ax-table__th">Pay Remarks</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Pay Status</th>
+                <th className="ax-table__th" style={{ width: 120, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={centerCell}>Loading disbursement records...</td>
+                  <td colSpan={13} style={centerCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading Jammu SWP disbursement records...</span>
+                    </div>
+                  </td>
                 </tr>
-              ) : pagedPayments.length === 0 ? (
+              ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={centerCell}>
-                    <TableEmptyState message="No payment records found matching criteria." />
+                  <td colSpan={13} style={centerCell}>
+                    <TableEmptyState title="No Payment Records Found" description="No disbursement records found matching criteria." />
                   </td>
                 </tr>
               ) : (
-                pagedPayments.map((p, idx) => {
-                  const st = Number(p.status);
-                  const isComplete = st === 3;
-                  const isPartial = st === 2;
-                  const isPending = st === 1;
+                pagination.paged.map((row, idx) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const isComplete = row.payStatus === 1;
+                  const isPartial = row.payStatus === 2;
 
                   return (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#64748b' }}>
-                        {(pagination.currentPage - 1) * pagination.pageSize + idx + 1}
+                    <tr key={row.id}>
+                      {/* 1. S.No. */}
+                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
+                        {globalIdx}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0f172a' }}>
-                        {p.vendor}
+
+                      {/* 2. Date */}
+                      <td className="ax-table__td">{row.date}</td>
+
+                      {/* 3. Vendor */}
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#0f172a' }}>
+                        {row.vendor}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: '#2563eb' }}>
-                        {p.claim_no || `CLM-${p.claim_id}`}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 600, color: '#334155' }}>
-                        {p.total_sites} Sites
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
-                        ₹{num(p.claim_amount)}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>
-                        ₹{num(p.paid_amount)}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: p.balance_amount > 0 ? '#dc2626' : '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
-                        ₹{num(p.balance_amount)}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 11, color: '#475569' }}>
-                        {p.utr_no ? (
-                          <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.utr_no}</span>
+
+                      {/* 4. Sites */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.sites.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSitesModal(row)}
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{
+                              color: '#2559bf',
+                              fontWeight: 700,
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: 9999,
+                              padding: '2px 10px',
+                            }}
+                            title="Click to view associated sites"
+                          >
+                            {row.sites.length} Site{row.sites.length === 1 ? '' : 's'} ↗
+                          </button>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>Pending</span>
+                          <span style={{ color: '#94a3b8' }}>—</span>
                         )}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+
+                      {/* 5. Invoice */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.invoice ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/\.(jpe?g|png|webp|gif|svg)$/i.test(row.invoice) ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightbox({ url: row.invoice!, title: `Claim #${row.id} Invoice` })}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: 6,
+                                  padding: 2,
+                                  background: '#fff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                }}
+                                title="Click to preview Invoice"
+                              >
+                                <img
+                                  src={row.invoice}
+                                  alt="Invoice"
+                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={row.invoice}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '5px 10px',
+                                  borderRadius: 6,
+                                  background: '#eff4fc',
+                                  color: '#2559bf',
+                                  textDecoration: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  border: '1px solid #bfd3f8',
+                                }}
+                                title="Open Invoice"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>Invoice</span>
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 6. Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>
+                        {fmtCurrency(row.amount)}
+                      </td>
+
+                      {/* 7. Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.remarks}>
+                          {row.remarks}
+                        </div>
+                      </td>
+
+                      {/* 8. Pay Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#059669' }}>
+                        {fmtCurrency(row.payAmount)}
+                      </td>
+
+                      {/* 9. Balance Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: row.balanceAmount > 0 ? '#dc2626' : '#64748b' }}>
+                        {fmtCurrency(row.balanceAmount)}
+                      </td>
+
+                      {/* 10. Pay Date */}
+                      <td className="ax-table__td">{row.payDate}</td>
+
+                      {/* 11. Pay Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.payRemarks}>
+                          {row.payRemarks}
+                        </div>
+                      </td>
+
+                      {/* 12. Pay Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <span
-                          className={`ax-badge ax-badge--soft ax-badge--${isComplete ? 'success' : isPartial ? 'info' : 'warning'}`}
                           style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
                             padding: '3px 10px',
                             borderRadius: 9999,
-                            fontSize: 11,
+                            fontSize: 11.5,
                             fontWeight: 700,
-                            background: isComplete ? '#ecfdf5' : isPartial ? '#eff6ff' : '#fef3c7',
-                            color: isComplete ? '#059669' : isPartial ? '#2563eb' : '#d97706',
+                            background:
+                              isComplete ? '#ecfdf5' : isPartial ? '#eff6ff' : '#fffbeb',
+                            color:
+                              isComplete ? '#059669' : isPartial ? '#2563eb' : '#d97706',
+                            border: `1px solid ${
+                              isComplete ? '#a7f3d0' : isPartial ? '#bfdbfe' : '#fde68a'
+                            }`,
                           }}
                         >
-                          {isComplete ? 'Complete' : isPartial ? 'Partially Paid' : 'Pending Payment'}
+                          {isComplete ? 'Complete' : isPartial ? 'Partially' : 'Pending'}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: 6 }}>
+
+                      {/* 13. Action */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                           {!isComplete && (
                             <button
                               type="button"
-                              className="ax-btn ax-btn--primary ax-btn--sm"
-                              onClick={() => openDisburseModal(p)}
-                              style={{ background: '#10b981', borderColor: '#10b981', padding: '4px 10px', fontSize: 11 }}
+                              onClick={() => {
+                                setActionPayment(row);
+                                setPayAmountInput(String(row.balanceAmount || row.amount));
+                                setPayDateInput(new Date().toISOString().slice(0, 10));
+                                setPayRemarksInput('');
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                fontSize: 11.5,
+                                fontWeight: 600,
+                                background: '#2559bf',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                              }}
                             >
                               Disburse
                             </button>
                           )}
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            onClick={() => { setDetailItem(p); setDetailModalOpen(true); }}
-                            style={{ padding: '4px 8px', fontSize: 11, color: '#2563eb' }}
-                          >
-                            Details
-                          </button>
+                          {row.allpayment.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedInstallmentsModal(row)}
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              style={{ fontSize: 11, color: '#2559bf', padding: '3px 6px' }}
+                              title="View past installments"
+                            >
+                              History ({row.allpayment.length})
+                            </button>
+                          )}
+                          {isComplete && row.allpayment.length === 0 && (
+                            <span style={{ fontSize: 12, color: '#64748b' }}>Settled</span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -817,194 +1062,215 @@ export function ViewSwpPayment() {
           </table>
         </div>
 
+        {/* ── Table Footer with Pagination ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={pagination.setCurrentPage}
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Disburse Payment Modal */}
+      {/* ── Disburse Payment Modal (#16) ── */}
       <Modal
-        open={disburseModalOpen}
-        onClose={() => setDisburseModalOpen(false)}
-        title="Execute Payment Disbursement"
-        subtitle={activePayment ? `Disbursement to ${activePayment.vendor} · Claim ${activePayment.claim_no}` : ''}
-        maxWidth={580}
-        footer={
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setDisburseModalOpen(false)}>
+        open={Boolean(actionPayment)}
+        onClose={() => {
+          if (!submittingPayment) {
+            setActionPayment(null);
+            setPayAmountInput('');
+            setPayRemarksInput('');
+          }
+        }}
+        title="Record Payment Disbursement"
+        subtitle={actionPayment ? `Vendor: ${actionPayment.vendor} · Balance Due: ${fmtCurrency(actionPayment.balanceAmount)}` : undefined}
+      >
+        <form onSubmit={handlePaymentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Disbursement Amount (₹) <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <input
+              type="number"
+              required
+              step="any"
+              min="1"
+              max={actionPayment?.balanceAmount}
+              value={payAmountInput}
+              onChange={(e) => setPayAmountInput(e.target.value)}
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            {actionPayment && (
+              <span style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, display: 'block' }}>
+                Remaining Balance: <strong>{fmtCurrency(actionPayment.balanceAmount)}</strong>
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Payment Date <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <input
+              type="date"
+              required
+              value={payDateInput}
+              onChange={(e) => setPayDateInput(e.target.value)}
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Payment Remarks / UTR Reference
+            </label>
+            <textarea
+              rows={3}
+              value={payRemarksInput}
+              onChange={(e) => setPayRemarksInput(e.target.value)}
+              placeholder="Enter transaction reference, RTGS/NEFT UTR, or bank disbursement notes..."
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button
+              type="button"
+              disabled={submittingPayment}
+              onClick={() => {
+                setActionPayment(null);
+                setPayAmountInput('');
+                setPayRemarksInput('');
+              }}
+              className="ax-btn ax-btn--secondary"
+              style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8 }}
+            >
               Cancel
             </button>
             <button
-              type="button"
+              type="submit"
+              disabled={submittingPayment}
               className="ax-btn ax-btn--primary"
-              disabled={disbursing}
-              onClick={handleDisburseSubmit}
-              style={{ background: '#10b981', borderColor: '#10b981' }}
+              style={{
+                padding: '8px 20px',
+                fontSize: 13,
+                borderRadius: 8,
+                background: '#2559bf',
+                color: '#fff',
+                fontWeight: 600,
+                border: 'none',
+                cursor: submittingPayment ? 'not-allowed' : 'pointer',
+              }}
             >
-              {disbursing ? 'Processing...' : 'Authorize Disbursement'}
+              {submittingPayment ? 'Recording...' : 'Authorize Disbursement'}
             </button>
           </div>
-        }
-      >
-        {activePayment && (
-          <form onSubmit={handleDisburseSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Total Claim</span>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>₹{num(activePayment.claim_amount)}</div>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Already Paid</span>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#10b981' }}>₹{num(activePayment.paid_amount)}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Balance Payable</span>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#dc2626' }}>₹{num(activePayment.balance_amount)}</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
-                  Disbursement Amount (₹): <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  className="ax-form-control"
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
-                  Payment Mode:
-                </label>
-                <select
-                  value={paymentMode}
-                  onChange={(e) => setPaymentMode(e.target.value)}
-                  className="ax-form-control"
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                >
-                  <option value="NEFT">NEFT Settlement</option>
-                  <option value="RTGS">RTGS Immediate</option>
-                  <option value="PFMS">PFMS Public Finance</option>
-                  <option value="Treasury">State Treasury Release</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
-                  UTR / Transaction Reference: <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SBIN924510098231"
-                  value={utrNo}
-                  onChange={(e) => setUtrNo(e.target.value)}
-                  className="ax-form-control"
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
-                  Disbursement Date:
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="ax-form-control"
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>
-                Disbursement Remarks / Voucher Notes:
-              </label>
-              <textarea
-                rows={2}
-                value={disburseRemarks}
-                onChange={(e) => setDisburseRemarks(e.target.value)}
-                placeholder="Bank advice reference or tranche notes..."
-                className="ax-form-control"
-                style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-              />
-            </div>
-          </form>
-        )}
+        </form>
       </Modal>
 
-      {/* Payment Details Modal */}
+      {/* ── Installment History Modal ── */}
       <Modal
-        open={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
-        title="Disbursement Account & Settlement Details"
-        subtitle={detailItem ? `${detailItem.vendor} · ${detailItem.claim_no}` : ''}
-        maxWidth={620}
+        open={Boolean(selectedInstallmentsModal)}
+        onClose={() => setSelectedInstallmentsModal(null)}
+        title={`Payment History · Claim #${selectedInstallmentsModal?.id}`}
+        subtitle={`Vendor: ${selectedInstallmentsModal?.vendor} · Total Claim: ${fmtCurrency(selectedInstallmentsModal?.amount)}`}
+        maxWidth={640}
       >
-        {detailItem && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Contractor Vendor</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailItem.vendor}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Claim Reference No</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>{detailItem.claim_no}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Claimed Amount</span>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>₹{num(detailItem.claim_amount)}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Paid Settlement</span>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#10b981' }}>₹{num(detailItem.paid_amount)}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Balance Payable</span>
-              <div style={{ fontSize: 14, fontWeight: 700, color: detailItem.balance_amount > 0 ? '#dc2626' : '#94a3b8' }}>
-                ₹{num(detailItem.balance_amount)}
-              </div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Sites Covered</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailItem.total_sites} Sites</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Bank UTR / Txn Reference</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>{detailItem.utr_no || 'Pending'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Payment Mode</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailItem.payment_mode || '—'}</div>
-            </div>
-            {detailItem.remarks && (
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Settlement Remarks</span>
-                <div style={{ fontSize: 12, color: '#334155', background: '#eff6ff', padding: '8px 12px', borderRadius: 6, border: '1px solid #bfdbfe', marginTop: 2 }}>
-                  {detailItem.remarks}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <div style={{ maxHeight: 350, overflowY: 'auto' }}>
+          <table className="ax-table" style={{ width: '100%', fontSize: 12.5, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '8px 12px' }}>Tranche</th>
+                <th style={{ padding: '8px 12px' }}>Date</th>
+                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Amount Paid</th>
+                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Balance Remaining</th>
+                <th style={{ padding: '8px 12px' }}>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(selectedInstallmentsModal?.allpayment || []).map((inst, i) => (
+                <tr key={inst.id || i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>Tranche #{i + 1}</td>
+                  <td style={{ padding: '8px 12px' }}>{inst.date || inst.created_at || '—'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#059669' }}>{fmtCurrency(inst.amount)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>{fmtCurrency(inst.balance)}</td>
+                  <td style={{ padding: '8px 12px', color: '#64748b' }}>{inst.pay_remarks || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Modal>
+
+      {/* ── Associated Sites Modal ── */}
+      <Modal
+        open={Boolean(selectedSitesModal)}
+        onClose={() => setSelectedSitesModal(null)}
+        title={`Claim #${selectedSitesModal?.id} Sites`}
+        subtitle={`Vendor: ${selectedSitesModal?.vendor} · ${selectedSitesModal?.sites.length || 0} Sites`}
+        maxWidth={600}
+      >
+        <div style={{ maxHeight: 350, overflowY: 'auto' }}>
+          <table className="ax-table" style={{ width: '100%', fontSize: 12.5, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '8px 12px' }}>#</th>
+                <th style={{ padding: '8px 12px' }}>Site ID</th>
+                <th style={{ padding: '8px 12px' }}>Farmer / Applicant Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(selectedSitesModal?.sites || []).map((s, i) => (
+                <tr key={s.id || i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>{i + 1}</td>
+                  <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>#{s.id}</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>{s.farmer_name || (s as any).f_farmer_name || `Farmer #${s.id}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+
+      {/* ── Media Lightbox Modal ── */}
+      {lightbox && (
+        <LightboxModal
+          open={Boolean(lightbox)}
+          onClose={() => setLightbox(null)}
+          url={lightbox.url}
+          title={lightbox.title}
+        />
+      )}
     </div>
   );
 }

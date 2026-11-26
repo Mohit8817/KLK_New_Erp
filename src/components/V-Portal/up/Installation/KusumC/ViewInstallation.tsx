@@ -1,54 +1,43 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   upInstallationService,
+  getUpMediaCandidates,
   resolveUpMediaUrl,
   type UpKusumCInstalledSiteItem,
   type UpKusumCInstalledCounts,
+  type UpKusumCClaimPaymentItem,
 } from '../../up-services';
 import {
-  TableExportToolbar,
-  SearchInput,
   Pagination,
+  usePagination,
+  SearchInput,
+  TableExportToolbar,
   TableEmptyState,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
   type ExportColumn,
 } from '../../../../../common';
 
-/* ───────── Constants ───────── */
 const DASH = '—';
 
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
-const footerStyle = {
-  borderTop: '1px solid var(--ax-border, #e2e8f0)',
-  padding: 'var(--ax-space-3) var(--ax-space-4)',
-  display: 'flex',
-  justifyContent: 'flex-start',
-  alignItems: 'center',
-  width: '100%',
-  boxSizing: 'border-box',
-} as const;
-const centerCell = { textAlign: 'center', padding: 24 } as const;
-const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
-
-/* ───────── Badges ───────── */
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 
 const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
-  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`} style={{ fontWeight: 600 }}>{children}</span>
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
 const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
@@ -60,107 +49,781 @@ const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
 
 const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string | null }) => {
   const s = Number(status ?? 0);
-  const hasDoc = Boolean(docUrl && docUrl !== DASH && docUrl.trim() !== '');
   if (s === 2) return <Badge tone="success">Approved</Badge>;
-  if (s === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (s === 1 || hasDoc) return <Badge tone="warning">Submitted (Pending)</Badge>;
-  return <Badge tone="neutral">Not Submitted</Badge>;
+  if (s === 3) return <Badge tone="danger">Reject</Badge>;
+  if (s === 1) return <Badge tone="info">Submitted</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
 };
 
-const ClaimBadge = ({ status }: { status?: number }) => {
-  const s = Number(status ?? 0);
-  if (s === 1 || s === 2) return <Badge tone="success">Approved</Badge>;
-  if (s === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (s === 1 || s === 3) return <Badge tone="info">Raised</Badge>;
-  return <Badge tone="neutral">Not Raised</Badge>;
-};
+/* ── Comprehensive Claim Status Resolution (0: Not Applicable, 1: Claim Applicable, 2: Approved, 3: Reject) ── */
+type ClaimStatusKey =
+  | 'not_applicable'
+  | 'claim_applicable'
+  | 'approved'
+  | 'rejected'
+  | 'paid'
+  | 'partially_paid';
 
-const PaymentBadge = ({ status }: { status?: number }) => {
-  const s = Number(status ?? 0);
-  if (s === 1) return <Badge tone="success">Paid</Badge>;
-  if (s === 2) return <Badge tone="warning">Partially</Badge>;
-  return <Badge tone="neutral">Pending</Badge>;
-};
-
-/* ───────── Helpers for Labels & Serialization ───────── */
-const formatModuleSerials = (val: any): string => {
-  if (!val) return DASH;
-  if (Array.isArray(val)) {
-    const joined = val.filter(Boolean).join(', ');
-    return joined || DASH;
-  }
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          const joined = parsed.filter(Boolean).join(', ');
-          return joined || DASH;
-        }
-      } catch {}
-    }
-    return trimmed || DASH;
-  }
-  return String(val);
-};
-
-/* ───────── Top KPI Card Component (matching Assam SWP Reference) ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
-}: {
-  icon: ReactNode;
-  tone: KpiTone;
+interface SiteClaimInfo {
+  key: ClaimStatusKey;
   label: string;
-  value: ReactNode;
-  sub?: string;
-}) {
-  const t = TONE[tone];
+  tone: Tone;
+  amount?: string | number | null;
+  claimId?: number;
+  remarks?: string | null;
+}
+
+const getVerifyVal = (row: UpKusumCInstalledSiteItem): number => {
+  const raw = row.inst_verify_status ?? row.verify_status ?? 0;
+  const str = String(raw).toLowerCase().trim();
+  if (str === 'approved' || Number(raw) === 1) return 1;
+  if (str === 'rejected' || str === 'reject' || Number(raw) === 2) return 2;
+  return 0;
+};
+
+const getRawDoc = (row: UpKusumCInstalledSiteItem): string | null => {
+  const raw =
+    row.inst_doc ||
+    row.hoc_photo ||
+    row.doc_hoc_photo ||
+    (row as any).doc_file ||
+    (row as any).document ||
+    null;
+  if (!raw || String(raw).trim() === '' || raw === DASH) return null;
+  return String(raw).trim();
+};
+
+function parseClaimSiteIds(raw: unknown): number[] {
+  if (Array.isArray(raw)) {
+    return raw.map((x) => Number(x)).filter((n) => !Number.isNaN(n) && n > 0);
+  }
+  if (typeof raw === 'number' && !Number.isNaN(raw)) return [raw];
+  if (typeof raw === 'string') {
+    const s = raw.trim();
+    if (!s) return [];
+    if (s.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) {
+          return parsed.map((x) => Number(x)).filter((n) => !Number.isNaN(n) && n > 0);
+        }
+      } catch {
+        // fallback below
+      }
+    }
+    return s
+      .replace(/^\[|\]$/g, '')
+      .split(',')
+      .map((p) => Number(p.replace(/["']/g, '').trim()))
+      .filter((n) => !Number.isNaN(n) && n > 0);
+  }
+  return [];
+}
+
+function resolveSiteClaimInfo(
+  row: UpKusumCInstalledSiteItem,
+  claimedSiteMap?: Map<number, UpKusumCClaimPaymentItem>,
+  _claimableSiteIds?: Set<number>
+): SiteClaimInfo {
+  const siteId = Number(row.id);
+  const claimRec = claimedSiteMap?.get(siteId);
+  const payStatus = Number(row.inst_pay_status ?? row.payment_status ?? row.pay_status ?? 0);
+  const rawClaimStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
+  const amount = (row as any).inst_claim_amount ?? claimRec?.amount ?? null;
+  const claimId = claimRec?.id;
+  const remarks = claimRec?.remarks || null;
+
+  // 1. Payment settlement states (highest priority)
+  if (payStatus === 1) {
+    return { key: 'paid', label: 'Paid', tone: 'success', amount, claimId, remarks };
+  }
+  if (payStatus === 2) {
+    return { key: 'partially_paid', label: 'Partially Paid', tone: 'warning', amount, claimId, remarks };
+  }
+
+  // 2. Claim verification states (from linked claim record)
+  if (claimRec) {
+    const cs = Number(claimRec.claim_status ?? 0);
+    if (cs === 2) {
+      return { key: 'approved', label: 'Approved', tone: 'success', amount, claimId, remarks };
+    }
+    if (cs === 3) {
+      return { key: 'rejected', label: 'Reject', tone: 'danger', amount, claimId, remarks };
+    }
+    if (cs === 1) {
+      return { key: 'claim_applicable', label: 'Claim Applicable', tone: 'info', amount, claimId, remarks };
+    }
+  }
+
+  // 3. User mapping for inst_claim_status:
+  // 0 -> Not Applicable
+  // 1 -> Claim Applicable
+  // 2 -> Approved
+  // 3 -> Reject
+  if (rawClaimStatus === 1) {
+    return { key: 'claim_applicable', label: 'Claim Applicable', tone: 'info', amount };
+  }
+  if (rawClaimStatus === 2) {
+    return { key: 'approved', label: 'Approved', tone: 'success', amount };
+  }
+  if (rawClaimStatus === 3) {
+    return { key: 'rejected', label: 'Reject', tone: 'danger', amount };
+  }
+  return { key: 'not_applicable', label: 'Not Applicable', tone: 'neutral', amount };
+}
+
+const ClaimStatusBadge = ({ info }: { info: SiteClaimInfo }) => (
+  <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+    <Badge tone={info.tone}>{info.label}</Badge>
+    {(info.claimId || info.amount) && (
+      <span
+        style={{
+          fontSize: 10.5,
+          color: 'var(--ax-text-muted, #64748b)',
+          fontFamily: 'var(--ax-font-mono)',
+        }}
+        title={info.remarks || undefined}
+      >
+        {info.claimId ? `#${info.claimId}` : ''}
+        {info.claimId && info.amount ? ' · ' : ''}
+        {info.amount ? `₹${Number(info.amount).toLocaleString('en-IN')}` : ''}
+      </span>
+    )}
+  </div>
+);
+
+/* ───────── Field Helpers ───────── */
+const getStateName = (row: UpKusumCInstalledSiteItem): string =>
+  (row.state || row.f_state || 'UP').trim();
+
+const getDistrict = (row: UpKusumCInstalledSiteItem): string =>
+  (row.f_district || row.district || '').trim();
+
+const getBlockVillage = (row: UpKusumCInstalledSiteItem): string => {
+  const blk = (row.f_block || row.block || row.f_tehsil || '').trim();
+  const vil = (row.f_village || row.village || '').trim();
+  if (blk && vil) return `${blk}, ${vil}`;
+  return blk || vil || '';
+};
+
+const getFarmerName = (row: UpKusumCInstalledSiteItem): string =>
+  (row.f_farmer_name || row.farmer_name || row.applicant_name || row.beneficiary_name || '').trim();
+
+const getFatherName = (row: UpKusumCInstalledSiteItem): string =>
+  (row.f_father_name || row.father_name || '').trim();
+
+const getContact = (row: UpKusumCInstalledSiteItem): string =>
+  (row.f_contact || row.contact_no || '').trim();
+
+export const parseModuleSerials = (val: any): string[] => {
+  if (val === null || val === undefined) return [];
+
+  // If array
+  if (Array.isArray(val)) {
+    return val
+      .flatMap((item) => parseModuleSerials(item))
+      .filter((s) => s && s !== DASH && s !== 'null' && s !== 'undefined');
+  }
+
+  // If object
+  if (typeof val === 'object') {
+    return Object.values(val)
+      .flatMap((item) => parseModuleSerials(item))
+      .filter((s) => s && s !== DASH && s !== 'null' && s !== 'undefined');
+  }
+
+  let str = String(val).trim();
+  if (!str || str === '[]' || str === '[""]' || str === "['']" || str === DASH) return [];
+
+  // Attempt JSON parse
+  if (
+    (str.startsWith('[') && str.endsWith(']')) ||
+    (str.startsWith('{') && str.endsWith('}')) ||
+    (str.startsWith('"') && str.endsWith('"'))
+  ) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed) || typeof parsed === 'object') {
+        const res = parseModuleSerials(parsed);
+        if (res.length > 0) return res;
+      } else if (typeof parsed === 'string' && parsed !== str) {
+        const res = parseModuleSerials(parsed);
+        if (res.length > 0) return res;
+      }
+    } catch {
+      // continue below
+    }
+  }
+
+  // Check PHP serialized: a:2:{i:0;s:5:"MOD01";i:1;s:5:"MOD02";}
+  if (/^a:\d+:{/.test(str)) {
+    const matches = str.match(/s:\d+:"([^"]+)";/g);
+    if (matches) {
+      return matches
+        .map((m) => m.replace(/^s:\d+:"([^"]+)";$/, '$1').trim())
+        .filter(Boolean);
+    }
+  }
+
+  // Strip wrapping brackets or quotes
+  str = str.replace(/^[\[{\("']+|[\]}\)"']+$/g, '');
+
+  // Split by common delimiters
+  const tokens = str.split(/[,;\n\r|\t]+|\s{2,}/);
+  const result: string[] = [];
+  for (const t of tokens) {
+    const clean = t.replace(/[\[\]"']/g, '').trim();
+    if (
+      clean &&
+      clean !== DASH &&
+      clean.toLowerCase() !== 'null' &&
+      clean.toLowerCase() !== 'undefined' &&
+      clean.toLowerCase() !== 'n/a' &&
+      clean.toLowerCase() !== 'na'
+    ) {
+      result.push(clean);
+    }
+  }
+  return result;
+};
+
+export const getRowModuleSerials = (row: any): string[] => {
+  if (!row || typeof row !== 'object') return [];
+  const candidates = [
+    row.module_serial_no,
+    row.module_serials,
+    row.module_no,
+    row.modules,
+    row.module_serial,
+    row.module_numbers,
+    row.mod_serial_no,
+    row.modules_serial_no,
+    row.solar_module_no,
+    row.panel_no,
+    row.serials,
+  ];
+
+  for (const c of candidates) {
+    if (c !== undefined && c !== null) {
+      const parsed = parseModuleSerials(c);
+      if (parsed.length > 0) return parsed;
+    }
+  }
+  return [];
+};
+
+const fmtSerials = (val?: any): string => {
+  if (!val) return DASH;
+  if (typeof val === 'object' && ('id' in val || 'applicant_name' in val || 'f_farmer_name' in val)) {
+    const list = getRowModuleSerials(val);
+    return list.length > 0 ? list.join(', ') : DASH;
+  }
+  const list = parseModuleSerials(val);
+  return list.length > 0 ? list.join(', ') : DASH;
+};
+
+/* ───────── Solar Module Serials Modal (Displays all module serial numbers) ───────── */
+interface ModuleSerialsModalProps {
+  serials: string[];
+  siteTitle?: string;
+  farmerName?: string;
+  siteId?: number | string;
+  pumpCapacity?: string;
+  district?: string;
+  onClose: () => void;
+}
+
+function ModuleSerialsModal({
+  serials,
+  siteTitle,
+  farmerName,
+  siteId,
+  pumpCapacity,
+  district,
+  onClose,
+}: ModuleSerialsModalProps) {
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filteredSerials = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return serials;
+    return serials.filter((s) => s.toLowerCase().includes(q));
+  }, [serials, search]);
+
+  const handleCopyAll = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    navigator.clipboard?.writeText(serials.join(', '));
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  };
+
+  const handleCopySingle = (sn: string, idx: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    navigator.clipboard?.writeText(sn);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 1500);
+  };
+
   return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="kusumc-module-serials-title"
+      dialogClass="ax-modal__dialog--md"
+      dialogStyle={{ maxWidth: 640 }}
+    >
+      <div
+        className="ax-modal__header"
+        style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <h3
+              id="kusumc-module-serials-title"
+              style={{
+                margin: 0,
+                fontSize: 17,
+                fontWeight: 700,
+                color: 'var(--ax-text-strong, #0f172a)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span>Solar Module Serials</span>
+            </h3>
+            <span
+              className="ax-badge ax-badge--soft ax-badge--primary"
+              style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 9999 }}
+            >
+              {serials.length} {serials.length === 1 ? 'Module' : 'Modules'}
+            </span>
+          </div>
+
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 12,
+              color: 'var(--ax-text-muted, #64748b)',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '6px 12px',
+              alignItems: 'center',
+            }}
+          >
+            {farmerName && (
+              <span>
+                Farmer: <b style={{ color: 'var(--ax-text-strong, #1e293b)' }}>{farmerName}</b>
+              </span>
+            )}
+            {siteId !== undefined && siteId !== null && siteId !== '' && (
+              <span>
+                Site ID: <b style={{ color: 'var(--ax-text-strong, #1e293b)' }}>#{siteId}</b>
+              </span>
+            )}
+            {district && district !== DASH && <span>District: <b>{district}</b></span>}
+            {pumpCapacity && pumpCapacity !== DASH && <span>Capacity: <b>{pumpCapacity}</b></span>}
+            {!farmerName && !siteId && siteTitle && <span>{siteTitle}</span>}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="ax-modal__close"
+          onClick={onClose}
+          aria-label="Close dialog"
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
+            background: 'transparent',
+            border: 'none',
+            fontSize: 20,
+            cursor: 'pointer',
+            color: '#64748b',
+            padding: 4,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
+            borderRadius: 6,
           }}
         >
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-          {label}
-        </span>
+          ✕
+        </button>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
-        {value}
+
+      <div className="ax-modal__body" style={{ padding: '16px 20px', maxHeight: '60vh', overflowY: 'auto' }}>
+        {serials.length > 4 && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Search module serial number…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ax-input"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  fontSize: 13,
+                  borderRadius: 6,
+                  border: '1px solid var(--ax-border, #cbd5e1)',
+                  background: '#ffffff',
+                }}
+              />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 14,
+                  height: 14,
+                  color: '#94a3b8',
+                }}
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#94a3b8',
+                    fontSize: 14,
+                    padding: 2,
+                  }}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+            gap: 8,
+          }}
+        >
+          {filteredSerials.map((sn, idx) => (
+            <div
+              key={`${sn}-${idx}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 10px',
+                borderRadius: 6,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#64748b',
+                    background: '#e2e8f0',
+                    borderRadius: 4,
+                    padding: '2px 5px',
+                    fontFamily: 'monospace',
+                    flexShrink: 0,
+                  }}
+                >
+                  #{idx + 1}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--ax-font-mono, monospace)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#0f172a',
+                    wordBreak: 'break-all',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {sn}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => handleCopySingle(sn, idx, e)}
+                style={{
+                  background: copiedIdx === idx ? '#dcfce7' : '#ffffff',
+                  border: `1px solid ${copiedIdx === idx ? '#86efac' : '#cbd5e1'}`,
+                  color: copiedIdx === idx ? '#15803d' : '#475569',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: '3px 7px',
+                  borderRadius: 4,
+                  marginLeft: 8,
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+                title="Copy serial number"
+              >
+                {copiedIdx === idx ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+          ))}
+          {filteredSerials.length === 0 && (
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                padding: '24px 16px',
+                textAlign: 'center',
+                color: '#64748b',
+                background: '#f8fafc',
+                borderRadius: 8,
+                border: '1px dashed #cbd5e1',
+                fontSize: 13,
+              }}
+            >
+              No module serials match "<b>{search}</b>"
+            </div>
+          )}
+        </div>
       </div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>}
-    </div>
+
+      <div
+        className="ax-modal__footer"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px 20px',
+          borderTop: '1px solid var(--ax-border, #e2e8f0)',
+          background: '#f8fafc',
+          borderBottomLeftRadius: 'inherit',
+          borderBottomRightRadius: 'inherit',
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleCopyAll}
+          className="ax-btn ax-btn--secondary ax-btn--sm"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          {copiedAll ? (
+            <span style={{ color: '#16a34a', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              ✓ Copied All ({serials.length})
+            </span>
+          ) : (
+            <>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              <span>Copy All ({serials.length})</span>
+            </>
+          )}
+        </button>
+
+        <button type="button" onClick={onClose} className="ax-btn ax-btn--primary ax-btn--sm">
+          Close
+        </button>
+      </div>
+    </Modal>
   );
 }
 
-/* ───────── Reusable Modal ───────── */
+function ModuleSerialsCell({
+  serials,
+  siteTitle,
+  farmerName,
+  siteId,
+  pumpCapacity,
+  district,
+}: {
+  serials: string[];
+  siteTitle?: string;
+  farmerName?: string;
+  siteId?: number | string;
+  pumpCapacity?: string;
+  district?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  if (!serials || serials.length === 0) {
+    return <span style={{ color: 'var(--ax-text-subtle, #94a3b8)' }}>{DASH}</span>;
+  }
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(serials.join(', '));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const maxInitial = 2;
+  const hasMore = serials.length > maxInitial;
+  const visible = serials.slice(0, maxInitial);
+
+  return (
+    <>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: 4,
+          minWidth: 140,
+          maxWidth: 260,
+        }}
+        title={serials.join(', ')}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          {visible.map((sn, idx) => (
+            <span
+              key={`${sn}-${idx}`}
+              onClick={() => setModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '2px 6px',
+                borderRadius: 4,
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                fontFamily: 'var(--ax-font-mono, monospace)',
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#0f172a',
+                lineHeight: 1.3,
+                wordBreak: 'break-all',
+                cursor: 'pointer',
+              }}
+              title="Click to view all module serials"
+            >
+              {sn}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11, marginTop: 1 }}>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setModalOpen(true);
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                color: 'var(--asw-primary, #2563eb)',
+                fontWeight: 600,
+                fontSize: 11,
+                cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+              title="Click to view all module serials in modal"
+            >
+              +{serials.length - maxInitial} more
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleCopy}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              color: copied ? '#16a34a' : 'var(--ax-text-muted, #64748b)',
+              fontSize: 11,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+            title="Copy module serial numbers"
+          >
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
+          {!hasMore && serials.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setModalOpen(true);
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                color: 'var(--ax-text-muted, #64748b)',
+                fontSize: 11,
+                cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+              title="View all serial details in modal"
+            >
+              View
+            </button>
+          )}
+        </div>
+      </div>
+
+      {modalOpen && (
+        <ModuleSerialsModal
+          serials={serials}
+          siteTitle={siteTitle}
+          farmerName={farmerName}
+          siteId={siteId}
+          pumpCapacity={pumpCapacity}
+          district={district}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/* ───────── Modal (Exact Assam SWP Design System Dialog) ───────── */
+const X_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
 function Modal({
   open,
   onClose,
@@ -170,6 +833,7 @@ function Modal({
   centered = true,
   dialogClass = '',
   dialogStyle,
+  modalStyle,
   closeOnBackdrop = true,
   children,
 }: {
@@ -181,6 +845,7 @@ function Modal({
   centered?: boolean;
   dialogClass?: string;
   dialogStyle?: CSSProperties;
+  modalStyle?: CSSProperties;
   closeOnBackdrop?: boolean;
   children: ReactNode;
 }) {
@@ -204,9 +869,14 @@ function Modal({
       aria-modal="true"
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
+      style={modalStyle}
     >
       <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`} style={dialogStyle}>
+      <div
+        ref={dialogRef}
+        className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}
+        style={dialogStyle}
+      >
         {children}
       </div>
     </div>,
@@ -214,7 +884,7 @@ function Modal({
   );
 }
 
-/* ───────── Image Preview Modal (Interactive Zoom — Matching Assam Reference) ───────── */
+/* ───────── Image Preview Modal (Interactive Zoom) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
@@ -230,14 +900,20 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   return (
     <Modal open onClose={onClose} labelledBy="kusumc-preview-title" dialogClass="ax-modal__dialog--lg">
       <div className="ax-modal__header">
-        <h2 className="ax-modal__title" id="kusumc-preview-title">{title || 'Media Preview'}</h2>
-        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+        <h2 className="ax-modal__title" id="kusumc-preview-title">
+          {title || 'Media Preview'}
+        </h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+          {X_ICON}
+        </button>
       </div>
 
       <div className="ax-modal__body" style={{ padding: 0 }}>
         <div className="ula-m-stage">
           {status === 'loading' && (
-            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
+            <div className="ula-m-stage__msg">
+              <span className="ax-spinner" /> Loading image…
+            </div>
           )}
           {status === 'error' && (
             <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
@@ -262,20 +938,91 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
 
       <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
         <div className="ula-m-zoom" role="group" aria-label="Zoom">
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <button
+            type="button"
+            className="ax-btn ax-btn--secondary"
+            onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
+            disabled={zoomIdx === 0}
+            aria-label="Zoom out"
+          >
+            −
+          </button>
           <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+          <button
+            type="button"
+            className="ax-btn ax-btn--secondary"
+            onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+            disabled={zoomIdx === ZOOM_STEPS.length - 1}
+            aria-label="Zoom in"
+          >
+            +
+          </button>
         </div>
         <div className="ula-m-zoom">
-          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
-          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">
+            Open in new tab ↗
+          </a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </Modal>
   );
 }
 
-/* ───────── Interactive Image Thumbnail (Strict Square Corners) ───────── */
+/* ── Modern Image Placeholder & Interactive Thumbnail ── */
+function ImagePlaceholder({
+  size = 36,
+  label = 'No photograph uploaded',
+}: {
+  size?: number;
+  label?: string;
+}) {
+  return (
+    <div
+      className="ax-img-placeholder"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        border: '1px dashed var(--ax-border, #cbd5e1)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--ax-text-muted, #94a3b8)',
+        flexShrink: 0,
+        cursor: 'default',
+        userSelect: 'none',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        transition: 'all 0.18s ease',
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={Math.max(14, Math.round(size * 0.48))}
+        height={Math.max(14, Math.round(size * 0.48))}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ opacity: 0.7 }}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </div>
+  );
+}
+
+/* ── Interactive Image Thumbnail (Modern Polished with Fallback Placeholder) ── */
 function InstallationThumbnail({
   src,
   alt,
@@ -287,67 +1034,93 @@ function InstallationThumbnail({
   onPreview: (url: string, title: string) => void;
   size?: number;
 }) {
-  const resolvedUrl = useMemo(() => (src ? resolveUpMediaUrl(src) : null), [src]);
+  const candidates = useMemo(() => (src ? getUpMediaCandidates(src) : []), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    setCandidateIdx(0);
     setFailed(false);
   }, [src]);
 
-  if (!src || failed || !resolvedUrl) {
-    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <ImagePlaceholder size={size} label={`No image — ${alt}`} />;
   }
 
+  const currentUrl = candidates[candidateIdx];
+
   return (
-    <img
-      src={resolvedUrl}
-      alt={alt}
+    <div
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         width: size,
         height: size,
-        borderRadius: 0,
-        objectFit: 'cover',
-        cursor: 'zoom-in',
-        border: '1px solid var(--ax-border, #e2e8f0)',
-        background: 'var(--ax-surface-subtle, #f8fafc)',
-        display: 'inline-block',
         flexShrink: 0,
+        margin: '0 auto',
       }}
-      onError={() => setFailed(true)}
-      onClick={(e) => {
-        e.stopPropagation();
-        onPreview(resolvedUrl, alt);
-      }}
-      title="Click to preview"
-    />
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.14)';
+          e.currentTarget.style.borderColor = 'var(--ax-primary-default, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => {
+          if (candidateIdx + 1 < candidates.length) {
+            setCandidateIdx((prev) => prev + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
   );
 }
 
-/* ───────── Action Dropdown (Portal rendered to prevent table clipping) ───────── */
-const MENU_W = 185;
+/* ── Action Dropdown (Portal to <body> so the table never clips it — Exact Assam SWP Pattern) ── */
+const MENU_W = 170;
 
 function RowActionDropdown({
+  canEdit,
+  canSubmitDoc,
   onEdit,
   onSubmitDoc,
-  canEdit = true,
-  canUploadDoc = true,
-  isDocSubmitted = false,
-  isDocRejected = false,
 }: {
+  canEdit: boolean;
+  canSubmitDoc: boolean;
   onEdit: () => void;
   onSubmitDoc: () => void;
-  canEdit?: boolean;
-  canUploadDoc?: boolean;
-  isDocSubmitted?: boolean;
-  isDocRejected?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const menuItemsCount = (canEdit ? 1 : 0) + (canUploadDoc ? 1 : 0);
-  const menuH = Math.max(40, menuItemsCount * 38 + 12);
+  const itemCount = (canEdit ? 1 : 0) + (canSubmitDoc ? 1 : 0);
+  const menuH = Math.max(42, itemCount * 36 + 8);
 
   const toggle = () => {
     if (open) {
@@ -387,19 +1160,15 @@ function RowActionDropdown({
     };
   }, [open]);
 
-  if (!canEdit && !canUploadDoc) return null;
-
   return (
     <>
       <button
         type="button"
         ref={btnRef}
-        className="ax-btn ax-btn--secondary ax-btn--xs ula-action-btn"
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
-        style={{ padding: '3px 8px', fontSize: 11 }}
-        title="More Actions"
       >
         <span>Action</span>
         <svg
@@ -409,16 +1178,27 @@ function RowActionDropdown({
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ width: 11, height: 11, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
           aria-hidden="true"
         >
           <path d="M6 9l6 6l6 -6" />
         </svg>
       </button>
 
-      {open && pos &&
+      {open &&
+        pos &&
         createPortal(
-          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W, zIndex: 10000 }}>
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{ top: pos.top, left: pos.left, width: MENU_W }}
+          >
             {canEdit && (
               <button
                 type="button"
@@ -429,10 +1209,10 @@ function RowActionDropdown({
                   onEdit();
                 }}
               >
-                ✏️ Edit Installation
+                Edit Details
               </button>
             )}
-            {canUploadDoc && (
+            {canSubmitDoc && (
               <button
                 type="button"
                 className="ula-menu__item"
@@ -442,7 +1222,7 @@ function RowActionDropdown({
                   onSubmitDoc();
                 }}
               >
-                {isDocRejected ? '⚠️ Re-upload HOC' : isDocSubmitted ? '📄 Update HOC' : '📄 Submit HOC Document'}
+                Submit Document
               </button>
             )}
           </div>,
@@ -452,7 +1232,7 @@ function RowActionDropdown({
   );
 }
 
-/* ───────── Overlay CSS (modals + dropdown) ───────── */
+/* ───────── Overlay CSS (Exact Assam SWP Design System) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -499,20 +1279,6 @@ const OVERLAY_CSS = `
     display: flex; align-items: center; justify-content: flex-end; gap: 10px;
   }
 
-  .ax-modal img { border-radius: 0 !important; }
-
-  .ula-m-stage {
-    position: relative; display: flex; overflow: auto;
-    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
-  }
-  .ula-m-stage__msg {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
-    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
-  }
-  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
-  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
-
-  /* Modern form dropzones inside modals */
   .ax-modern-field {
     display: flex; flex-direction: column; gap: 6px;
   }
@@ -549,6 +1315,22 @@ const OVERLAY_CSS = `
     background: #dcfce7; display: flex; align-items: center; justify-content: center;
   }
 
+  .ax-modal img { border-radius: 0 !important; }
+
+  .ula-m-stage {
+    position: relative; display: flex; overflow: auto;
+    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
+  }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
+  .ula-m-full { grid-column: 1 / -1; }
+
   .ula-action-btn {
     display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
     font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
@@ -565,9 +1347,14 @@ const OVERLAY_CSS = `
     color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
   }
   .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
+
+  @media (max-width: 560px) {
+    .ula-m-grid { grid-template-columns: 1fr; }
+    .ula-m-stage { height: 56vh; }
+  }
 `;
 
-/* ───────── Responsive Page CSS ───────── */
+/* ───────── Responsive Page CSS (Exact Assam SWP Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -581,35 +1368,23 @@ const PAGE_CSS = `
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
   .solar-erp-page img,
+  .solar-erp-page .ula-table--wide img,
   .solar-erp-page .ax-card img {
     border-radius: 0 !important;
   }
 
-  .solar-erp-page .kusumc-clickable-row {
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-  }
-  .solar-erp-page .kusumc-clickable-row:hover td {
-    background-color: rgba(37, 99, 235, 0.05) !important;
-  }
-
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: var(--ax-space-3, 12px);
-    margin-bottom: var(--ax-space-4, 16px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
   }
-  @media (max-width: 1200px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-  @media (max-width: 768px) {
+  @media (max-width: 992px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
@@ -655,8 +1430,8 @@ const PAGE_CSS = `
   .solar-erp-page .ax-card__actions .ax-search,
   .solar-erp-page .ax-card__actions [class*="search"] {
     flex: 1 1 140px;
-    min-width: 200px;
-    max-width: 240px;
+    min-width: 190px;
+    max-width: 230px;
   }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
@@ -674,10 +1449,9 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    width: 100%;
   }
 
-  @media (max-width: 1100px) {
+  @media (max-width: 1200px) {
     .solar-erp-page .ax-export-toolbar__button {
       font-size: 0;
       gap: 0;
@@ -690,10 +1464,10 @@ const PAGE_CSS = `
       flex-shrink: 0;
     }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 170px; }
   }
 
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .solar-erp-page .ax-card__header {
       flex-direction: column;
       flex-wrap: nowrap;
@@ -705,6 +1479,11 @@ const PAGE_CSS = `
       min-width: 0;
       width: 100%;
       max-width: 100%;
+    }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
     }
     .solar-erp-page .ax-card__actions {
       flex: 0 0 auto;
@@ -740,362 +1519,556 @@ const PAGE_CSS = `
       padding: 0 8px !important;
     }
   }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
 `;
 
-// Fallback Mock Data for Kusum-C Installed Sites
-const FALLBACK_KUSUM_C_INSTALLED_SITES: UpKusumCInstalledSiteItem[] = [
-  {
-    id: 101,
-    company_id: 'UP-KC-2026-01',
-    state: 'UP',
-    district: 'Varanasi',
-    block: 'Pindra',
-    village: 'Anei',
-    f_farmer_name: 'Austin Simmons',
-    f_father_name: 'Robert Simmons',
-    f_contact: '9876543210',
-    pump_capacity: '3 HP',
-    vfd_no: 'VFD-KC-3081',
-    Inverter_no: 'INV-KC-7721',
-    module_serial_no: ['MOD-540-001', 'MOD-540-002', 'MOD-540-003', 'MOD-540-004'],
-    module_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600',
-    inverter_vfd_image: 'https://images.unsplash.com/photo-1542332213-9b5a5a3fad35?w=600',
-    running_water_image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600',
-    inst_doc: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
-    latitude: '25.3176',
-    longitude: '82.9739',
-    remarks: 'Installation completed with 3HP submersible pump',
-    inst_verify_status: 1, // Approved
-    inst_verify_remarks: 'All equipment serials verified on site',
-    inst_doc_status: 2, // Approved
-    inst_claim_status: 1, // Approved
-    inst_pay_status: 1, // Paid
-  },
-  {
-    id: 102,
-    company_id: 'UP-KC-2026-02',
-    state: 'UP',
-    district: 'Varanasi',
-    block: 'Pindra',
-    village: 'Kharawan',
-    f_farmer_name: 'Kim Small',
-    f_father_name: 'James Small',
-    f_contact: '9812345678',
-    pump_capacity: '3 HP',
-    vfd_no: 'VFD-KC-3082',
-    Inverter_no: 'INV-KC-7722',
-    module_serial_no: ['MOD-540-005', 'MOD-540-006', 'MOD-540-007', 'MOD-540-008'],
-    module_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600',
-    inverter_vfd_image: 'https://images.unsplash.com/photo-1542332213-9b5a5a3fad35?w=600',
-    running_water_image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600',
-    inst_doc: null,
-    latitude: '25.3321',
-    longitude: '82.9542',
-    remarks: 'Foundation completed, running water verified',
-    inst_verify_status: 0, // Pending
-    inst_doc_status: 0, // Pending
-    inst_claim_status: 0, // Not raised
-    inst_pay_status: 0, // Pending
-  },
-  {
-    id: 103,
-    company_id: 'UP-KC-2026-03',
-    state: 'UP',
-    district: 'Lucknow',
-    block: 'Bakshi Ka Talab',
-    village: 'Bhaisamau',
-    f_farmer_name: 'Maheshwar Prasad',
-    f_father_name: 'Ram Dayal Prasad',
-    f_contact: '9765432109',
-    pump_capacity: '5 HP',
-    vfd_no: 'VFD-KC-5011',
-    Inverter_no: 'INV-KC-9901',
-    module_serial_no: ['MOD-540-009', 'MOD-540-010', 'MOD-540-011', 'MOD-540-012', 'MOD-540-013'],
-    module_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600',
-    inverter_vfd_image: 'https://images.unsplash.com/photo-1542332213-9b5a5a3fad35?w=600',
-    running_water_image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600',
-    inst_doc: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
-    latitude: '26.9625',
-    longitude: '80.9288',
-    remarks: 'High discharge solar pump system installed',
-    inst_verify_status: 2, // Rejected
-    inst_verify_remarks: 'Module serial photo requires higher clarity',
-    inst_doc_status: 1, // Submitted
-    inst_claim_status: 0,
-    inst_pay_status: 0,
-  },
+const actionsRowStyle = {
+  gap: 'var(--ax-space-2)',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  width: '100%',
+} as const;
+
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+
+const centerCell = { textAlign: 'center', padding: 24 } as const;
+const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
+
+/* ── Top KPI Card Component (Exact Assam SWP Design) ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--ax-text-muted)',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 800,
+          color: t.fg,
+          marginTop: 4,
+          fontFamily: 'var(--ax-font-display)',
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+    </div>
+  );
+}
+
+/* ── Table Headers (Exact Assam SWP Column Pattern for UP Kusum-C) ── */
+const COMMON_HEADERS = [
+  'Sr. No.',
+  'State',
+  'District',
+  'Block / Village',
+  'Farmer Name',
+  'Father Name',
+  'Contact Number',
+  'Customer No.',
+  'Pump Capacity',
+  'Inverter No.',
+  'VFD No.',
+  'Module Serials',
+  'Module Photo',
+  'Inverter & VFD Photo',
+  'Running Water Photo',
+  'Latitude',
+  'Longitude',
+  'Remark',
+  'Verify Status',
+  'Document Status',
+  'Claim Status',
+  'Action',
 ];
+
+const UPLOADED_DOCS_KEY = 'up_kusumc_uploaded_docs';
 
 export function UP_Installation_KusumC_ViewInstallation() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [sites, setSites] = useState<UpKusumCInstalledSiteItem[]>([]);
-  const [counts, setCounts] = useState<UpKusumCInstalledCounts>({ total: 0, complete: 0, pending: 0 });
+  const [installDetail, setInstallDetail] = useState<UpKusumCInstalledCounts | null>(null);
+  const [assignCount, setAssignCount] = useState<number>(0);
+  const [claimPayments, setClaimPayments] = useState<UpKusumCClaimPaymentItem[]>([]);
+  const [claimableSiteIds, setClaimableSiteIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  // Filters & Pagination
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedDistrict, setSelectedDistrict] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [search, setSearch] = useState(() => searchParams.get('district') || searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
+  const [claimFilter, setClaimFilter] = useState<'all' | ClaimStatusKey>('all');
 
-  // Modals
+  // Photo preview modal (interactive lightbox)
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
-  const [viewDetailModal, setViewDetailModal] = useState<UpKusumCInstalledSiteItem | null>(null);
-  const [editModalItem, setEditModalItem] = useState<UpKusumCInstalledSiteItem | null>(null);
-  const [docModalItem, setDocModalItem] = useState<UpKusumCInstalledSiteItem | null>(null);
+  const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
+  const closePreview = useCallback(() => setPreview(null), []);
 
-  const openPreview = (url: string, title: string) => setPreview({ url, title });
-  const closePreview = () => setPreview(null);
-
-  const handleRowClick = useCallback((e: React.MouseEvent, row: UpKusumCInstalledSiteItem) => {
-    const target = e.target as HTMLElement;
-    // Don't open detail modal if user clicked an interactive child (button, link, input, select, image thumbnail, etc.)
-    if (target.closest('button, a, input, select, textarea, img, [data-interactive="true"]')) {
-      return;
-    }
-    setViewDetailModal(row);
+  // Document submit modal (HOC upload)
+  const [docModalSite, setDocModalSite] = useState<UpKusumCInstalledSiteItem | null>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docDate, setDocDate] = useState('');
+  const [docRemarks, setDocRemarks] = useState('');
+  const [docSubmitting, setDocSubmitting] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const docFileRef = useRef<HTMLInputElement>(null);
+  const closeDocModal = useCallback(() => {
+    setDocModalSite(null);
+    setDocFile(null);
+    setDocDate('');
+    setDocRemarks('');
+    setDocError(null);
+    if (docFileRef.current) docFileRef.current.value = '';
   }, []);
 
+  // Toast / feedback message
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = window.setTimeout(() => setToastMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [toastMsg]);
+
+  const getUploadedDocsFromStorage = useCallback(
+    (): Record<string, { id: string; fileName: string; uploadedAt: string; status: number }> => {
+      try {
+        const raw = localStorage.getItem(UPLOADED_DOCS_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch {
+        // ignore storage errors
+      }
+      return {};
+    },
+    []
+  );
+
+  const saveUploadedDocToStorage = useCallback(
+    (item: { id: string; fileName: string; uploadedAt: string; status: number }) => {
+      try {
+        const map = getUploadedDocsFromStorage();
+        map[item.id] = item;
+        localStorage.setItem(UPLOADED_DOCS_KEY, JSON.stringify(map));
+      } catch {
+        // ignore storage errors
+      }
+    },
+    [getUploadedDocsFromStorage]
+  );
+
+  // Load real installation sites + claims status (read-only) from UP Kusum-C APIs
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await upInstallationService.getKusumCInstalledSites();
-      if (res && res.sites && res.sites.length > 0) {
-        setSites(res.sites);
-        setCounts(res.install_detail || { total: res.sites.length, complete: res.sites.length, pending: 0 });
-      } else {
-        setSites(FALLBACK_KUSUM_C_INSTALLED_SITES);
-        setCounts({
-          total: 3,
-          complete: 3,
-          pending: 0,
-          verify_approved: 1,
-          verify_pending: 1,
-          verify_reject: 1,
-          paid: 1,
-          claim_approved: 1,
-        });
-      }
-    } catch (err: any) {
-      console.warn('Error loading Kusum-C installed sites:', err);
-      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load Kusum-C installed sites.' });
-      setSites(FALLBACK_KUSUM_C_INSTALLED_SITES);
-      setCounts({
-        total: 3,
-        complete: 3,
-        pending: 0,
-        verify_approved: 1,
-        verify_pending: 1,
-        verify_reject: 1,
-        paid: 1,
-        claim_approved: 1,
+      const [installedRes, claimsRes] = await Promise.all([
+        upInstallationService.getKusumCInstalledSites(),
+        upInstallationService.getKusumCClaims().catch(() => ({ payments: [], sites: [] })),
+      ]);
+
+      const mergedSites = (installedRes?.sites || []).map((s) => {
+        return s;
       });
+
+      setSites(mergedSites);
+      setInstallDetail(installedRes?.has_install_detail ? installedRes.install_detail : null);
+      setAssignCount(Number(installedRes?.assign ?? 0));
+      setClaimPayments(claimsRes?.payments || []);
+      setClaimableSiteIds(new Set((claimsRes?.sites || []).map((x) => Number(x.id))));
+    } catch (err: any) {
+      console.error('[UP Kusum-C ViewInstallation] load error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites from server.' });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getUploadedDocsFromStorage]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  const allSites = sites;
+
+  // Map siteId -> latest claim record (highest claim id wins so re-claims after rejection show latest status)
+  const claimedSiteMap = useMemo(() => {
+    const map = new Map<number, UpKusumCClaimPaymentItem>();
+    const sorted = [...claimPayments].sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+    sorted.forEach((p) => {
+      parseClaimSiteIds(p.site_id).forEach((sid) => {
+        map.set(sid, p);
+      });
+    });
+    return map;
+  }, [claimPayments]);
+
+  // Submit HOC Document Form (multipart upload)
+  const handleDocSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!docModalSite) return;
+    if (!docFile) {
+      setDocError('Please select a document file to upload (PDF, JPG, PNG).');
+      return;
+    }
+    if (!docDate.trim()) {
+      setDocError('Please select the document submission date.');
+      return;
+    }
+    if (!docRemarks.trim()) {
+      setDocError('Please enter remarks.');
+      return;
+    }
+    setDocError(null);
+    setDocSubmitting(true);
+    try {
+      const rowId = String(docModalSite.id);
+      const selectedDate = docDate.trim();
+      const finalRemarks = docRemarks.trim();
+
+      const fd = new FormData();
+      fd.append('id', rowId);
+      fd.append('site_id', rowId);
+      fd.append('doc_file', docFile);
+      fd.append('file', docFile);
+      fd.append('inst_doc', docFile);
+      fd.append('inst_doc_file', docFile);
+      fd.append('document_file', docFile);
+      fd.append('document', docFile);
+      fd.append('hoc_file', docFile);
+      fd.append('hoc_photo', docFile);
+      fd.append('date', selectedDate);
+      fd.append('doc_date', selectedDate);
+      fd.append('inst_doc_date', selectedDate);
+      fd.append('doc_hoc_date', selectedDate);
+      fd.append('remarks', finalRemarks);
+      fd.append('doc_remarks', finalRemarks);
+      fd.append('inst_doc_remarks', finalRemarks);
+
+      const res = await upInstallationService.submitKusumCHoc(fd);
+      if (res?.status === false) {
+        const errMsg =
+          res?.message ||
+          (res?.errors ? Object.values(res.errors).flat().join(', ') : 'Failed to submit installation document.');
+        setDocError(errMsg);
+        return;
+      }
+
+      saveUploadedDocToStorage({
+        id: rowId,
+        fileName: docFile.name,
+        uploadedAt: selectedDate,
+        status: 1,
+      });
+
+      setToastMsg({ type: 'success', text: `Document submitted successfully for Site #${rowId}!` });
+      closeDocModal();
+      await loadData();
+    } catch (err: any) {
+      setDocError(err?.message || 'Failed to submit installation document.');
+    } finally {
+      setDocSubmitting(false);
+    }
+  };
+
+  // Filtered sites (Verify Status + Claim Status + Search)
+  const filteredSites = useMemo(() => {
+    let list = allSites;
+
+    if (statusFilter === 'approved') list = list.filter((s) => getVerifyVal(s) === 1);
+    else if (statusFilter === 'rejected') list = list.filter((s) => getVerifyVal(s) === 2);
+    else if (statusFilter === 'pending') list = list.filter((s) => getVerifyVal(s) === 0);
+
+    if (claimFilter !== 'all') {
+      list = list.filter((s) => resolveSiteClaimInfo(s, claimedSiteMap, claimableSiteIds).key === claimFilter);
+    }
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((s) => {
+        const ser = fmtSerials(s).toLowerCase();
+        const lat = String(s.latitude || (s as any).inst_latitude || '').toLowerCase();
+        const lng = String(s.longitude || (s as any).inst_longitude || '').toLowerCase();
+        const claimLabel = resolveSiteClaimInfo(s, claimedSiteMap, claimableSiteIds).label.toLowerCase();
+        return (
+          String(s.id).includes(q) ||
+          getStateName(s).toLowerCase().includes(q) ||
+          getDistrict(s).toLowerCase().includes(q) ||
+          getBlockVillage(s).toLowerCase().includes(q) ||
+          getFarmerName(s).toLowerCase().includes(q) ||
+          getFatherName(s).toLowerCase().includes(q) ||
+          getContact(s).toLowerCase().includes(q) ||
+          String(s.f_customer_no || '').toLowerCase().includes(q) ||
+          String(s.pump_capacity || '').toLowerCase().includes(q) ||
+          String(s.Inverter_no || s.inverter_no || s.inverter_serial_no || '').toLowerCase().includes(q) ||
+          String(s.vfd_no || s.vfd_serial_no || '').toLowerCase().includes(q) ||
+          lat.includes(q) ||
+          lng.includes(q) ||
+          ser.includes(q) ||
+          claimLabel.includes(q)
+        );
+      });
+    }
+    return list;
+  }, [allSites, search, statusFilter, claimFilter, claimedSiteMap, claimableSiteIds]);
+
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } = usePagination({
+    data: filteredSites,
+    initialPageSize: 100,
+  });
+
   useEffect(() => {
-    if (!toastMsg) return;
-    const t = window.setTimeout(() => setToastMsg(null), 4500);
-    return () => window.clearTimeout(t);
-  }, [toastMsg]);
+    setPage(1);
+  }, [search, statusFilter, claimFilter, setPage]);
 
-  // District list
-  const districtList = useMemo(() => {
-    const set = new Set<string>();
-    sites.forEach((s) => {
-      const d = s.f_district || s.district;
-      if (d && d.trim()) set.add(d.trim());
-    });
-    return Array.from(set).sort();
-  }, [sites]);
-
-  // Filtered sites
-  const filtered = useMemo(() => {
-    return sites.filter((item) => {
-      const vStatus = Number(item.inst_verify_status ?? item.verify_status ?? 0);
-      const dStatus = Number(item.inst_doc_status ?? item.document_status ?? 0);
-      const rawDoc = item.inst_doc || item.hoc_photo || item.doc_hoc_photo || (item as any).doc_file || (item as any).document;
-      const hasDoc = Boolean(rawDoc && String(rawDoc).trim() !== '' && rawDoc !== DASH);
-
-      if (statusFilter === 'approved' && vStatus !== 1) return false;
-      if (statusFilter === 'pending' && vStatus !== 0) return false;
-      if (statusFilter === 'rejected' && vStatus !== 2) return false;
-
-      // Document specific filters
-      if (statusFilter === 'doc_approved' && dStatus !== 2) return false;
-      if (statusFilter === 'doc_pending' && !(dStatus === 1 || (hasDoc && dStatus !== 2 && dStatus !== 3))) return false;
-      if (statusFilter === 'doc_missing' && !(!hasDoc && dStatus === 0)) return false;
-      if (statusFilter === 'doc_rejected' && dStatus !== 3) return false;
-
-      if (selectedDistrict !== 'all') {
-        const d = (item.f_district || item.district || '').trim().toLowerCase();
-        if (d !== selectedDistrict.toLowerCase()) return false;
-      }
-
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const applicant = (item.f_farmer_name || item.farmer_name || item.applicant_name || '').toLowerCase();
-        const father = (item.f_father_name || item.father_name || '').toLowerCase();
-        const dist = (item.f_district || item.district || '').toLowerCase();
-        const blk = (item.f_block || item.block || '').toLowerCase();
-        const vil = (item.f_village || item.village || '').toLowerCase();
-        const vfd = (item.vfd_no || item.vfd_serial_no || '').toLowerCase();
-        const inv = (item.Inverter_no || item.inverter_no || item.inverter_serial_no || '').toLowerCase();
-        const ser = formatModuleSerials(item.module_serial_no || item.module_no).toLowerCase();
-        const idStr = String(item.id);
-
-        if (
-          !applicant.includes(q) &&
-          !father.includes(q) &&
-          !dist.includes(q) &&
-          !blk.includes(q) &&
-          !vil.includes(q) &&
-          !vfd.includes(q) &&
-          !inv.includes(q) &&
-          !ser.includes(q) &&
-          !idStr.includes(q)
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [sites, statusFilter, selectedDistrict, search]);
-
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
-
-  const hasFilters = search.trim() !== '' || statusFilter !== 'all' || selectedDistrict !== 'all';
+  const hasFilters = search.trim() !== '' || statusFilter !== 'all' || claimFilter !== 'all';
   const resetFilters = () => {
     setSearch('');
     setStatusFilter('all');
-    setSelectedDistrict('all');
-    setCurrentPage(1);
+    setClaimFilter('all');
+    setPage(1);
   };
 
-  // Metrics matching API counts or derived from loaded sites
-  const approvedCount = useMemo(
-    () => (counts.verify_approved !== undefined ? Number(counts.verify_approved) : sites.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1).length),
-    [counts, sites]
-  );
-  const pendingCount = useMemo(
-    () => (counts.verify_pending !== undefined ? Number(counts.verify_pending) : sites.filter((s) => Number(s.inst_verify_status ?? s.verify_status ?? 0) === 0).length),
-    [counts, sites]
-  );
-  const rejectedCount = useMemo(
-    () => (counts.verify_reject !== undefined ? Number(counts.verify_reject) : sites.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2).length),
-    [counts, sites]
-  );
+  // Summary counts for 4 KPI Cards (Exact Assam SWP Structure)
+  const approvedCount =
+    installDetail?.verify_approved ?? allSites.filter((s) => getVerifyVal(s) === 1).length;
+  const pendingCount =
+    installDetail?.verify_pending ?? allSites.filter((s) => getVerifyVal(s) === 0).length;
+  const rejectedCount =
+    installDetail?.verify_reject ?? allSites.filter((s) => getVerifyVal(s) === 2).length;
+  const totalAssignedCount =
+    installDetail?.total_assign ?? installDetail?.total ?? (assignCount || allSites.length);
+  const installedCount = installDetail?.complete ?? allSites.length;
+  const paidCount =
+    installDetail?.paid ??
+    allSites.filter((s) => Number(s.inst_pay_status ?? s.payment_status ?? s.pay_status ?? 0) === 1).length;
+  const claimApprovedCount =
+    installDetail?.claim_approved ??
+    allSites.filter((s) => {
+      const info = resolveSiteClaimInfo(s, claimedSiteMap, claimableSiteIds);
+      return info.key === 'approved' || info.key === 'paid' || info.key === 'partially_paid';
+    }).length;
 
-  const docApprovedCount = useMemo(
-    () => (counts.doc_approved !== undefined ? Number(counts.doc_approved) : sites.filter((s) => Number(s.inst_doc_status) === 2).length),
-    [counts, sites]
-  );
-  const docPendingCount = useMemo(
-    () => (counts.doc_pending !== undefined ? Number(counts.doc_pending) : sites.filter((s) => Number(s.inst_doc_status) === 1 || Boolean(s.inst_doc)).length),
-    [counts, sites]
-  );
-  const docMissingCount = useMemo(
-    () => sites.filter((s) => {
-      const rawDoc = s.inst_doc || s.hoc_photo || (s as any).doc_file;
-      const hasDoc = Boolean(rawDoc && String(rawDoc).trim() !== '' && rawDoc !== DASH);
-      return !hasDoc && Number(s.inst_doc_status ?? 0) === 0;
-    }).length,
-    [sites]
-  );
-
-  const totalAccepted = counts.assign || counts.total_assign || counts.total || sites.length;
-  const installedCount = counts.complete || sites.length;
-  const paymentSettled = counts.paid ?? sites.filter((s) => Number(s.inst_pay_status ?? s.payment_status) === 1).length;
-  const claimApproved = counts.claim_approved ?? sites.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 1).length;
-
-  const exportCols: ExportColumn<UpKusumCInstalledSiteItem>[] = useMemo(
+  // Export columns
+  const exportCols = useMemo<ExportColumn<UpKusumCInstalledSiteItem>[]>(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => (idx !== undefined ? idx + 1 : 1) },
-      { header: 'State', accessor: (r) => (r.state || r.f_state || 'UP').toUpperCase() },
-      { header: 'District', accessor: (r) => r.f_district || r.district || DASH },
-      { header: 'Block', accessor: (r) => r.f_block || r.block || DASH },
-      { header: 'Village', accessor: (r) => r.f_village || r.village || DASH },
-      { header: 'Applicant Name', accessor: (r) => r.f_farmer_name || r.farmer_name || r.applicant_name || DASH },
-      { header: 'Father Name', accessor: (r) => r.f_father_name || r.father_name || DASH },
-      { header: 'Contact', accessor: (r) => r.f_contact || r.contact_no || DASH },
-      { header: 'Capacity', accessor: (r) => r.pump_capacity || '3 HP' },
-      { header: 'VFD No.', accessor: (r) => r.vfd_no || r.vfd_serial_no || DASH },
-      { header: 'Inverter No.', accessor: (r) => r.Inverter_no || r.inverter_no || r.inverter_serial_no || DASH },
-      { header: 'Module Serial No.', accessor: (r) => formatModuleSerials(r.module_serial_no || r.module_no) },
-      { header: 'Latitude', accessor: (r) => r.latitude || DASH },
-      { header: 'Longitude', accessor: (r) => r.longitude || DASH },
-      { header: 'Remarks', accessor: (r) => r.inst_remarks || r.remarks || DASH },
+      {
+        header: 'Sr. No.',
+        accessor: (_r: UpKusumCInstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : ''),
+      },
+      { header: 'State', accessor: (r: UpKusumCInstalledSiteItem) => getStateName(r).toUpperCase() || 'UP' },
+      { header: 'District', accessor: (r: UpKusumCInstalledSiteItem) => getDistrict(r) },
+      { header: 'Block / Village', accessor: (r: UpKusumCInstalledSiteItem) => getBlockVillage(r) },
+      { header: 'Farmer Name', accessor: (r: UpKusumCInstalledSiteItem) => getFarmerName(r) },
+      { header: 'Father Name', accessor: (r: UpKusumCInstalledSiteItem) => getFatherName(r) },
+      { header: 'Contact Number', accessor: (r: UpKusumCInstalledSiteItem) => getContact(r) },
+      { header: 'Customer No.', accessor: (r: UpKusumCInstalledSiteItem) => r.f_customer_no || '' },
+      { header: 'Pump Capacity', accessor: (r: UpKusumCInstalledSiteItem) => r.pump_capacity || '' },
+      {
+        header: 'Inverter No.',
+        accessor: (r: UpKusumCInstalledSiteItem) => r.Inverter_no || r.inverter_no || r.inverter_serial_no || '',
+      },
+      { header: 'VFD No.', accessor: (r: UpKusumCInstalledSiteItem) => r.vfd_no || r.vfd_serial_no || '' },
+      { header: 'Module Serials', accessor: (r: UpKusumCInstalledSiteItem) => fmtSerials(r) },
+      {
+        header: 'Module Photo',
+        accessor: (r: UpKusumCInstalledSiteItem) => r.module_image || r.farmer_module_image || r.f_module_image || '',
+      },
+      {
+        header: 'Inverter & VFD Photo',
+        accessor: (r: UpKusumCInstalledSiteItem) => r.inverter_vfd_image || r.inverter_image || r.vfd_image || '',
+      },
+      {
+        header: 'Running Water Photo',
+        accessor: (r: UpKusumCInstalledSiteItem) => r.running_water_image || r.water_image || '',
+      },
+      { header: 'Latitude', accessor: (r: UpKusumCInstalledSiteItem) => r.latitude || (r as any).inst_latitude || '' },
+      { header: 'Longitude', accessor: (r: UpKusumCInstalledSiteItem) => r.longitude || (r as any).inst_longitude || '' },
+      { header: 'Remark', accessor: (r: UpKusumCInstalledSiteItem) => r.inst_remarks || r.remarks || '' },
       {
         header: 'Verify Status',
-        accessor: (r) => {
-          const v = Number(r.inst_verify_status ?? r.verify_status ?? 0);
-          return v === 1 ? 'Approved' : v === 2 ? 'Rejected' : 'Pending';
+        accessor: (r: UpKusumCInstalledSiteItem) => {
+          const v = getVerifyVal(r);
+          if (v === 1) return 'Approved';
+          if (v === 2) return 'Rejected';
+          return 'Pending';
         },
       },
-      { header: 'Verify Remarks', accessor: (r) => r.inst_verify_remarks || r.verify_remarks || DASH },
       {
         header: 'Document Status',
-        accessor: (r) => {
+        accessor: (r: UpKusumCInstalledSiteItem) => {
           const s = Number(r.inst_doc_status ?? r.document_status ?? 0);
-          return s === 2 ? 'Approved' : s === 3 ? 'Rejected' : s === 1 ? 'Submitted' : 'Pending';
+          if (s === 2) return 'Approved';
+          if (s === 3) return 'Reject';
+          if (s === 1) return 'Submitted';
+          return 'Pending';
         },
       },
-      { header: 'Doc Remarks', accessor: (r) => r.inst_doc_verify_remarks || r.inst_doc_remarks || DASH },
       {
         header: 'Claim Status',
-        accessor: (r) => {
-          const s = Number(r.inst_claim_status ?? r.claim_status ?? 0);
-          return s === 1 ? 'Approved' : s === 2 ? 'Rejected' : s === 3 ? 'Claimed' : 'Not Raised';
-        },
-      },
-      {
-        header: 'Payment Status',
-        accessor: (r) => {
-          const s = Number(r.inst_pay_status ?? r.payment_status ?? 0);
-          return s === 1 ? 'Paid' : s === 2 ? 'Partially' : 'Pending';
-        },
+        accessor: (r: UpKusumCInstalledSiteItem) => resolveSiteClaimInfo(r, claimedSiteMap, claimableSiteIds).label,
       },
     ],
-    []
+    [claimedSiteMap, claimableSiteIds]
   );
 
-  const headers = [
-    'Sr. No.',
-    'State',
-    'District',
-    'Block / Village',
-    'Applicant Name',
-    'Father Name',
-    'Contact',
-    'Capacity',
-    'VFD No.',
-    'Inverter No.',
-    'Module Serial No.',
-    'Farmer With Module',
-    'Inverter & VFD',
-    'Running Water',
-    'Doc View', // Dedicated Column requested by user!
-    'Latitude',
-    'Longitude',
-    'Remarks',
-    'Verify Status',
-    'Doc Status',
-    'Claim Status',
-    'Payment Status',
-    'Action',
-  ];
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = 'UP_KusumC_Completed_Installations';
+  const fileTitle = 'UP Kusum-C Completed Installation Register';
+
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out = [
+      columns.map((c) => escapeExportValue(c.header)),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) =>
+        columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    }
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns
+      .map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`)
+      .join('')}</tr></thead><tbody>${list
+      .map(
+        (row, idx) =>
+          `<tr>${columns
+            .map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`)
+            .join('')}</tr>`
+      )
+      .join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) =>
+      columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx))))
+    );
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d8dee6;padding:6px 6px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns
+      .map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`)
+      .join('')}</tr></thead><tbody>${body
+      .map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`)
+      .join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  const headers = COMMON_HEADERS;
   const TOTAL_COLUMNS = headers.length;
 
   return (
@@ -1103,55 +2076,56 @@ export function UP_Installation_KusumC_ViewInstallation() {
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head (exact pattern) ── */}
+      {/* ── Page Head (Exact Assam SWP Pattern) ── */}
       <PageHead
         title="View Kusum-C Installed Sites"
-        subtitle="Master register of installed solar pumps, verification status, HOC documents, and photo evidence"
+        subtitle="Master register of completed solar water pump installations, verification evidence, photographs, and compliance documents"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Uttar Pradesh' },
           { label: 'Installation' },
-          { label: 'Kusum C' },
+          { label: 'Kusum C', href: '/v/up/kusum-c-installation-dashboard' },
           { label: 'View Installation' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={loadData}
-              disabled={loading}
-              title="Refresh installed sites"
-            >
-              <svg className={`ax-btn__icon ${loading ? 'ax-spinner' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-              </svg>
-              <span className="ax-btn__label">Refresh</span>
-            </button>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+            <Link to="/v/up/kusum-c-installation-claim" className="ax-btn ax-btn--secondary ax-btn--sm">
+              <span className="ax-btn__label">View Payment</span>
+            </Link>
             <Link to="/v/up/install-kusum-c-site" className="ax-btn ax-btn--primary ax-btn--sm">
-              <span className="ax-btn__label">+ Install New Site</span>
+              <span className="ax-btn__label">+ New Installation</span>
             </Link>
           </div>
         }
       />
 
       {toastMsg && (
-        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+        <div
+          className={`ax-alert ax-alert--${toastMsg.type}`}
+          style={{ marginBottom: 'var(--ax-space-4)' }}
+          role="status"
+        >
           <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
           <div className="ax-alert__text">{toastMsg.text}</div>
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards (5 cards in 1 row) ── */}
+      {/* ── Top Metric KPI Cards (Exact Assam SWP 4 cards in 1 row) ── */}
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
           label="Total Accepted"
-          value={totalAccepted.toLocaleString('en-IN')}
+          value={Number(totalAssignedCount || 0).toLocaleString('en-IN')}
           sub="Assigned for installation"
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="4" y="4" width="16" height="16" rx="2" />
               <path d="M8 9h8M8 13h8M8 17h5" />
             </svg>
@@ -1161,10 +2135,17 @@ export function UP_Installation_KusumC_ViewInstallation() {
         <KpiCard
           tone="emerald"
           label="Installed Sites"
-          value={installedCount.toLocaleString('en-IN')}
+          value={Number(installedCount || 0).toLocaleString('en-IN')}
           sub="Equipment & photos uploaded"
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
               <path d="M9 12l2 2 4-4" />
             </svg>
@@ -1174,14 +2155,17 @@ export function UP_Installation_KusumC_ViewInstallation() {
         <KpiCard
           tone="cyan"
           label="Verify Approved"
-          value={approvedCount.toLocaleString('en-IN')}
+          value={Number(approvedCount || 0).toLocaleString('en-IN')}
           sub={`${pendingCount} audit pending`}
-          onClick={() => {
-            setStatusFilter('approved');
-            setCurrentPage(1);
-          }}
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="12" cy="12" r="9" />
               <polyline points="12 7 12 12 15 15" />
             </svg>
@@ -1189,32 +2173,19 @@ export function UP_Installation_KusumC_ViewInstallation() {
         />
 
         <KpiCard
-          tone="amber"
-          label="HOC Documents"
-          value={docApprovedCount.toLocaleString('en-IN')}
-          sub={`${docPendingCount} in review · ${docMissingCount} pending upload`}
-          onClick={() => {
-            setStatusFilter(docMissingCount > 0 ? 'doc_missing' : 'doc_pending');
-            setCurrentPage(1);
-          }}
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-          }
-        />
-
-        <KpiCard
           tone="violet"
           label="Payment Settled"
-          value={paymentSettled.toLocaleString('en-IN')}
-          sub={`${claimApproved} claims approved`}
+          value={Number(paidCount || 0).toLocaleString('en-IN')}
+          sub={`${claimApprovedCount} claims approved`}
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <line x1="12" y1="1" x2="12" y2="23" />
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
@@ -1222,60 +2193,60 @@ export function UP_Installation_KusumC_ViewInstallation() {
         />
       </div>
 
-      {/* ── Main Table Card (exact Assam SWP table card layout) ── */}
-      <section className="ax-card ax-col--12" role="region" aria-label="Kusum-C Installations">
+      {/* ── Main Table Card (Exact Assam SWP Single-Table Card Pattern) ── */}
+      <section
+        className="ax-card ax-col--12"
+        id="kusumc-tabpanel"
+        role="tabpanel"
+        aria-label="UP Kusum-C Installations"
+      >
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">Completed Kusum-C Installation Data</h2>
             <p className="ax-card__subtitle">
-              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{sites.length}</span> installations
-              {' '}· Verify Approved <b className="ax-num">{approvedCount}</b> · Doc Approved <b className="ax-num">{docApprovedCount}</b> · Doc In Review <b className="ax-num">{docPendingCount}</b> · Doc Missing <b className="ax-num">{docMissingCount}</b>
+              <span className="ax-num">{filteredSites.length}</span> of{' '}
+              <span className="ax-num">{allSites.length}</span> installations · Approved{' '}
+              <b className="ax-num">{approvedCount}</b> · Pending <b className="ax-num">{pendingCount}</b> ·
+              Rejected <b className="ax-num">{rejectedCount}</b>
             </p>
           </div>
-
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {districtList.length > 0 && (
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={selectedDistrict}
-                  onChange={(e) => {
-                    setSelectedDistrict(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label="Filter by district"
-                >
-                  <option value="all">All Districts</option>
-                  {districtList.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              )}
-
               <select
                 id="kusumc_status_filter"
                 className="ax-input ax-input--sm"
-                style={{ width: 185, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                style={{ width: 135, height: 32, fontSize: 'var(--ax-text-xs)' }}
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value);
-                  setCurrentPage(1);
+                  setPage(1);
                 }}
-                aria-label="Filter by verify or document status"
+                aria-label="Filter by verify status"
               >
                 <option value="all">All Status</option>
-                <optgroup label="Installation Audit">
-                  <option value="approved">Verify: Approved</option>
-                  <option value="pending">Verify: Pending</option>
-                  <option value="rejected">Verify: Rejected</option>
-                </optgroup>
-                <optgroup label="HOC Document">
-                  <option value="doc_approved">Doc: Approved</option>
-                  <option value="doc_pending">Doc: In Review / Submitted</option>
-                  <option value="doc_missing">Doc: Not Submitted (Upload Needed)</option>
-                  <option value="doc_rejected">Doc: Rejected</option>
-                </optgroup>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              <select
+                id="kusumc_claim_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 165, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={claimFilter}
+                onChange={(e) => {
+                  setClaimFilter(e.target.value as 'all' | ClaimStatusKey);
+                  setPage(1);
+                }}
+                aria-label="Filter by claim status"
+              >
+                <option value="all">All Claim Status</option>
+                <option value="not_applicable">Not Applicable</option>
+                <option value="claim_applicable">Claim Applicable</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Reject</option>
+                <option value="paid">Paid</option>
+                <option value="partially_paid">Partially Paid</option>
               </select>
 
               {hasFilters && (
@@ -1291,26 +2262,25 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
               <SearchInput
                 value={search}
-                onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                placeholder="Search applicant, VFD, village, serial…"
+                onChange={setSearch}
+                placeholder="Search farmer, serial, customer, district…"
                 size="sm"
                 ariaLabel="Search installed sites"
               />
 
               <TableExportToolbar
-                onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
-                onExportCSV={() => exportDataToCSV('UP_KusumC_Installations', filtered, exportCols)}
-                onExportExcel={() => exportDataToExcel('UP_KusumC_Installations', filtered, exportCols)}
-                onExportPDF={() => printTableData('UP Kusum-C Completed Installations', filtered, exportCols)}
+                onCopy={() => copyToClipboard(filteredSites, exportCols)}
+                onExportCSV={() => exportToCSV(filteredSites, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filteredSites, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filteredSites, exportCols, fileTitle)}
               />
             </div>
           </div>
         </div>
 
-        {/* ── Table (Horizontally Scrollable) ── */}
         <div className="ax-table-wrap">
           <table
-            className="ax-table ax-table--hover"
+            className="ax-table ax-table--hover ula-table--wide"
             style={{ whiteSpace: 'nowrap', minWidth: 2800 }}
           >
             <caption className="ax-visually-hidden">Completed Kusum-C Installation Data</caption>
@@ -1321,11 +2291,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
                     key={h}
                     className="ax-table__th"
                     scope="col"
-                    style={
-                      h === 'Action' || h === 'Sr. No.' || h === 'Doc View' || h.includes('Image') || h.includes('Photo') || h.includes('Status')
-                        ? { textAlign: 'center' }
-                        : undefined
-                    }
+                    style={h === 'Action' ? { textAlign: 'center' } : undefined}
                   >
                     {h}
                   </th>
@@ -1336,11 +2302,12 @@ export function UP_Installation_KusumC_ViewInstallation() {
               {loading && (
                 <tr>
                   <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
-                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading installation records from server…
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading installation records from
+                    server…
                   </td>
                 </tr>
               )}
-              {!loading && filtered.length === 0 && (
+              {!loading && filteredSites.length === 0 && (
                 <tr>
                   <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
                     <TableEmptyState
@@ -1358,164 +2325,108 @@ export function UP_Installation_KusumC_ViewInstallation() {
               )}
               {!loading &&
                 paginatedData.map((row, index) => {
-                  const lat = row.latitude || (row as any).inst_latitude || '';
-                  const lng = row.longitude || (row as any).inst_longitude || '';
-                  const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const applicantName = row.f_farmer_name || row.farmer_name || row.applicant_name || `Site #${row.id}`;
-                  const blockText = row.f_block || row.block || row.f_tehsil || '';
-                  const villageText = row.f_village || row.village || '';
-                  const ser = formatModuleSerials(row.module_serial_no || row.module_no);
-
+                  const lat = String(row.latitude || (row as any).inst_latitude || '');
+                  const lng = String(row.longitude || (row as any).inst_longitude || '');
+                  const hasGeo =
+                    lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
+                  const farmerName = getFarmerName(row);
+                  const farmerLabel = farmerName || `Site ${row.id}`;
+                  const rawDoc = getRawDoc(row);
+                  const docUrl = rawDoc ? resolveUpMediaUrl(rawDoc) : null;
                   const moduleImg = row.module_image || row.farmer_module_image || row.f_module_image;
                   const invImg = row.inverter_vfd_image || row.inverter_image || row.vfd_image;
                   const waterImg = row.running_water_image || row.water_image;
+                  const moduleSerialsList = getRowModuleSerials(row);
+                  const ser = moduleSerialsList.length > 0 ? moduleSerialsList.join(', ') : DASH;
+                  const blockVillage = getBlockVillage(row);
 
-                  // Dedicated Document URL for Doc View Column
-                  const rawDoc = row.inst_doc || row.hoc_photo || row.doc_hoc_photo || (row as any).doc_file || (row as any).document;
-                  const docUrl = rawDoc ? resolveUpMediaUrl(rawDoc) : null;
-                  const hasDoc = Boolean(rawDoc && String(rawDoc).trim() !== '' && rawDoc !== DASH);
-
-                  const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
-                  const isInstallApproved = vStatus === 1;
-                  const canEditInstallation = !isInstallApproved;
-
+                  const vStatus = getVerifyVal(row);
+                  const isVerifyApproved = vStatus === 1;
                   const dStatus = Number(row.inst_doc_status ?? row.document_status ?? 0);
-                  const isDocApproved = dStatus === 2;
-                  const isDocRejected = dStatus === 3;
-                  const isDocSubmitted = dStatus === 1 || (hasDoc && dStatus !== 2 && dStatus !== 3);
-                  const isDocMissing = !hasDoc && dStatus === 0;
+                  const hasDoc = Boolean(rawDoc);
+                  const canEdit = !isVerifyApproved;
+                  const canSubmitDoc = dStatus !== 2 && !(dStatus === 1 && hasDoc);
+                  const isRowLocked = !canEdit && !canSubmitDoc;
 
-                  const cStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
-                  const pStatus = Number(row.inst_pay_status ?? row.payment_status ?? 0);
+                  const claimInfo = resolveSiteClaimInfo(row, claimedSiteMap, claimableSiteIds);
 
                   return (
-                    <tr
-                      key={row.id}
-                      className="ax-table__row kusumc-clickable-row"
-                      onClick={(e) => handleRowClick(e, row)}
-                      title="Click row to view full site details"
-                    >
-                      {/* 1. Sr. No. */}
-                      <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>
-                        {(currentPage - 1) * pageSize + index + 1}
+                    <tr key={row.id} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
+                        {getStateName(row) || 'UP'}
                       </td>
-
-                      {/* 2. State */}
-                      <td className="ax-table__td">{(row.state || row.f_state || 'UP').toUpperCase()}</td>
-
-                      {/* 3. District */}
-                      <td className="ax-table__td"><b>{row.f_district || row.district || DASH}</b></td>
-
-                      {/* 4. Block / Village */}
                       <td className="ax-table__td">
-                        {blockText ? `${blockText}, ` : ''}{villageText || DASH}
+                        <b>{getDistrict(row) || DASH}</b>
                       </td>
-
-                      {/* 5. Applicant Name */}
+                      <td className="ax-table__td">{blockVillage || DASH}</td>
                       <td className="ax-table__td">
-                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{applicantName}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {farmerName || DASH}
+                        </span>
                       </td>
-
-                      {/* 6. Father Name */}
-                      <td className="ax-table__td">{row.f_father_name || row.father_name || DASH}</td>
-
-                      {/* 7. Contact */}
-                      <td className="ax-table__td" style={monoCell}>{row.f_contact || row.contact_no || DASH}</td>
-
-                      {/* 8. Capacity */}
+                      <td className="ax-table__td">{getFatherName(row) || DASH}</td>
+                      <td className="ax-table__td" style={monoCell}>
+                        {getContact(row) || DASH}
+                      </td>
+                      <td className="ax-table__td" style={monoCell}>
+                        {row.f_customer_no || DASH}
+                      </td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--asw-primary)' }}>
-                        {row.pump_capacity || '3 HP'}
+                        {row.pump_capacity || DASH}
+                      </td>
+                      <td className="ax-table__td" style={monoCell}>
+                        {row.Inverter_no || row.inverter_no || row.inverter_serial_no || DASH}
+                      </td>
+                      <td className="ax-table__td" style={monoCell}>
+                        {row.vfd_no || row.vfd_serial_no || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ verticalAlign: 'middle' }}>
+                        <ModuleSerialsCell
+                          serials={moduleSerialsList}
+                          siteTitle={`${farmerLabel}${row.id ? ` · Site #${row.id}` : ''}`}
+                          farmerName={farmerLabel}
+                          siteId={row.id}
+                          pumpCapacity={row.pump_capacity || (row as any).volume}
+                          district={getDistrict(row)}
+                        />
                       </td>
 
-                      {/* 9. VFD No. */}
-                      <td className="ax-table__td" style={monoCell}>{row.vfd_no || row.vfd_serial_no || DASH}</td>
-
-                      {/* 10. Inverter No. */}
-                      <td className="ax-table__td" style={monoCell}>{row.Inverter_no || row.inverter_no || row.inverter_serial_no || DASH}</td>
-
-                      {/* 11. Module Serial No. */}
-                      <td className="ax-table__td" style={{ ...monoCell, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ser}
-                      </td>
-
-                      {/* 12. Farmer With Module Image */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      {/* Photo Thumbnails: NO BORDER RADIUS, Real Candidates, Click-to-Zoom */}
+                      <td className="ax-table__td">
                         <InstallationThumbnail
                           src={moduleImg}
-                          alt={`${applicantName} - Module Photo`}
+                          alt={`${farmerLabel} - Module Photo`}
                           onPreview={openPreview}
                         />
                       </td>
-
-                      {/* 13. Inverter & VFD Image */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      <td className="ax-table__td">
                         <InstallationThumbnail
                           src={invImg}
-                          alt={`${applicantName} - Inverter & VFD Photo`}
+                          alt={`${farmerLabel} - Inverter & VFD Photo`}
                           onPreview={openPreview}
                         />
                       </td>
-
-                      {/* 14. Running Water Image */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      <td className="ax-table__td">
                         <InstallationThumbnail
                           src={waterImg}
-                          alt={`${applicantName} - Running Water Photo`}
+                          alt={`${farmerLabel} - Running Water Photo`}
                           onPreview={openPreview}
                         />
                       </td>
 
-                      {/* 15. Doc View (Dedicated Column requested by user!) */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {docUrl ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                            <a
-                              href={docUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ color: 'var(--asw-primary)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px' }}
-                              title="View / Download Installation Compliance Document"
-                            >
-                              📄 Doc ↗
-                            </a>
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '2px 6px', fontSize: 10, height: 22 }}
-                              onClick={() => openPreview(docUrl, `${applicantName} - HOC Document`)}
-                              title="Preview Document"
-                            >
-                              Preview
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--outline ax-btn--xs"
-                            style={{
-                              padding: '2px 8px',
-                              fontSize: 10.5,
-                              color: 'var(--ax-primary, #2563eb)',
-                              borderColor: 'var(--ax-primary, #2563eb)',
-                              borderRadius: 4,
-                            }}
-                            onClick={() => setDocModalItem(row)}
-                            title="No document attached. Click to upload HOC certificate."
-                          >
-                            + Upload HOC
-                          </button>
-                        )}
-                      </td>
-
-                      {/* 16. Latitude */}
+                      {/* Geolocation */}
                       <td className="ax-table__td">
                         {hasGeo ? (
                           <a
                             href={`https://www.google.com/maps?q=${lat},${lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: 'var(--ax-primary-default, #2563eb)', textDecoration: 'none', fontWeight: 600 }}
+                            style={{
+                              color: 'var(--ax-primary-default, #2563eb)',
+                              textDecoration: 'none',
+                              fontWeight: 600,
+                            }}
                             title="Open location in Google Maps"
                           >
                             {lat}
@@ -1524,129 +2435,106 @@ export function UP_Installation_KusumC_ViewInstallation() {
                           lat || DASH
                         )}
                       </td>
-
-                      {/* 17. Longitude */}
                       <td className="ax-table__td">{lng || DASH}</td>
 
-                      {/* 18. Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}>
+                      {/* Remarks */}
+                      <td
+                        className="ax-table__td"
+                        style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}
+                      >
                         {row.inst_remarks || row.remarks || DASH}
                       </td>
 
-                      {/* 19. Verify Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      {/* Verify Status */}
+                      <td className="ax-table__td">
                         <VerifyBadge value={vStatus} raw={row.inst_verify_status ?? row.verify_status} />
-                        {row.inst_verify_remarks && (
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: vStatus === 2 ? 'var(--ax-danger, #ef4444)' : 'var(--ax-text-muted)',
-                              marginTop: 2,
-                              maxWidth: 160,
-                              lineHeight: 1.2,
-                            }}
-                            title={row.inst_verify_remarks}
-                          >
-                            {row.inst_verify_remarks}
-                          </div>
-                        )}
                       </td>
 
-                      {/* 20. Document Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <DocBadge status={dStatus} docUrl={docUrl} />
-                        {(row.inst_doc_verify_remarks || row.inst_doc_remarks) && (
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: dStatus === 3 ? 'var(--ax-danger, #ef4444)' : 'var(--ax-text-muted)',
-                              marginTop: 2,
-                              maxWidth: 160,
-                              lineHeight: 1.2,
-                            }}
-                            title={row.inst_doc_verify_remarks || row.inst_doc_remarks}
-                          >
-                            {row.inst_doc_verify_remarks || row.inst_doc_remarks}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* 21. Claim Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <ClaimBadge status={cStatus} />
-                      </td>
-
-                      {/* 22. Payment Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <PaymentBadge status={pStatus} />
-                      </td>
-
-                      {/* 23. Action Column */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center', flexWrap: 'nowrap' }}>
-                          {/* 1. Only show Upload HOC if document has NEVER been uploaded yet (One-time only) */}
-                          {isDocMissing && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ padding: '3px 9px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              onClick={() => setDocModalItem(row)}
-                              title="HOC Document Pending: Click to upload certificate (One-time submission)"
-                            >
-                              <span>📄 Upload HOC</span>
-                            </button>
-                          )}
-
-                          {/* 2. Allow editing installation details if installation is not yet approved */}
-                          {canEditInstallation && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
-                              onClick={() => setEditModalItem(row)}
-                              title="Edit Installation Equipment Serials & Coordinates"
-                            >
-                              Edit Details
-                            </button>
-                          )}
-
-                          {/* 3. If Installation is Approved AND Document has already been uploaded (whether Approved, Submitted, or Rejected): Row is LOCKED */}
-                          {isInstallApproved && !isDocMissing && (
-                            <span
-                              className="ax-badge ax-badge--soft"
+                      {/* Document Status */}
+                      <td className="ax-table__td">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <DocBadge status={dStatus} docUrl={docUrl} />
+                          {docUrl && (
+                            <a
+                              href={docUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '4px 8px',
-                                fontSize: '11px',
+                                fontSize: 11,
                                 fontWeight: 600,
-                                color: 'var(--ax-text-muted, #64748b)',
-                                background: 'var(--ax-surface-subtle, #f1f5f9)',
-                                border: '1px solid var(--ax-border, #cbd5e1)',
-                                borderRadius: 4,
-                                cursor: 'not-allowed',
-                                userSelect: 'none',
+                                color: 'var(--asw-primary)',
+                                textDecoration: 'none',
                               }}
-                              title="Installation Verified & Document Uploaded (One-time upload completed). Actions are locked."
+                              title="View uploaded HOC document"
                             >
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{ width: 12, height: 12, color: '#64748b' }}
-                                aria-hidden="true"
-                              >
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                              </svg>
-                              <span>Locked</span>
-                            </span>
+                              View ↗
+                            </a>
                           )}
                         </div>
+                      </td>
+
+                      {/* Claim Status (Display-Only — All Claim States; Claiming is via View Payment Page) */}
+                      <td className="ax-table__td">
+                        <ClaimStatusBadge info={claimInfo} />
+                      </td>
+
+                      {/* Action: Locked when both Verify & Document actions are locked, otherwise RowActionDropdown */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {isRowLocked ? (
+                          <span
+                            className="ax-badge ax-badge--soft"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              padding: '5px 11px',
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              color: 'var(--ax-text-muted, #64748b)',
+                              background: 'var(--ax-surface-subtle, #f1f5f9)',
+                              border: '1px solid var(--ax-border, #cbd5e1)',
+                              borderRadius: 6,
+                              cursor: 'not-allowed',
+                              userSelect: 'none',
+                            }}
+                            title="Installation Verified & Document Submitted. Actions are locked."
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              style={{ width: 13, height: 13, color: '#64748b' }}
+                              aria-hidden="true"
+                            >
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <span>Locked</span>
+                          </span>
+                        ) : (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                           
+                            <RowActionDropdown
+                              canEdit={canEdit}
+                              canSubmitDoc={canSubmitDoc}
+                              onEdit={() =>
+                                navigate(`/v/up/install-kusum-c-site?edit_id=${row.id}`, {
+                                  state: { editItem: row },
+                                })
+                              }
+                              onSubmitDoc={() => {
+                                setDocModalSite(row);
+                                setDocFile(null);
+                                setDocDate('');
+                                setDocRemarks('');
+                                setDocError(null);
+                              }}
+                            />
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1655,555 +2543,224 @@ export function UP_Installation_KusumC_ViewInstallation() {
           </table>
         </div>
 
-        {/* ── Table Footer & Pagination ── */}
+        {/* ── Table Footer (Exact Assam SWP Pagination Structure) ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
               currentPage={currentPage}
-              totalItems={filtered.length}
+              totalItems={totalItems}
               pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(sz) => {
-                setPageSize(sz);
-                setCurrentPage(1);
-              }}
-              pageSizeOptions={[25, 50, 100, 200]}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
       </section>
 
-      {/* ── Detail View Modal ── */}
-      <DetailViewModal
-        open={Boolean(viewDetailModal)}
-        item={viewDetailModal}
-        onClose={() => setViewDetailModal(null)}
-        onPreview={openPreview}
-        onOpenSubmitDoc={(it) => setDocModalItem(it)}
-      />
-
-      {/* ── Edit Installation Details Modal ── */}
-      {editModalItem && (
-        <EditInstallationModal
-          item={editModalItem}
-          onClose={() => setEditModalItem(null)}
-          onSuccess={() => {
-            setEditModalItem(null);
-            setToastMsg({ type: 'success', text: 'Installation details updated successfully.' });
-            loadData();
-          }}
-        />
-      )}
-
-      {/* ── Submit Document (HOC) Modal ── */}
-      {docModalItem && (
-        <SubmitDocumentModal
-          item={docModalItem}
-          onClose={() => setDocModalItem(null)}
-          onSuccess={() => {
-            setDocModalItem(null);
-            setToastMsg({ type: 'success', text: 'Installation document submitted successfully.' });
-            loadData();
-          }}
-        />
-      )}
-
-      {/* ── Photo Preview Modal (Zoom, Fullscreen) ── */}
+      {/* ── Photo Preview Modal (Zoom, Open in Tab) ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Document Submit Modal (Exact Assam SWP Modern Dropzone Modal) ── */}
+      <Modal
+        open={!!docModalSite}
+        onClose={closeDocModal}
+        labelledBy="kusumc-doc-title"
+        dialogClass="ax-modal__dialog--md"
+      >
+        {docModalSite && (
+          <form onSubmit={handleDocSubmit}>
+            <div className="ax-modal__header">
+              <div>
+                <h4
+                  style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}
+                  id="kusumc-doc-title"
+                >
+                  Submit Installation Document (HOC)
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Site: <b>{getFarmerName(docModalSite) || DASH}</b> ({docModalSite.id})
+                  {getDistrict(docModalSite) ? ` · ${getDistrict(docModalSite)}` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={closeDocModal}
+                disabled={docSubmitting}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {docError && (
+                <div
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    background: '#fef2f2',
+                    color: '#991b1b',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: '1px solid #fecaca',
+                  }}
+                >
+                  ✕ {docError}
+                </div>
+              )}
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 12.5,
+                  color: 'var(--ax-text-muted, #64748b)',
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid var(--ax-border, #e2e8f0)',
+                }}
+              >
+                The field labels marked with <span className="ax-modern-req" style={{ marginLeft: 0 }}>*</span> are
+                required fields.
+              </p>
+
+              {/* Document * */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="kusumc-doc-file">
+                  <span>
+                    Document <span className="ax-modern-req">*</span>
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--ax-text-muted, #64748b)' }}>
+                    PDF, JPG, PNG (Max 5 MB)
+                  </span>
+                </label>
+                <input
+                  id="kusumc-doc-file"
+                  ref={docFileRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  className="ax-input"
+                  style={{ width: '100%', padding: '8px 10px' }}
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                  required
+                  disabled={docSubmitting}
+                />
+                {docFile && (
+                  <div className="ax-modern-file-chip">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span className="ax-modern-file-chip__icon">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          style={{ width: 18, height: 18, color: '#059669' }}
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: 'var(--ax-text-strong, #1e293b)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {docFile.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                          {(docFile.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--sm"
+                      style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                      onClick={() => {
+                        setDocFile(null);
+                        if (docFileRef.current) docFileRef.current.value = '';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Date * */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="kusumc-doc-date">
+                  <span>
+                    Date <span className="ax-modern-req">*</span>
+                  </span>
+                </label>
+                <input
+                  id="kusumc-doc-date"
+                  type="date"
+                  className="ax-input"
+                  style={{ width: '100%' }}
+                  placeholder="dd-mm-yyyy"
+                  value={docDate}
+                  onChange={(e) => setDocDate(e.target.value)}
+                  required
+                  disabled={docSubmitting}
+                />
+              </div>
+
+              {/* Remarks * */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="kusumc-doc-remarks">
+                  <span>
+                    Remarks <span className="ax-modern-req">*</span>
+                  </span>
+                </label>
+                <textarea
+                  id="kusumc-doc-remarks"
+                  className="ax-input"
+                  rows={3}
+                  placeholder="Enter remarks..."
+                  value={docRemarks}
+                  onChange={(e) => setDocRemarks(e.target.value)}
+                  required
+                  disabled={docSubmitting}
+                />
+              </div>
+            </div>
+
+            <div className="ax-modal__footer">
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={closeDocModal}
+                disabled={docSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={docSubmitting}
+              >
+                {docSubmitting ? 'Submitting…' : 'Submit Document'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
     </div>
   );
 }
 
 export default UP_Installation_KusumC_ViewInstallation;
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * Detail View Modal (Inspection of full technical parameters & audit trail)
- * ═══════════════════════════════════════════════════════════════════════════ */
-function DetailViewModal({
-  open,
-  item,
-  onClose,
-  onPreview,
-  onOpenSubmitDoc,
-}: {
-  open: boolean;
-  item: UpKusumCInstalledSiteItem | null;
-  onClose: () => void;
-  onPreview: (url: string, title: string) => void;
-  onOpenSubmitDoc?: (item: UpKusumCInstalledSiteItem) => void;
-}) {
-  if (!open || !item) return null;
-
-  const applicant = item.f_farmer_name || item.farmer_name || item.applicant_name || `Site #${item.id}`;
-  const rawDoc = item.inst_doc || item.hoc_photo || item.doc_hoc_photo || (item as any).doc_file || (item as any).document;
-  const docUrl = rawDoc ? resolveUpMediaUrl(rawDoc) : null;
-  const hasDoc = Boolean(rawDoc && String(rawDoc).trim() !== '' && rawDoc !== DASH);
-  const vStatus = Number(item.inst_verify_status ?? item.verify_status ?? 0);
-  const dStatus = Number(item.inst_doc_status ?? item.document_status ?? 0);
-
-  return (
-    <Modal open onClose={onClose} labelledBy="detail-modal-title" dialogClass="ax-modal__dialog--lg">
-      <div className="ax-modal__header">
-        <div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--asw-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Site Inspection & Compliance
-          </span>
-          <h2 className="ax-modal__title" id="detail-modal-title" style={{ margin: 0 }}>
-            {applicant} — Site #{item.id}
-          </h2>
-        </div>
-        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-          {X_ICON}
-        </button>
-      </div>
-
-      <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Verification & Compliance Status */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Verification & HOC Compliance Status</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, fontSize: 12.5 }}>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Installation Audit: </span>
-              <VerifyBadge value={vStatus} raw={item.inst_verify_status ?? item.verify_status} />
-            </div>
-            {item.inst_verify_date && (
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Audit Date: </span><b>{item.inst_verify_date}</b></div>
-            )}
-            {item.inst_verify_remarks && (
-              <div style={{ gridColumn: '1 / -1' }}>
-                <span style={{ color: 'var(--ax-text-muted)' }}>Audit Remarks: </span>
-                <b style={{ color: vStatus === 2 ? 'var(--ax-danger, #ef4444)' : undefined }}>
-                  {item.inst_verify_remarks}
-                </b>
-              </div>
-            )}
-
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>HOC Document: </span>
-              <DocBadge status={dStatus} docUrl={docUrl} />
-            </div>
-            {(item.inst_doc_date || item.inst_doc_verify_date) && (
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Document Date: </span><b>{item.inst_doc_date || item.inst_doc_verify_date}</b></div>
-            )}
-            {(item.inst_doc_verify_remarks || item.inst_doc_remarks) && (
-              <div style={{ gridColumn: '1 / -1' }}>
-                <span style={{ color: 'var(--ax-text-muted)' }}>Doc Verification Remarks: </span>
-                <b style={{ color: dStatus === 3 ? 'var(--ax-danger, #ef4444)' : undefined }}>
-                  {item.inst_doc_verify_remarks || item.inst_doc_remarks}
-                </b>
-              </div>
-            )}
-          </div>
-
-          {!hasDoc && dStatus === 0 && (
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
-              <div style={{ fontSize: 12, color: '#92400e' }}>
-                <b>HOC Document Missing:</b> Signed handover certificate is required to complete verification and enable payment claims.
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--primary ax-btn--sm"
-                onClick={() => {
-                  onClose();
-                  onOpenSubmitDoc?.(item);
-                }}
-              >
-                Upload HOC Document
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Basic Details Grid */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Beneficiary & Location</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><b>{(item.state || item.f_state || 'UP').toUpperCase()}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><b>{item.f_district || item.district || DASH}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Block: </span><b>{item.f_block || item.block || DASH}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Village: </span><b>{item.f_village || item.village || DASH}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact: </span><b>{item.f_contact || item.contact_no || DASH}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Father Name: </span><b>{item.f_father_name || item.father_name || DASH}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Capacity: </span><b>{item.pump_capacity || '3 HP'}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Coordinates: </span><b>{item.latitude && item.longitude ? `${item.latitude}, ${item.longitude}` : DASH}</b></div>
-          </div>
-        </div>
-
-        {/* Equipment & Serials */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Installed Equipment & Serials</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>VFD Serial No.: </span><b style={monoCell}>{item.vfd_no || item.vfd_serial_no || DASH}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter Serial No.: </span><b style={monoCell}>{item.Inverter_no || item.inverter_no || item.inverter_serial_no || DASH}</b></div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Module Serial Numbers: </span>
-              <b style={monoCell}>{formatModuleSerials(item.module_serial_no || item.module_no)}</b>
-            </div>
-            {item.inst_remarks && (
-              <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--ax-text-muted)' }}>Installation Remarks: </span><b>{item.inst_remarks}</b></div>
-            )}
-          </div>
-        </div>
-
-        {/* Photo Evidence Gallery */}
-        <div>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Field Verification Photographs</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-            <div style={{ border: '1px solid var(--ax-border, #e2e8f0)', padding: 10, textAlign: 'center', background: '#fff' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 6 }}>Farmer With Module</div>
-              <InstallationThumbnail
-                src={item.module_image || item.farmer_module_image || item.f_module_image}
-                alt={`${applicant} - Farmer With Module`}
-                onPreview={onPreview}
-                size={120}
-              />
-            </div>
-            <div style={{ border: '1px solid var(--ax-border, #e2e8f0)', padding: 10, textAlign: 'center', background: '#fff' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 6 }}>Inverter & VFD</div>
-              <InstallationThumbnail
-                src={item.inverter_vfd_image || item.inverter_image || item.vfd_image}
-                alt={`${applicant} - Inverter & VFD`}
-                onPreview={onPreview}
-                size={120}
-              />
-            </div>
-            <div style={{ border: '1px solid var(--ax-border, #e2e8f0)', padding: 10, textAlign: 'center', background: '#fff' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 6 }}>Running Water Flow</div>
-              <InstallationThumbnail
-                src={item.running_water_image || item.water_image}
-                alt={`${applicant} - Running Water Flow`}
-                onPreview={onPreview}
-                size={120}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Document view link */}
-        {docUrl && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>📄</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>HOC / Compliance Document Attached</div>
-                <div style={{ fontSize: 11, color: '#15803d' }}>Certificate submitted for administrative verification</div>
-              </div>
-            </div>
-            <a
-              href={docUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-            >
-              Open Document ↗
-            </a>
-          </div>
-        )}
-      </div>
-
-      <div className="ax-modal__footer">
-        <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>
-          Done
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * Submit Document (HOC / JCR) Modal
- * ═══════════════════════════════════════════════════════════════════════════ */
-function SubmitDocumentModal({
-  item,
-  onClose,
-  onSuccess,
-}: {
-  item: UpKusumCInstalledSiteItem;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [remarks, setRemarks] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const rawDoc = item.inst_doc || item.hoc_photo || (item as any).doc_file;
-  const hasExistingDoc = Boolean(rawDoc && String(rawDoc).trim() !== '' && rawDoc !== DASH);
-  const isRejected = Number(item.inst_doc_status) === 3;
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!file) {
-      setError('Please select an HOC/document file to submit.');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const fd = new FormData();
-      fd.append('id', String(item.id));
-      fd.append('site_id', String(item.id));
-      fd.append('doc_file', file);
-      fd.append('file', file);
-      fd.append('inst_doc', file);
-      fd.append('hoc_file', file);
-      fd.append('hoc_photo', file);
-      if (remarks.trim()) {
-        fd.append('remarks', remarks.trim());
-        fd.append('inst_doc_remarks', remarks.trim());
-      }
-
-      const res = await upInstallationService.submitKusumCHoc(fd);
-      if (res?.status !== false) {
-        onSuccess();
-      } else {
-        setError(res?.message || 'Failed to submit document.');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to submit document.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal open onClose={onClose} labelledBy="submit-doc-title" dialogClass="ax-modal__dialog--md">
-      <form onSubmit={handleSubmit}>
-        <div className="ax-modal__header">
-          <div>
-            <h3 className="ax-modal__title" id="submit-doc-title" style={{ margin: 0 }}>
-              Upload Handover Certificate (HOC)
-            </h3>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-              Site #{item.id} — {item.f_farmer_name || item.farmer_name || 'Beneficiary'} (One-time submission)
-            </p>
-          </div>
-          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            {X_ICON}
-          </button>
-        </div>
-
-        <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {error && <div className="ax-alert ax-alert--danger">{error}</div>}
-
-          <div style={{ fontSize: 12, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '8px 12px', borderRadius: 6 }}>
-            <b>Important Notice:</b> Handover Certificate (HOC) can only be submitted once. Please verify that the correct signed document is attached before uploading.
-          </div>
-
-          <div className="ax-modern-field">
-            <label className="ax-modern-label">
-              <span>HOC Document File <span className="ax-modern-req">*</span></span>
-              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>PDF, JPG, PNG (Max 5MB)</span>
-            </label>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,image/*"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                if (e.target.files?.[0]) setFile(e.target.files[0]);
-              }}
-            />
-
-            {!file ? (
-              <div className="ax-modern-dropzone" onClick={() => fileInputRef.current?.click()}>
-                <div className="ax-modern-dropzone__icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2}>
-                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-                    <path d="M12 12v9" />
-                    <path d="m8 16 4-4 4 4" />
-                  </svg>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Click to browse document</div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Signed HOC / JCR certificate copy</div>
-              </div>
-            ) : (
-              <div className="ax-modern-file-chip">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div className="ax-modern-file-chip__icon">📄</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{file.name}</div>
-                    <div style={{ fontSize: 11, color: '#16a34a' }}>{(file.size / 1024).toFixed(0)} KB · Ready to upload</div>
-                  </div>
-                </div>
-                <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" onClick={() => setFile(null)}>
-                  Remove
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="ax-modern-field">
-            <label className="ax-modern-label">Submission Remarks</label>
-            <textarea
-              className="ax-input"
-              rows={3}
-              placeholder="Enter remarks..."
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="ax-modal__footer">
-          <button type="button" className="ax-btn ax-btn--ghost" onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
-          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting || !file}>
-            {submitting ? 'Submitting…' : 'Submit Document'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * Edit Installation Modal
- * ═══════════════════════════════════════════════════════════════════════════ */
-function EditInstallationModal({
-  item,
-  onClose,
-  onSuccess,
-}: {
-  item: UpKusumCInstalledSiteItem;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [vfdNo, setVfdNo] = useState(item.vfd_no || item.vfd_serial_no || '');
-  const [inverterNo, setInverterNo] = useState(item.Inverter_no || item.inverter_no || item.inverter_serial_no || '');
-  const [moduleSerials, setModuleSerials] = useState(formatModuleSerials(item.module_serial_no || item.module_no));
-  const [latitude, setLatitude] = useState(item.latitude || '');
-  const [longitude, setLongitude] = useState(item.longitude || '');
-  const [remarks, setRemarks] = useState(item.inst_remarks || item.remarks || '');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      const fd = new FormData();
-      fd.append('id', String(item.id));
-      fd.append('vfd_no', vfdNo.trim());
-      fd.append('inverter_no', inverterNo.trim());
-      fd.append('module_serial_no', moduleSerials.trim());
-      fd.append('latitude', latitude.trim());
-      fd.append('longitude', longitude.trim());
-      if (remarks.trim()) fd.append('remarks', remarks.trim());
-
-      const res = await upInstallationService.updateKusumCInstallation(fd);
-      if (res?.status !== false) {
-        onSuccess();
-      } else {
-        setError(res?.message || 'Failed to update installation details.');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update installation details.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal open onClose={onClose} labelledBy="edit-modal-title" dialogClass="ax-modal__dialog--md">
-      <form onSubmit={handleSubmit}>
-        <div className="ax-modal__header">
-          <div>
-            <h3 className="ax-modal__title" id="edit-modal-title" style={{ margin: 0 }}>
-              Edit Installation Details
-            </h3>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-              Site #{item.id} — {item.f_farmer_name || item.farmer_name || 'Beneficiary'}
-            </p>
-          </div>
-          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            {X_ICON}
-          </button>
-        </div>
-
-        <div className="ax-modal__body" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-          {error && <div className="ax-alert ax-alert--danger" style={{ gridColumn: '1 / -1' }}>{error}</div>}
-
-          <div className="ax-modern-field">
-            <label className="ax-modern-label">VFD Serial No.</label>
-            <input
-              type="text"
-              className="ax-input"
-              value={vfdNo}
-              onChange={(e) => setVfdNo(e.target.value)}
-              placeholder="Enter VFD Number"
-            />
-          </div>
-
-          <div className="ax-modern-field">
-            <label className="ax-modern-label">Inverter Serial No.</label>
-            <input
-              type="text"
-              className="ax-input"
-              value={inverterNo}
-              onChange={(e) => setInverterNo(e.target.value)}
-              placeholder="Enter Inverter Number"
-            />
-          </div>
-
-          <div className="ax-modern-field" style={{ gridColumn: '1 / -1' }}>
-            <label className="ax-modern-label">Module Serial Numbers (Comma separated)</label>
-            <input
-              type="text"
-              className="ax-input"
-              value={moduleSerials}
-              onChange={(e) => setModuleSerials(e.target.value)}
-              placeholder="e.g. MOD-01, MOD-02, MOD-03"
-            />
-          </div>
-
-          <div className="ax-modern-field">
-            <label className="ax-modern-label">Installation Latitude</label>
-            <input
-              type="text"
-              className="ax-input"
-              value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
-              placeholder="e.g. 25.3176"
-            />
-          </div>
-
-          <div className="ax-modern-field">
-            <label className="ax-modern-label">Installation Longitude</label>
-            <input
-              type="text"
-              className="ax-input"
-              value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
-              placeholder="e.g. 82.9739"
-            />
-          </div>
-
-          <div className="ax-modern-field" style={{ gridColumn: '1 / -1' }}>
-            <label className="ax-modern-label">Installation Remarks</label>
-            <textarea
-              className="ax-input"
-              rows={2}
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter installation notes..."
-            />
-          </div>
-        </div>
-
-        <div className="ax-modal__footer">
-          <button type="button" className="ax-btn ax-btn--ghost" onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
-          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting}>
-            {submitting ? 'Updating…' : 'Update Details'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}

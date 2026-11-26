@@ -1,629 +1,539 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
-  INITIAL_INSTALLATION_DATA,
-  UP_DISTRICTS,
-  UP_KUSUM_C_VENDORS,
-  type UPKusumCInstallationRecord,
-} from './upKusumCTypes';
+  Pagination,
+  usePagination,
+  SearchInput,
+  TableExportToolbar,
+  TableEmptyState,
+  type ExportColumn,
+} from '../../../../../common';
+import {
+  upKusumCAdminService,
+  resolveUpMediaUrl,
+  type UpKusumCSiteRow,
+  type UpKusumCDetailSummary,
+} from '../../up-services';
+import {
+  TABLE_PAGE_CSS,
+  OVERLAY_CSS,
+  actionsRowStyle,
+  footerStyle,
+  centerCell,
+  Modal,
+  KpiCard,
+  MediaFileThumbnail,
+  MediaLightbox,
+  StatusFeedbackBanners,
+  fmtDate,
+  fmtNum,
+  parseStringArray,
+  DASH,
+  copyRowsToClipboard,
+  exportRowsCSV,
+  exportRowsExcel,
+  exportRowsPDF,
+} from '../upInstallationShared';
+
+function getInverterNo(row: UpKusumCSiteRow): string {
+  return String(row.Inverter_no || row.inverter_no || '').trim();
+}
+
+function formatYesNoFlag(val: unknown): string {
+  if (val === null || val === undefined || val === '') return DASH;
+  const s = String(val).trim().toLowerCase();
+  if (s === '1' || s === 'yes' || s === 'true') return 'Yes';
+  if (s === '0' || s === 'no' || s === 'false') return 'No';
+  return String(val);
+}
+
+function getDocStatusLabel(status: unknown): string {
+  const n = Number(status ?? 0);
+  if (n === 2) return 'Approved';
+  if (n === 3) return 'Rejected';
+  if (n === 1) return 'Pending';
+  return 'Not Submitted';
+}
+
+function getVerifyStatusLabel(status: unknown): string {
+  const n = Number(status ?? 0);
+  if (n === 1) return 'Approved';
+  if (n === 2) return 'Rejected';
+  return 'Pending';
+}
 
 export function UPKusumCVerifyInstallation() {
-  const [data, setData] = useState<UPKusumCInstallationRecord[]>(INITIAL_INSTALLATION_DATA);
+  const [verification, setVerification] = useState<UpKusumCSiteRow[]>([]);
+  const [verified, setVerified] = useState<UpKusumCSiteRow[]>([]);
+  const [detail, setDetail] = useState<UpKusumCDetailSummary | null>(null);
+  const [loginInfo, setLoginInfo] = useState<{ id?: string; name?: string }>({});
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
   const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedVendor, setSelectedVendor] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  // Verify Modal
+  const [actionSite, setActionSite] = useState<UpKusumCSiteRow | null>(null);
+  const [actionStatus, setActionStatus] = useState<'1' | '2'>('1');
+  const [actionRemarks, setActionRemarks] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  // Details Modal (with Module Search) & Lightbox
+  const [detailSite, setDetailSite] = useState<UpKusumCSiteRow | null>(null);
+  const [moduleSearch, setModuleSearch] = useState('');
+  const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
 
-  // Verification Modal State
-  const [verifyModalItem, setVerifyModalItem] = useState<UPKusumCInstallationRecord | null>(null);
-  const [verifyAction, setVerifyAction] = useState<'Approved' | 'Rejected'>('Approved');
-  const [verifyRemarksInput, setVerifyRemarksInput] = useState<string>('');
-  const [isVerifying, setIsVerifying] = useState<boolean>(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const openDetailsModal = (row: UpKusumCSiteRow) => {
+    setDetailSite(row);
+    setModuleSearch('');
+  };
 
-  // Image Modal
-  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+  const closeDetailsModal = () => {
+    setDetailSite(null);
+    setModuleSearch('');
+  };
 
-  // Counts
-  const pendingCount = data.filter((item) => item.verify_status === 'Pending').length;
-  const approvedCount = data.filter((item) => item.verify_status === 'Approved').length;
-  const rejectedCount = data.filter((item) => item.verify_status === 'Rejected').length;
-  const totalCompleted = approvedCount + rejectedCount;
+  const formatVerifyBy = useCallback(
+    (row: UpKusumCSiteRow): string => {
+      if (row.inst_verify_by_name) return String(row.inst_verify_by_name);
+      if (row.inst_verify_by === null || row.inst_verify_by === undefined || row.inst_verify_by === '') {
+        return DASH;
+      }
+      const raw = String(row.inst_verify_by).trim();
+      if (loginInfo.id && loginInfo.name && raw === loginInfo.id) {
+        return `${loginInfo.name} (${raw})`;
+      }
+      return raw;
+    },
+    [loginInfo]
+  );
 
-  // Filtered rows
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      // Tab filter
-      if (activeTab === 'pending' && item.verify_status !== 'Pending') return false;
-      if (activeTab === 'approved_rejected' && item.verify_status === 'Pending') return false;
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await upKusumCAdminService.getViewInstallation();
+      setDetail(res.detail);
+      setVerification(res.verification);
+      setVerified(res.verified);
+      setLoginInfo({
+        id: res.loginId !== undefined && res.loginId !== null ? String(res.loginId) : undefined,
+        name: res.loginName || undefined,
+      });
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to load Kusum C installation verification data.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-      const q = searchTerm.toLowerCase();
-      const matchesSearch =
-        !q ||
-        item.vendor_name.toLowerCase().includes(q) ||
-        item.district.toLowerCase().includes(q) ||
-        item.block.toLowerCase().includes(q) ||
-        item.village.toLowerCase().includes(q) ||
-        item.applicant_name.toLowerCase().includes(q) ||
-        item.vfd_no.toLowerCase().includes(q) ||
-        item.inverter_no.toLowerCase().includes(q) ||
-        item.module_serial_no.toLowerCase().includes(q) ||
-        (item.remarks || '').toLowerCase().includes(q);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-      const matchesVendor = !selectedVendor || item.vendor_name === selectedVendor;
-      const matchesDistrict = !selectedDistrict || item.district === selectedDistrict;
+  const handleVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!actionSite) return;
+    setSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const statusNum = Number(actionStatus) as 1 | 2;
+      const res = await upKusumCAdminService.verifyInstallationStatus({
+        id: actionSite.id,
+        status: statusNum,
+        remarks: actionRemarks.trim() || undefined,
+      });
 
-      return matchesSearch && matchesVendor && matchesDistrict;
+      const updated: UpKusumCSiteRow = {
+        ...actionSite,
+        inst_verify_status: statusNum,
+        inst_verify_remarks: actionRemarks.trim(),
+        inst_verify_date: new Date().toISOString().slice(0, 10),
+        inst_verify_by: loginInfo.id || actionSite.inst_verify_by,
+      };
+      setVerification((prev) => prev.filter((s) => s.id !== actionSite.id));
+      setVerified((prev) => [updated, ...prev.filter((s) => s.id !== actionSite.id)]);
+      setSuccessMsg(res.message || 'Status updated successfully.');
+      setActionSite(null);
+      setActionRemarks('');
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to update installation verification status.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const currentList = activeTab === 'pending' ? verification : verified;
+
+  const filteredList = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return currentList;
+    return currentList.filter((s) => {
+      const serials = parseStringArray(s.module_serial_no || s.module_no).join(' ');
+      const hay = [
+        s.id,
+        s.vendor_name,
+        s.state,
+        s.f_district || s.district,
+        s.f_block || s.block || s.f_post,
+        s.f_village || s.village,
+        s.f_farmer_name || s.farmer_name,
+        s.f_father_name || s.father_name,
+        s.f_customer_no,
+        s.lot_no,
+        s.vfd_no,
+        getInverterNo(s),
+        serials,
+        s.inst_remarks,
+        s.inst_verify_date,
+        formatVerifyBy(s),
+        s.inst_verify_remarks,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
     });
-  }, [data, activeTab, searchTerm, selectedVendor, selectedDistrict]);
+  }, [currentList, searchQuery, formatVerifyBy]);
 
-  // Pagination slice
-  const totalItems = filteredData.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagination = usePagination(filteredList, { initialPageSize: 50 });
 
-  const handleOpenVerifyModal = (item: UPKusumCInstallationRecord) => {
-    setVerifyModalItem(item);
-    setVerifyAction('Approved');
-    setVerifyRemarksInput('');
-  };
-
-  const handleConfirmVerification = () => {
-    if (!verifyModalItem) return;
-    setIsVerifying(true);
-
-    setTimeout(() => {
-      setData((prev) =>
-        prev.map((rec) =>
-          rec.id === verifyModalItem.id
-            ? {
-                ...rec,
-                verify_status: verifyAction,
-                verify_date: new Date().toISOString().slice(0, 10),
-                verify_by: 'Super Admin',
-                verify_remarks: verifyRemarksInput || (verifyAction === 'Approved' ? 'Verified and approved' : 'Rejected due to discrepancies'),
-              }
-            : rec
-        )
-      );
-
-      setIsVerifying(false);
-      setToastMsg(`Installation for ${verifyModalItem.applicant_name} marked as ${verifyAction}!`);
-      setVerifyModalItem(null);
-      setTimeout(() => setToastMsg(null), 3000);
-    }, 500);
-  };
-
-  const handleExportCSV = () => {
-    const headers = [
-      'Sr. No.',
-      'Vendor Name',
-      'State',
-      'District',
-      'Block',
-      'Village',
-      'Applicant Name',
-      'VFD No.',
-      'Inverter No.',
-      'Module Serial No.',
-      'Remarks',
-      'Verify Status',
-      'Verify Date',
-      'Verify By',
-      'Verify Remarks',
+  const exportCols = useMemo<ExportColumn<UpKusumCSiteRow>[]>(() => {
+    const baseCols: ExportColumn<UpKusumCSiteRow>[] = [
+      { header: 'Sr. No.', accessor: ((_r: UpKusumCSiteRow, idx?: number) => (idx !== undefined ? idx + 1 : '')) as any },
+      { header: 'Vendor Name', accessor: (r) => r.vendor_name || DASH },
+      { header: 'State', accessor: (r) => (r.state || 'UP').toUpperCase() },
+      { header: 'District', accessor: (r) => r.f_district || r.district || DASH },
+      { header: 'Block', accessor: (r) => r.f_block || r.block || r.f_post || DASH },
+      { header: 'Village', accessor: (r) => r.f_village || r.village || DASH },
+      { header: 'Applicant Name', accessor: (r) => r.f_farmer_name || r.farmer_name || DASH },
+      { header: 'VFD No.', accessor: (r) => r.vfd_no || DASH },
+      { header: 'Inverter No.', accessor: (r) => getInverterNo(r) || DASH },
+      { header: 'Module Serial No.', accessor: (r) => parseStringArray(r.module_serial_no || r.module_no).join(', ') || DASH },
+      { header: 'Remarks', accessor: (r) => r.inst_remarks || DASH },
+      { header: 'Verify Status', accessor: (r) => getVerifyStatusLabel(r.inst_verify_status) },
     ];
+    if (activeTab === 'approved_rejected') {
+      baseCols.push(
+        { header: 'Verify Date', accessor: (r) => fmtDate(r.inst_verify_date) },
+        { header: 'Verify By', accessor: (r) => formatVerifyBy(r) },
+        { header: 'Verify Remarks', accessor: (r) => r.inst_verify_remarks || DASH }
+      );
+    }
+    return baseCols;
+  }, [activeTab, formatVerifyBy]);
 
-    const rows = filteredData.map((item, idx) => [
-      idx + 1,
-      `"${item.vendor_name}"`,
-      `"${item.state}"`,
-      `"${item.district}"`,
-      `"${item.block}"`,
-      `"${item.village}"`,
-      `"${item.applicant_name}"`,
-      `"${item.vfd_no}"`,
-      `"${item.inverter_no}"`,
-      `"${item.module_serial_no}"`,
-      `"${item.remarks || ''}"`,
-      `"${item.verify_status}"`,
-      `"${item.verify_date || ''}"`,
-      `"${item.verify_by || ''}"`,
-      `"${item.verify_remarks || ''}"`,
-    ]);
+  const detailAllSerials = useMemo(
+    () => (detailSite ? parseStringArray(detailSite.module_serial_no || detailSite.module_no) : []),
+    [detailSite]
+  );
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `UP_Kusum_C_Installation_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const detailFilteredSerials = useMemo(() => {
+    const q = moduleSearch.trim().toLowerCase();
+    return detailAllSerials
+      .map((serial, index) => ({ serial, index: index + 1 }))
+      .filter((item) => !q || item.serial.toLowerCase().includes(q) || String(item.index) === q);
+  }, [detailAllSerials, moduleSearch]);
+
+  const isApprovedRejectedTab = activeTab === 'approved_rejected';
+  const totalTableCols = isApprovedRejectedTab ? 18 : 16;
+  const stamp = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="ax-page" style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 40 }}>
-      {/* Page Head */}
+    <div className="solar-erp-page">
+      <style>{TABLE_PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
+
       <PageHead
         title="Verify Kusum-C Installation"
-        subtitle="Review vendor proof of installations, inspect geo-tagged module photos, VFD, inverter, and running water discharge"
+        subtitle="Audit UP Kusum C vendor installations, hardware serial numbers, and field photo proof"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Uttar Pradesh', href: '/vendor-management/up' },
           { label: 'Kusum C', href: '/vendor-management/up/kusumc/installation/dashboard' },
-          { label: 'Verify Kusum-C Installation' },
+          { label: 'Verify Installation' },
         ]}
       />
 
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div
-          style={{
-            padding: '12px 18px',
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            borderRadius: 8,
-            marginBottom: 16,
-            fontSize: 13,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>✓ {toastMsg}</span>
-          <button
-            type="button"
-            onClick={() => setToastMsg(null)}
-            style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: 16 }}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      <StatusFeedbackBanners
+        errorMsg={errorMsg}
+        successMsg={successMsg}
+        onClearError={() => setErrorMsg('')}
+        onClearSuccess={() => setSuccessMsg('')}
+      />
 
-      {/* KPI Stat Cards (Matching Specification) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        {/* Total Metric Card */}
-        <div
-          className="ax-card"
-          style={{
-            padding: '16px 20px',
-            borderLeft: '4px solid #3b82f6',
-            background: 'var(--ax-surface-solid, #ffffff)',
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Total Sites
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            329 <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>/ 6 / 331</span>
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-            Total / Assigned / Not Assigned
-          </div>
-        </div>
-
-        {/* Installation Status Metric Card */}
-        <div
-          className="ax-card"
-          style={{
-            padding: '16px 20px',
-            borderLeft: '4px solid #10b981',
-            background: 'var(--ax-surface-solid, #ffffff)',
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Installation Status
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            6 <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>/ 0</span>
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-            Complete / Pending
-          </div>
-        </div>
-
-        {/* Verify Status Metric Card */}
-        <div
-          className="ax-card"
-          style={{
-            padding: '16px 20px',
-            borderLeft: '4px solid #f59e0b',
-            background: 'var(--ax-surface-solid, #ffffff)',
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Verify Status
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
-            {approvedCount} <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>/ {pendingCount} / {rejectedCount}</span>
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-            Complete / Pending / Reject
-          </div>
-        </div>
+      {/* Top KPI Cards */}
+      <div className="asw-cards-row asw-cards-row--5">
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="3" width="20" height="14" rx="2" /></svg>}
+          tone="accent"
+          label="Total / Assigned / Not Assigned"
+          value={`${fmtNum(detail?.total)} / ${fmtNum(detail?.assigned)} / ${fmtNum(detail?.not_assigned)}`}
+          sub="Total · Assigned · Not Assigned"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+          tone="cyan"
+          label="Installation Status"
+          value={`${fmtNum(detail?.complete)} / ${fmtNum(detail?.pending)}`}
+          sub="Complete / Pending"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
+          tone="amber"
+          label="Verify Pending"
+          value={fmtNum(detail?.verify_pending ?? verification.length)}
+          sub="Awaiting QA review"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M20 6L9 17l-5-5" /></svg>}
+          tone="emerald"
+          label="Verify Approved"
+          value={fmtNum(detail?.verify_approved)}
+          sub="Approved installations"
+        />
+        <KpiCard
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
+          tone="red"
+          label="Verify Rejected"
+          value={fmtNum(detail?.verify_reject)}
+          sub="Rejected for rework"
+        />
       </div>
 
-      {/* Main Table Card */}
-      <div className="ax-card" style={{ overflow: 'hidden' }}>
-        {/* Report Wise Bifurcation Tabs */}
-        <div
-          style={{
-            padding: '16px 20px 0 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            background: 'var(--ax-surface-subtle, #f8fafc)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
+      {/* Report Wise Bifurcation Pills */}
+      <div className="asw-bifurcation-row">
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
+        <button
+          type="button"
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('pending');
+            pagination.setPage(1);
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Report Wise Bifurcation
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={handleExportCSV}
-              >
-                CSV Export
-              </button>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => window.print()}
-              >
-                Print
-              </button>
-            </div>
+          Verification Pending
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {verification.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active ax-btn--primary' : ''}`}
+          onClick={() => {
+            setActiveTab('approved_rejected');
+            pagination.setPage(1);
+          }}
+        >
+          Approved/Rejected Data
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {verified.length}
+          </span>
+        </button>
+      </div>
+
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">
+              {activeTab === 'pending' ? 'Kusum-C Verification Pending List' : 'Kusum-C Approved / Rejected Installations'}
+            </h2>
+            <p className="ax-card__subtitle">Showing {filteredList.length} installation record(s)</p>
           </div>
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('pending');
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '8px 18px',
-                border: 'none',
-                background: 'transparent',
-                borderBottom: activeTab === 'pending' ? '3px solid #2563eb' : '3px solid transparent',
-                color: activeTab === 'pending' ? '#2563eb' : '#64748b',
-                fontWeight: activeTab === 'pending' ? 700 : 500,
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              Verification Pending
-              <span
-                style={{
-                  background: activeTab === 'pending' ? '#eff6ff' : '#f1f5f9',
-                  color: activeTab === 'pending' ? '#2563eb' : '#64748b',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {pendingCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('approved_rejected');
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '8px 18px',
-                border: 'none',
-                background: 'transparent',
-                borderBottom: activeTab === 'approved_rejected' ? '3px solid #2563eb' : '3px solid transparent',
-                color: activeTab === 'approved_rejected' ? '#2563eb' : '#64748b',
-                fontWeight: activeTab === 'approved_rejected' ? 700 : 500,
-                fontSize: 13,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              Approved/Rejected Data
-              <span
-                style={{
-                  background: activeTab === 'approved_rejected' ? '#eff6ff' : '#f1f5f9',
-                  color: activeTab === 'approved_rejected' ? '#2563eb' : '#64748b',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {totalCompleted}
-              </span>
-            </button>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search vendor, applicant, district, serial..."
+                size="sm"
+              />
+              <TableExportToolbar
+                onCopy={() => copyRowsToClipboard(filteredList, exportCols)}
+                onExportCSV={() => exportRowsCSV(filteredList, exportCols, `UP_KusumC_Verify_${activeTab}_${stamp}`)}
+                onExportExcel={() => exportRowsExcel(filteredList, exportCols, `UP_KusumC_Verify_${activeTab}_${stamp}`)}
+                onExportPDF={() => exportRowsPDF(filteredList, exportCols, 'Verify Kusum-C Installation')}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Filters Toolbar */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 12,
-            background: '#ffffff',
-          }}
-        >
-          {/* Search */}
-          <div style={{ flex: '1 1 240px', minWidth: 220 }}>
-            <input
-              type="text"
-              className="ax-form-input"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search: vendor, applicant, VFD no., inverter, serial no..."
-              style={{
-                width: '100%',
-                padding: '7px 12px',
-                fontSize: 13,
-                borderRadius: 6,
-                border: '1px solid #cbd5e1',
-              }}
-            />
-          </div>
-
-          {/* Vendor Filter */}
-          <div style={{ minWidth: 160 }}>
-            <select
-              className="ax-form-input"
-              value={selectedVendor}
-              onChange={(e) => {
-                setSelectedVendor(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="">-- All Vendors --</option>
-              {UP_KUSUM_C_VENDORS.map((v) => (
-                <option key={v.id} value={v.name}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* District Filter */}
-          <div style={{ minWidth: 160 }}>
-            <select
-              className="ax-form-input"
-              value={selectedDistrict}
-              onChange={(e) => {
-                setSelectedDistrict(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="">-- All Districts --</option>
-              {UP_DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(searchTerm || selectedVendor || selectedDistrict) && (
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedVendor('');
-                setSelectedDistrict('');
-                setCurrentPage(1);
-              }}
-              style={{ color: '#ef4444' }}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        {/* Table Content */}
-        <div style={{ overflowX: 'auto' }}>
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div className="ax-table-wrap">
+          <table
+            className="ax-table ax-table--hover ula-table--wide"
+            style={{ whiteSpace: 'nowrap', minWidth: isApprovedRejectedTab ? 2150 : 1700 }}
+          >
+            <thead className="ax-table__head">
               <tr>
-                <th style={{ padding: '10px 10px', textAlign: 'center', width: 50, fontWeight: 600, color: '#475569' }}>Sr. No.</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Vendor Name</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>State</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>District</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Block</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Village</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Applicant Name</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>VFD No.</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Inverter No.</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Module Serial No.</th>
-                <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Farmer With Module</th>
-                <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Inverter & VFD</th>
-                <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Running Water</th>
-                <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Remarks</th>
-
-                {activeTab === 'approved_rejected' && (
+                <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">Vendor Name</th>
+                <th className="ax-table__th">State</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th">Block</th>
+                <th className="ax-table__th">Village</th>
+                <th className="ax-table__th">Applicant Name</th>
+                <th className="ax-table__th">VFD No.</th>
+                <th className="ax-table__th">Inverter No.</th>
+                <th className="ax-table__th">Module Serial No.</th>
+                <th className="ax-table__th">Farmer With Module Image</th>
+                <th className="ax-table__th">Inverter and VFD with Farmer Image</th>
+                <th className="ax-table__th">Running Water With Farmer Image</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
+                {isApprovedRejectedTab && (
                   <>
-                    <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Verify Status</th>
-                    <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Verify Date</th>
-                    <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Verify By</th>
-                    <th style={{ padding: '10px 10px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Verify Remarks</th>
+                    <th className="ax-table__th">Verify Date</th>
+                    <th className="ax-table__th">Verify By</th>
+                    <th className="ax-table__th">Verify Remarks</th>
                   </>
                 )}
-
-                <th style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Action</th>
+                {!isApprovedRejectedTab && (
+                  <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {pagedData.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={activeTab === 'approved_rejected' ? 19 : 15} style={{ textAlign: 'center', padding: '36px 20px', color: '#64748b' }}>
-                    No installation records found for {activeTab === 'pending' ? 'Verification Pending' : 'Approved/Rejected Data'}.
+                  <td colSpan={totalTableCols} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading Kusum C installations...
+                  </td>
+                </tr>
+              ) : pagination.paged.length === 0 ? (
+                <tr>
+                  <td colSpan={totalTableCols} style={centerCell}>
+                    <TableEmptyState title="No installation records found" description="No records match this tab or search." />
                   </td>
                 </tr>
               ) : (
-                pagedData.map((item, idx) => {
-                  const srNo = (currentPage - 1) * pageSize + idx + 1;
+                pagination.paged.map((row, idx) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const serials = parseStringArray(row.module_serial_no || row.module_no);
+                  const inverterNo = getInverterNo(row);
+                  const modImg = row.farmer_with_module || row.module_image;
+                  const vfdImg = row.inverter_vfd_with_farmer || row.inverter_vfd_image;
+                  const waterImg = row.running_water_with_farmer || row.running_water_image;
+                  const st = Number(row.inst_verify_status ?? 0);
+
                   return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', color: '#64748b' }}>{srNo}</td>
-                      <td style={{ padding: '10px 10px', fontWeight: 600, color: '#0f172a' }}>{item.vendor_name}</td>
-                      <td style={{ padding: '10px 10px', textTransform: 'uppercase' }}>{item.state}</td>
-                      <td style={{ padding: '10px 10px' }}>{item.district}</td>
-                      <td style={{ padding: '10px 10px' }}>{item.block}</td>
-                      <td style={{ padding: '10px 10px' }}>{item.village}</td>
-                      <td style={{ padding: '10px 10px', fontWeight: 600, color: '#1e293b' }}>{item.applicant_name}</td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 11 }}>{item.vfd_no}</td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 11 }}>{item.inverter_no}</td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 11 }}>{item.module_serial_no}</td>
-
-                      {/* Photo 1: Farmer with Module */}
-                      <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                        {item.farmer_with_module_img ? (
-                          <img
-                            src={item.farmer_with_module_img}
-                            alt="Farmer Module"
-                            onClick={() => setPreviewImage({ url: item.farmer_with_module_img!, title: `Farmer With Module - ${item.applicant_name}` })}
-                            style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #cbd5e1' }}
-                            title="Click to zoom"
-                          />
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
+                    <tr key={row.id}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.vendor_name || DASH}</td>
+                      <td className="ax-table__td">{(row.state || 'UP').toUpperCase()}</td>
+                      <td className="ax-table__td">{row.f_district || row.district || DASH}</td>
+                      <td className="ax-table__td">{row.f_block || row.block || row.f_post || DASH}</td>
+                      <td className="ax-table__td">{row.f_village || row.village || DASH}</td>
+                      <td className="ax-table__td">
+                        <div
+                          style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--ax-primary-600, #2563eb)' }}
+                          onClick={() => openDetailsModal(row)}
+                          title="Click to view full installation details"
+                        >
+                          {row.f_farmer_name || row.farmer_name || DASH}
+                        </div>
+                        {(row.f_father_name || row.father_name) && (
+                          <div style={{ fontSize: 11, color: '#64748b' }}>S/o {row.f_father_name || row.father_name}</div>
                         )}
                       </td>
-
-                      {/* Photo 2: Inverter & VFD */}
-                      <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                        {item.inverter_vfd_farmer_img ? (
-                          <img
-                            src={item.inverter_vfd_farmer_img}
-                            alt="Inverter & VFD"
-                            onClick={() => setPreviewImage({ url: item.inverter_vfd_farmer_img!, title: `Inverter and VFD - ${item.applicant_name}` })}
-                            style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #cbd5e1' }}
-                            title="Click to zoom"
-                          />
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.vfd_no || DASH}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{inverterNo || DASH}</td>
+                      <td className="ax-table__td">
+                        {serials.length ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {serials.slice(0, 2).map((s, i) => (
+                              <span key={i} style={{ fontFamily: 'monospace', fontSize: 10.5, background: '#f1f5f9', padding: '1px 5px', borderRadius: 4 }}>
+                                {s}
+                              </span>
+                            ))}
+                            {serials.length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => openDetailsModal(row)}
+                                style={{ fontSize: 10, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontWeight: 600 }}
+                              >
+                                +{serials.length - 2} more (Search modules)
+                              </button>
+                            )}
+                          </div>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
+                          DASH
                         )}
                       </td>
-
-                      {/* Photo 3: Running Water */}
-                      <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                        {item.running_water_farmer_img ? (
-                          <img
-                            src={item.running_water_farmer_img}
-                            alt="Running Water"
-                            onClick={() => setPreviewImage({ url: item.running_water_farmer_img!, title: `Running Water Discharge - ${item.applicant_name}` })}
-                            style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #cbd5e1' }}
-                            title="Click to zoom"
-                          />
+                      <td className="ax-table__td">
+                        <MediaFileThumbnail
+                          url={modImg ? resolveUpMediaUrl(modImg, 'kusumc') : null}
+                          alt="Farmer With Module"
+                          onClick={(url, title) => setLightbox({ url, title })}
+                        />
+                      </td>
+                      <td className="ax-table__td">
+                        <MediaFileThumbnail
+                          url={vfdImg ? resolveUpMediaUrl(vfdImg, 'kusumc') : null}
+                          alt="Inverter & VFD With Farmer"
+                          onClick={(url, title) => setLightbox({ url, title })}
+                        />
+                      </td>
+                      <td className="ax-table__td">
+                        <MediaFileThumbnail
+                          url={waterImg ? resolveUpMediaUrl(waterImg, 'kusumc') : null}
+                          alt="Running Water With Farmer"
+                          onClick={(url, title) => setLightbox({ url, title })}
+                        />
+                      </td>
+                      <td className="ax-table__td" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.inst_remarks || ''}>
+                        {row.inst_remarks || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {st === 1 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
+                        ) : st === 2 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                         )}
                       </td>
-
-                      <td style={{ padding: '10px 10px', color: '#64748b', maxWidth: 160, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.remarks || '—'}
-                      </td>
-
-                      {/* Tab 2 Columns */}
-                      {activeTab === 'approved_rejected' && (
+                      {isApprovedRejectedTab && (
                         <>
-                          <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                            <span
-                              className={`ax-badge ${
-                                item.verify_status === 'Approved'
-                                  ? 'ax-badge--soft ax-badge--success'
-                                  : 'ax-badge--soft ax-badge--danger'
-                              }`}
-                              style={{ fontWeight: 600, fontSize: 11, padding: '2px 8px' }}
-                            >
-                              {item.verify_status}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 10px', color: '#334155' }}>{item.verify_date || '—'}</td>
-                          <td style={{ padding: '10px 10px', color: '#334155' }}>{item.verify_by || '—'}</td>
-                          <td style={{ padding: '10px 10px', color: '#64748b', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.verify_remarks || '—'}
+                          <td className="ax-table__td">{fmtDate(row.inst_verify_date)}</td>
+                          <td className="ax-table__td">{formatVerifyBy(row)}</td>
+                          <td
+                            className="ax-table__td"
+                            style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            title={row.inst_verify_remarks || ''}
+                          >
+                            {row.inst_verify_remarks || DASH}
                           </td>
                         </>
                       )}
-
-                      {/* Action Button */}
-                      <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                        {activeTab === 'pending' ? (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--primary ax-btn--sm"
-                            onClick={() => handleOpenVerifyModal(item)}
-                            style={{ fontSize: 11, padding: '4px 10px', fontWeight: 600 }}
-                          >
-                            Verify
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
-                            disabled
-                            style={{
-                              fontSize: 11,
-                              padding: '3px 8px',
-                              opacity: 0.85,
-                              cursor: 'not-allowed',
-                              background: '#f1f5f9',
-                              color: '#64748b',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                            title="Verification Completed & Locked"
-                          >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            Locked
-                          </button>
-                        )}
-                      </td>
+                      {!isApprovedRejectedTab && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              onClick={() => openDetailsModal(row)}
+                            >
+                              Details
+                            </button>
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--primary ax-btn--xs"
+                              onClick={() => {
+                                setActionSite(row);
+                                setActionStatus('1');
+                                setActionRemarks(row.inst_verify_remarks || '');
+                              }}
+                            >
+                              Verify
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -632,250 +542,288 @@ export function UPKusumCVerifyInstallation() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderTop: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-            background: 'var(--ax-surface-subtle, #f8fafc)',
-            fontSize: 12.5,
-            color: '#64748b',
-          }}
-        >
-          <div>
-            Showing {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Show</span>
-              <select
-                className="ax-form-input"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                style={{ padding: '3px 6px', fontSize: 12, borderRadius: 4 }}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <span>entries</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                style={{ padding: '3px 8px', fontSize: 11 }}
-              >
-                Previous
-              </button>
-              <span style={{ padding: '4px 8px', fontWeight: 600, color: '#1e293b' }}>
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                style={{ padding: '3px 8px', fontSize: 11 }}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Verification Action Modal ── */}
-      {verifyModalItem && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 1050,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-          onClick={() => setVerifyModalItem(null)}
-        >
-          <div
-            className="ax-card"
-            style={{
-              width: '100%',
-              maxWidth: 540,
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: '#f8fafc',
-              }}
-            >
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-                  Verify Kusum C Installation
-                </h3>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                  Applicant: <strong>{verifyModalItem.applicant_name}</strong> · {verifyModalItem.district}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => setVerifyModalItem(null)}
-                style={{ fontSize: 18, lineHeight: 1 }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ padding: 20 }}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 8 }}>
-                  Verification Decision <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-                    <input
-                      type="radio"
-                      name="verifyAction"
-                      checked={verifyAction === 'Approved'}
-                      onChange={() => setVerifyAction('Approved')}
-                    />
-                    <span style={{ color: '#16a34a', fontWeight: 700 }}>Approve Installation</span>
-                  </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-                    <input
-                      type="radio"
-                      name="verifyAction"
-                      checked={verifyAction === 'Rejected'}
-                      onChange={() => setVerifyAction('Rejected')}
-                    />
-                    <span style={{ color: '#dc2626', fontWeight: 700 }}>Reject Installation</span>
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <label htmlFor="verifyRemarksInput" style={{ fontSize: 13, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
-                  Verification Remarks
-                </label>
-                <textarea
-                  id="verifyRemarksInput"
-                  className="ax-form-input"
-                  rows={3}
-                  value={verifyRemarksInput}
-                  onChange={(e) => setVerifyRemarksInput(e.target.value)}
-                  placeholder={
-                    verifyAction === 'Approved'
-                      ? 'e.g. Pump discharge and wiring inspected and approved.'
-                      : 'e.g. Inverter serial number does not match documentation.'
-                  }
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6, border: '1px solid #cbd5e1' }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px 20px',
-                borderTop: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 10,
-                background: '#f8fafc',
-              }}
-            >
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={() => setVerifyModalItem(null)}
-                disabled={isVerifying}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={`ax-btn ${verifyAction === 'Approved' ? 'ax-btn--primary' : 'ax-btn--danger'}`}
-                onClick={handleConfirmVerification}
-                disabled={isVerifying}
-                style={{ minWidth: 140, fontWeight: 700 }}
-              >
-                {isVerifying ? 'Saving...' : `Confirm ${verifyAction}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Image Viewer Zoom Modal ── */}
-      {previewImage && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.85)',
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-          onClick={() => setPreviewImage(null)}
-        >
-          <div style={{ color: '#ffffff', fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
-            {previewImage.title}
-          </div>
-          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '85vh' }}>
-            <img
-              src={previewImage.url}
-              alt={previewImage.title}
-              style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 8, objectFit: 'contain' }}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
             />
-            <button
-              type="button"
-              onClick={() => setPreviewImage(null)}
-              style={{
-                position: 'absolute',
-                top: -36,
-                right: 0,
-                background: 'none',
-                border: 'none',
-                color: '#ffffff',
-                fontSize: 26,
-                cursor: 'pointer',
-              }}
+          </div>
+        </div>
+      </section>
+
+      {/* Verify Status Modal (Endpoint #11) */}
+      <Modal
+        open={Boolean(actionSite)}
+        onClose={() => setActionSite(null)}
+        title="Verify Kusum-C Installation"
+        subtitle={actionSite ? `Applicant: ${actionSite.f_farmer_name || actionSite.farmer_name} (Site #${actionSite.id})` : ''}
+        maxWidth={500}
+      >
+        <form onSubmit={handleVerifySubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+              Verification Decision <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <select
+              className="ax-input"
+              value={actionStatus}
+              onChange={(e) => setActionStatus(e.target.value as '1' | '2')}
+              style={{ width: '100%' }}
+              required
             >
-              ×
+              <option value="1">Approve (1)</option>
+              <option value="2">Reject (2)</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Remarks</label>
+            <textarea
+              className="ax-input"
+              rows={3}
+              value={actionRemarks}
+              onChange={(e) => setActionRemarks(e.target.value)}
+              placeholder="Enter QA verification remarks..."
+              style={{ width: '100%', padding: 10 }}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setActionSite(null)}>
+              Cancel
+            </button>
+            <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting}>
+              {submitting ? 'Updating...' : 'Submit Verification'}
             </button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
-      {/* Footer copyright */}
+      {/* Full Site Installation Details Modal with Module Search */}
+      <Modal
+        open={Boolean(detailSite)}
+        onClose={closeDetailsModal}
+        title="Kusum-C Site Installation Details"
+        subtitle={detailSite ? `Site #${detailSite.id} • ${detailSite.f_farmer_name || detailSite.farmer_name || ''}` : ''}
+        maxWidth={920}
+        footer={
+          <button type="button" className="ax-btn ax-btn--primary" onClick={closeDetailsModal}>
+            Close
+          </button>
+        }
+      >
+        {detailSite && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, fontSize: 13 }}>
+            {/* Section 1: Module Serial Numbers with Dedicated Search */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+                padding: 14,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Module Serial Numbers</span>
+                  <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontSize: 11 }}>
+                    {moduleSearch.trim()
+                      ? `${detailFilteredSerials.length} of ${detailAllSerials.length}`
+                      : `${detailAllSerials.length} Total`}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 220px', maxWidth: 320 }}>
+                  <input
+                    type="text"
+                    className="ax-input ax-input--sm"
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
+                    placeholder="Search module serial no..."
+                    aria-label="Search module serial number"
+                    style={{ width: '100%', height: 32, fontSize: 12 }}
+                  />
+                  {moduleSearch && (
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--xs"
+                      onClick={() => setModuleSearch('')}
+                      style={{ height: 32, padding: '0 8px' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {detailAllSerials.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#64748b' }}>No module serial numbers recorded.</div>
+              ) : detailFilteredSerials.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#64748b' }}>
+                  No module serial matches <b>"{moduleSearch}"</b>.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 170, overflowY: 'auto' }}>
+                  {detailFilteredSerials.map(({ serial, index }) => (
+                    <span
+                      key={`${index}-${serial}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontFamily: 'monospace',
+                        fontSize: 11.5,
+                        background: '#ffffff',
+                        padding: '4px 9px',
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        color: '#0f172a',
+                      }}
+                    >
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#2563eb' }}>#{index}</span>
+                      <span>{serial}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Farmer & Location Information */}
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#475569' }}>
+                Farmer & Site Information
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Applicant Name</span><b>{detailSite.f_farmer_name || detailSite.farmer_name || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Father Name</span><b>{detailSite.f_father_name || detailSite.father_name || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Contact No.</span><b>{detailSite.f_contact || detailSite.contact || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Customer No.</span><b>{detailSite.f_customer_no || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Lot No.</span><b>{detailSite.lot_no || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Phase / Volume / KC Wise</span><b>{[detailSite.phase || DASH, detailSite.volume || DASH, detailSite.kc_wise || DASH].join(' / ')}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>State</span><b>{(detailSite.state || 'UP').toUpperCase()}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>District</span><b>{detailSite.f_district || detailSite.district || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Tehsil / Block</span><b>{[detailSite.f_tehsil, detailSite.f_block || detailSite.block].filter(Boolean).join(' / ') || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Post / Village</span><b>{[detailSite.f_post, detailSite.f_village || detailSite.village].filter(Boolean).join(' / ') || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>PIN / Aadhar</span><b>{[detailSite.f_pin || DASH, detailSite.f_aadhar || DASH].join(' / ')}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Pump Capacity</span><b>{detailSite.pump_capacity ? `${detailSite.pump_capacity} HP` : DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Invoice No. / Date</span><b>{detailSite.f_invoice_no || DASH} {detailSite.f_invoice_date ? `(${fmtDate(detailSite.f_invoice_date)})` : ''}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Contractor / Firm</span><b>{[detailSite.c_contractor_name, detailSite.KLK_Firm].filter(Boolean).join(' · ') || DASH}</b></div>
+              </div>
+            </div>
+
+            {/* Section 3: Vendor, Hardware & Installation */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#475569' }}>
+                Vendor, Hardware & Installation Details
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Vendor Name</span><b>{detailSite.vendor_name || DASH} {detailSite.vendor_id ? `(#${detailSite.vendor_id})` : ''}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Assign Date</span><b>{fmtDate(detailSite.inst_assign_date)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Deadline Date</span><b>{fmtDate(detailSite.inst_deadline)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Installation Date</span><b>{fmtDate(detailSite.inst_date)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>VFD No.</span><code style={{ fontWeight: 600 }}>{detailSite.vfd_no || DASH}</code></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>VFD Status</span><b>{formatYesNoFlag(detailSite.vfd_status)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Inverter No.</span><code style={{ fontWeight: 600 }}>{getInverterNo(detailSite) || DASH}</code></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>RMS ID / IMEI</span><b>{[detailSite.rmsid || DASH, detailSite.imei || DASH].join(' / ')}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Latitude / Longitude</span><b>{detailSite.latitude || DASH}, {detailSite.longitude || DASH}</b></div>
+                <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Installation Remarks</span><b>{detailSite.inst_remarks || DASH}</b></div>
+              </div>
+            </div>
+
+            {/* Section 4: Material Dispatch & Field Progress */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#475569' }}>
+                Material Dispatch & Site Execution
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Dispatch Status</span><b>{formatYesNoFlag(detailSite.material_dispatch_status)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>BOS Status</span><b>{formatYesNoFlag(detailSite.mt_bos)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Inverter Material</span><b>{formatYesNoFlag(detailSite.mt_inverter)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Structure Material</span><b>{formatYesNoFlag(detailSite.mt_structure)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Modules Material</span><b>{formatYesNoFlag(detailSite.mt_modules)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Foundation</span><b>{formatYesNoFlag(detailSite.ins_foundation)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Module Mounting</span><b>{formatYesNoFlag(detailSite.ins_module_mounting)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Inverter Installed</span><b>{formatYesNoFlag(detailSite.ins_inverter_installation)}</b></div>
+              </div>
+            </div>
+
+            {/* Section 5: Verification, Document, Payment & AMC */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#475569' }}>
+                Verification, Document, Payment & AMC
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Verify Status</span><b>{getVerifyStatusLabel(detailSite.inst_verify_status)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Verify Date</span><b>{fmtDate(detailSite.inst_verify_date)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Verify By</span><b>{formatVerifyBy(detailSite)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Verify Remarks</span><b>{detailSite.inst_verify_remarks || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Document Status</span><b>{getDocStatusLabel(detailSite.inst_doc_status)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Document Date</span><b>{fmtDate(detailSite.inst_doc_date)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Doc Verify Remarks</span><b>{detailSite.inst_doc_verify_remarks || detailSite.inst_doc_remarks || DASH}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>HOC / Net Metering</span><b>{formatYesNoFlag(detailSite.doc_hoc)} / {formatYesNoFlag(detailSite.net_metering)}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>Claim / Pay Status</span><b>{detailSite.inst_claim_status ?? 0} / {detailSite.inst_pay_status ?? 0}</b></div>
+                <div><span style={{ color: '#64748b', display: 'block', fontSize: 11 }}>AMC Status / Type / Date</span><b>{formatYesNoFlag(detailSite.amc_status)} · {detailSite.amc_type || DASH} · {fmtDate(detailSite.amc_date)}</b></div>
+              </div>
+            </div>
+
+            {/* Section 6: Field Photos & Document */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#475569' }}>
+                Field Photos & Documents
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Farmer With Module</span>
+                  <MediaFileThumbnail
+                    url={detailSite.farmer_with_module || detailSite.module_image ? resolveUpMediaUrl(detailSite.farmer_with_module || detailSite.module_image, 'kusumc') : null}
+                    alt="Farmer With Module Image"
+                    onClick={(url, title) => setLightbox({ url, title })}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Inverter & VFD With Farmer</span>
+                  <MediaFileThumbnail
+                    url={detailSite.inverter_vfd_with_farmer || detailSite.inverter_vfd_image ? resolveUpMediaUrl(detailSite.inverter_vfd_with_farmer || detailSite.inverter_vfd_image, 'kusumc') : null}
+                    alt="Inverter & VFD With Farmer Image"
+                    onClick={(url, title) => setLightbox({ url, title })}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Running Water With Farmer</span>
+                  <MediaFileThumbnail
+                    url={detailSite.running_water_with_farmer || detailSite.running_water_image ? resolveUpMediaUrl(detailSite.running_water_with_farmer || detailSite.running_water_image, 'kusumc') : null}
+                    alt="Running Water With Farmer Image"
+                    onClick={(url, title) => setLightbox({ url, title })}
+                  />
+                </div>
+                {detailSite.inst_doc && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Installation Document</span>
+                    <MediaFileThumbnail
+                      url={resolveUpMediaUrl(detailSite.inst_doc, 'kusumc')}
+                      alt="Installation Document"
+                      onClick={(url, title) => setLightbox({ url, title })}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <MediaLightbox url={lightbox?.url || null} title={lightbox?.title} onClose={() => setLightbox(null)} />
     </div>
   );
 }

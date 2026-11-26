@@ -17,6 +17,7 @@ import {
 import {
   upInstallationService,
   resolveUpMediaUrl,
+  getUpMediaCandidates,
   type UpKusumCAssignmentItem,
 } from '../../up-services';
 
@@ -425,88 +426,249 @@ const fmtDate = (val?: string | null): string => {
 
 const isAcceptedStatus = (s: any) => Number(s) === 2 || String(s) === '2';
 
-// Fallback Mock Data for Kusum-C assignments
-const FALLBACK_KUSUM_C_BATCHES: UpKusumCAssignmentItem[] = [
-  {
-    id: 308,
-    company_id: 'UP-KUSUMC-2026-01',
-    vendor: 'utkarsh',
-    purpose: 'Installation',
-    status: 1, // Pending
-    assign_date: '2026-01-15',
-    deadline_date: '2026-02-15',
-    state: 'UP',
-    project: 'KUSUM-C',
-    volume: '3 HP',
-    district: 'Varanasi',
-    block: 'Pindra',
-    village: 'Anei',
-    site_id: '[101, 102]',
-    site_count: 2,
-    file: null,
-    remarks: 'Field execution assigned for 3HP solar pump systems',
-    Names: [
-      { f_farmer_name: 'Austin Simmons', inst_deadline: '2026-02-15' },
-      { f_farmer_name: 'Kim Small', inst_deadline: '2026-02-15' },
-    ],
-    details: [
-      {
-        id: 101,
-        application_no: 'KUSUMC-UP-8821',
-        f_farmer_name: 'Austin Simmons',
-        f_father_name: 'Robert Simmons',
-        f_district: 'Varanasi',
-        f_block: 'Pindra',
-        f_village: 'Anei',
-        inst_deadline: '2026-02-15',
-      },
-      {
-        id: 102,
-        application_no: 'KUSUMC-UP-8822',
-        f_farmer_name: 'Kim Small',
-        f_father_name: 'James Small',
-        f_district: 'Varanasi',
-        f_block: 'Pindra',
-        f_village: 'Kharawan',
-        inst_deadline: '2026-02-15',
-      },
-    ],
-  },
-  {
-    id: 309,
-    company_id: 'UP-KUSUMC-2026-02',
-    vendor: 'utkarsh',
-    purpose: 'Installation',
-    status: 2, // Accepted
-    assign_date: '2026-01-10',
-    deadline_date: '2026-02-10',
-    state: 'UP',
-    project: 'KUSUM-C',
-    volume: '5 HP',
-    district: 'Lucknow',
-    block: 'Bakshi Ka Talab',
-    village: 'Bhaisamau',
-    site_id: '[103]',
-    site_count: 1,
-    file: null,
-    remarks: 'Ready for installation and site verification',
-    Names: [
-      { f_farmer_name: 'Maheshwar Prasad', inst_deadline: '2026-02-10' },
-    ],
-    details: [
-      {
-        id: 103,
-        application_no: 'KUSUMC-UP-8835',
-        f_farmer_name: 'Maheshwar Prasad',
-        f_father_name: 'Ram Dayal Prasad',
-        f_district: 'Lucknow',
-        f_block: 'Bakshi Ka Talab',
-        f_village: 'Bhaisamau',
-        inst_deadline: '2026-02-10',
-      },
-    ],
-  },
-];
+const isImage = (url?: string | null) =>
+  Boolean(url && /\.(jpe?g|png|webp|gif|svg|bmp|tiff|avif)(\?.*)?$/i.test(String(url).trim()));
+
+const getImageForAssignment = (item: any): string | null => {
+  if (!item) return null;
+  const candidates = [
+    item.file,
+    item.image,
+    item.photo,
+    item.site_image,
+    item.assigned_file,
+    item.uid_file,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim() && isImage(c)) {
+      return c.trim();
+    }
+  }
+  return null;
+};
+
+const getFileExt = (url?: string | null) => {
+  if (!url) return 'FILE';
+  const clean = url.split('?')[0];
+  const ext = clean.includes('.') ? clean.split('.').pop() : '';
+  return ext ? ext.toUpperCase() : 'FILE';
+};
+
+const resolveFileUrl = (file?: string | null) => {
+  if (!file) return '';
+  if (/^https?:\/\//i.test(file)) return file;
+  return resolveUpMediaUrl(file) || '';
+};
+
+function ImagePlaceholder({
+  size = 36,
+  label = 'No photo uploaded',
+}: {
+  size?: number;
+  label?: string;
+}) {
+  return (
+    <div
+      className="ax-img-placeholder"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        border: '1px dashed var(--ax-border, #cbd5e1)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--ax-text-muted, #94a3b8)',
+        flexShrink: 0,
+        cursor: 'default',
+        userSelect: 'none',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        transition: 'all 0.18s ease',
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={Math.max(14, Math.round(size * 0.48))}
+        height={Math.max(14, Math.round(size * 0.48))}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ opacity: 0.7 }}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </div>
+  );
+}
+
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({
+  url,
+  title,
+  onClose,
+}: {
+  url: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 100000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{ maxWidth: 840, width: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{title || 'Image Preview'}</h3>
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div
+          className="ax-modal__body"
+          style={{
+            padding: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0f172a',
+            overflow: 'auto',
+            minHeight: 360,
+          }}
+        >
+          <img
+            src={url}
+            alt={title}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '65vh',
+              transform: `scale(${zoom})`,
+              transition: 'transform 0.2s ease',
+              borderRadius: 6,
+            }}
+          />
+        </div>
+        <div
+          className="ax-modal__footer"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <div style={{ display: 'flex', gap: 6 }}>
+            {ZOOM_STEPS.map((z, idx) => (
+              <button
+                key={z}
+                type="button"
+                className={`ax-btn ax-btn--sm ${zoomIdx === idx ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                onClick={() => setZoomIdx(idx)}
+              >
+                {z}x
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+            >
+              Open original ↗
+            </a>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 36,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getUpMediaCandidates(src), [src]);
+  const [candIdx, setCandIdx] = useState(0);
+
+  useEffect(() => {
+    setCandIdx(0);
+  }, [src]);
+
+  if (!src || candidates.length === 0 || candIdx >= candidates.length) {
+    return <ImagePlaceholder size={size} label={`No image — ${alt}`} />;
+  }
+
+  const currentUrl = candidates[candIdx];
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        margin: '0 auto',
+      }}
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.14)';
+          e.currentTarget.style.borderColor = 'var(--ax-primary-default, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => setCandIdx((prev) => prev + 1)}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
+  );
+}
 
 export function UP_Installation_KusumC_InstallationRequest() {
   const navigate = useNavigate();
@@ -533,20 +695,22 @@ export function UP_Installation_KusumC_InstallationRequest() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [modalSearch, setModalSearch] = useState('');
 
+  // Interactive Lightbox Modal
+  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
+  const openPreview = useCallback((url: string, title: string) => {
+    setLightbox({ url, title });
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await upInstallationService.getKusumCAssignments();
-      if (Array.isArray(res) && res.length > 0) {
-        setData(res);
-      } else {
-        setData(FALLBACK_KUSUM_C_BATCHES);
-      }
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
       console.warn('Error loading Kusum-C assignments:', err);
       setError(err?.message || 'Failed to load Kusum-C assignments.');
-      setData(FALLBACK_KUSUM_C_BATCHES);
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -690,17 +854,32 @@ export function UP_Installation_KusumC_InstallationRequest() {
   };
 
   // Modal Table Filtering
+  const modalList = useMemo(() => {
+    if (Array.isArray(detailData)) return detailData;
+    if (Array.isArray((detailData as any)?.data)) return (detailData as any).data;
+    if (Array.isArray((detailData as any)?.sites)) return (detailData as any).sites;
+    if (Array.isArray(detailData?.details)) return detailData.details;
+    if (Array.isArray((detailData as any)?.Names)) return (detailData as any).Names;
+    if (Array.isArray(activeItem?.details)) return activeItem.details;
+    if (Array.isArray(activeItem?.Names)) return activeItem.Names;
+    if (Array.isArray((activeItem as any)?.sites)) return (activeItem as any).sites;
+    const siteIds = parseSiteIds(activeItem?.site_id);
+    if (siteIds.length > 0) {
+      return siteIds.map((sid) => ({ id: sid }));
+    }
+    return [];
+  }, [detailData, activeItem]);
+
   const filteredModalNames = useMemo(() => {
-    const list = detailData?.details || activeItem?.details || activeItem?.Names || [];
-    if (!modalSearch.trim()) return list;
+    if (!modalSearch.trim()) return modalList;
     const q = modalSearch.toLowerCase();
-    return list.filter((site: any) => {
-      const fn = (site.farmer_name || site.f_farmer_name || '').toLowerCase();
-      const fath = (site.father_name || site.f_father_name || '').toLowerCase();
-      const dist = (site.district || site.f_district || '').toLowerCase();
-      const blk = (site.block || site.f_block || site.tehsil || site.f_tehsil || '').toLowerCase();
-      const vil = (site.village || site.f_village || '').toLowerCase();
-      const app = (site.application_no || site.app_no || site.f_customer_no || '').toLowerCase();
+    return modalList.filter((site: any) => {
+      const fn = (site.applicant_name || site.farmer_name || site.f_farmer_name || '').toLowerCase();
+      const fath = (site.father_name || site.f_father_name || site.father || '').toLowerCase();
+      const dist = (site.district || site.f_district || activeItem?.district || '').toLowerCase();
+      const blk = (site.block || site.f_block || site.tehsil || site.f_tehsil || activeItem?.block || '').toLowerCase();
+      const vil = (site.village || site.f_village || activeItem?.village || '').toLowerCase();
+      const st = (site.state || activeItem?.state || '').toLowerCase();
       const id = String(site.id || '');
       return (
         fn.includes(q) ||
@@ -708,11 +887,11 @@ export function UP_Installation_KusumC_InstallationRequest() {
         dist.includes(q) ||
         blk.includes(q) ||
         vil.includes(q) ||
-        app.includes(q) ||
+        st.includes(q) ||
         id.includes(q)
       );
     });
-  }, [detailData, activeItem, modalSearch]);
+  }, [modalList, modalSearch, activeItem]);
 
   const exportCols: ExportColumn<UpKusumCAssignmentItem>[] = useMemo(
     () => [
@@ -1005,7 +1184,10 @@ export function UP_Installation_KusumC_InstallationRequest() {
                   const isAccepted = isAcceptedStatus(item.status);
                   const districtVal = item.district || (item.details && item.details[0]?.f_district) || DASH;
                   const namesList = item.Names || item.details || [];
-                  const fileUrl = item.file ? resolveUpMediaUrl(item.file) : null;
+                  const imageSrc = getImageForAssignment(item);
+                  const isImg = Boolean(imageSrc || (item.file && isImage(item.file)));
+                  const fileUrl = resolveFileUrl(imageSrc || item.file);
+                  const fileExt = getFileExt(item.file);
 
                   return (
                     <tr key={item.id} className="ax-table__row">
@@ -1022,27 +1204,19 @@ export function UP_Installation_KusumC_InstallationRequest() {
                         <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)', wordBreak: 'break-word' }}>
                           {item.vendor ? (
                             <>
-                              Vendor: {item.vendor}
-                              {item.company_id && (
-                                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', display: 'block', fontWeight: 500 }}>
-                                  {item.company_id}
-                                </span>
-                              )}
+                             {item.vendor}
+                         
                             </>
                           ) : (
                             item.company_id || 'Kusum-C Vendor'
                           )}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 4, lineHeight: 1.4 }}>
-                          <div>Batch ID: #{item.id}</div>
+                         
                           {siteIds.length > 0 && (
                             <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                              <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>
-                                Sites ({siteIds.length}):
-                              </span>
-                              <span style={{ wordBreak: 'break-word' }}>
-                                [{siteIds.slice(0, 4).join(', ')}{siteIds.length > 4 ? `, +${siteIds.length - 4} more` : ''}]
-                              </span>
+                            
+              
                               {siteIds.length > 4 && (
                                 <button
                                   type="button"
@@ -1165,9 +1339,16 @@ export function UP_Installation_KusumC_InstallationRequest() {
                         {fmtDate(item.deadline_date)}
                       </td>
 
-                      {/* 9. File */}
+                      {/* 9. File (Thumbnail if Image, else File Link) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {fileUrl ? (
+                        {isImg ? (
+                          <InstallationThumbnail
+                            src={imageSrc || item.file}
+                            alt={`${item.vendor || 'Kusum-C'} - Site File`}
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        ) : fileUrl ? (
                           <a
                             href={fileUrl}
                             target="_blank"
@@ -1176,7 +1357,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
                             style={{ color: 'var(--asw-primary)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
                             title="View / Download Assigned Site File"
                           >
-                            📎 File ↗
+                            📎 {fileExt} ↗
                           </a>
                         ) : (
                           <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
@@ -1329,51 +1510,43 @@ export function UP_Installation_KusumC_InstallationRequest() {
               )}
             </div>
 
-            {/* Popup Table: Sr. No., Site ID, Application No, Farmer Name, Father Name, District, Block, Village, Deadline Date, Assign Date */}
+            {/* Popup Table: Sr. No., Assign Date, State, District, Block, Village, Applicant Name, Father Name, Deadline Date */}
             <div className="ax-table-wrap" style={{ maxHeight: '60vh', overflow: 'auto' }}>
               <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', width: '100%' }}>
                 <thead className="ax-table__head">
                   <tr>
                     <th className="ax-table__th" style={{ textAlign: 'center' }}>Sr. No.</th>
-                    <th className="ax-table__th">Site ID</th>
-                    <th className="ax-table__th">Application No</th>
-                    <th className="ax-table__th">Farmer Name</th>
-                    <th className="ax-table__th">Father Name</th>
+                    <th className="ax-table__th">Assign Date</th>
+                    <th className="ax-table__th">State</th>
                     <th className="ax-table__th">District</th>
                     <th className="ax-table__th">Block</th>
                     <th className="ax-table__th">Village</th>
+                    <th className="ax-table__th">Applicant Name</th>
+                    <th className="ax-table__th">Father Name</th>
                     <th className="ax-table__th">Deadline Date</th>
-                    <th className="ax-table__th">Assign Date</th>
                   </tr>
                 </thead>
                 <tbody className="ax-table__body">
                   {filteredModalNames.map((site: any, idx: number) => {
                     const assignDate = site.assign_date || detailData?.assign_date || activeItem?.assign_date || activeItem?.created_at;
-                    const deadlineDate = site.inst_deadline || site.deadline_date || detailData?.deadline_date || activeItem?.deadline_date;
+                    const stateVal = (site.state || detailData?.state || activeItem?.state || 'UP').toUpperCase();
                     const districtVal = site.district || site.f_district || detailData?.district || activeItem?.district || DASH;
-                    const blockVal = site.block || site.f_block || site.tehsil || site.f_tehsil || DASH;
-                    const villageVal = site.village || site.f_village || DASH;
-                    const siteId = site.id || (parseSiteIds(activeItem?.site_id)[idx] ?? DASH);
-                    const appNo = site.application_no || site.app_no || site.f_customer_no || DASH;
-                    const farmerName = site.farmer_name || site.f_farmer_name || DASH;
-                    const fatherName = site.father_name || site.f_father_name || site.father || DASH;
+                    const blockVal = site.block || site.f_block || site.tehsil || site.f_tehsil || detailData?.block || activeItem?.block || DASH;
+                    const villageVal = site.village || site.f_village || detailData?.village || activeItem?.village || DASH;
+                    const applicantName = site.applicant_name || site.farmer_name || site.f_farmer_name || site.beneficiary_name || DASH;
+                    const fatherName = site.father_name || site.f_father_name || site.father || detailData?.father_name || activeItem?.father_name || DASH;
+                    const deadlineDate = site.inst_deadline || site.deadline_date || detailData?.deadline_date || activeItem?.deadline_date;
 
                     return (
                       <tr key={site.id || idx} className="ax-table__row">
                         <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)', textAlign: 'center' }}>
                           {idx + 1}
                         </td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          #{siteId}
+                        <td className="ax-table__td" style={{ fontSize: '13px' }}>
+                          {fmtDate(assignDate)}
                         </td>
-                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                          {appNo}
-                        </td>
-                        <td className="ax-table__td">
-                          <strong style={{ color: 'var(--ax-text-strong)' }}>{farmerName}</strong>
-                        </td>
-                        <td className="ax-table__td">
-                          {fatherName}
+                        <td className="ax-table__td" style={{ fontSize: '13px', fontWeight: 600 }}>
+                          {stateVal}
                         </td>
                         <td className="ax-table__td">
                           <b>{districtVal}</b>
@@ -1384,11 +1557,14 @@ export function UP_Installation_KusumC_InstallationRequest() {
                         <td className="ax-table__td">
                           {villageVal}
                         </td>
-                        <td className="ax-table__td" style={{ fontSize: '13px' }}>
-                          {fmtDate(deadlineDate)}
+                        <td className="ax-table__td">
+                          <strong style={{ color: 'var(--ax-text-strong)' }}>{applicantName}</strong>
+                        </td>
+                        <td className="ax-table__td">
+                          {fatherName}
                         </td>
                         <td className="ax-table__td" style={{ fontSize: '13px' }}>
-                          {fmtDate(assignDate)}
+                          {fmtDate(deadlineDate)}
                         </td>
                       </tr>
                     );
@@ -1399,6 +1575,15 @@ export function UP_Installation_KusumC_InstallationRequest() {
           </div>
         )}
       </Modal>
+
+      {/* ── Interactive Image Preview Lightbox ── */}
+      {lightbox && (
+        <ImagePreviewModal
+          url={lightbox.url}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

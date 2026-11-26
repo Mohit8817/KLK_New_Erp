@@ -51,6 +51,7 @@ export function UPComplaintOffgridView() {
       loadingText="Loading Off Grid complaints…"
       emptyMessage="Off Grid complaints will appear here once they are registered."
       fetchData={() => upComplaintService.getOffgridViewComplaints()}
+      onDeleteComplaint={(id) => upComplaintService.deleteOffgridComplaint(id)}
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),

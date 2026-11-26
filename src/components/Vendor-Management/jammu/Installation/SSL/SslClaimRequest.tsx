@@ -526,7 +526,7 @@ export function SslClaimRequest() {
   const exportCols: ExportColumn<SslClaimDeskItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: SslClaimDeskItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: () => 'JAMMU & KASHMIR' },
+      { header: 'State', accessor: () => 'JAMMU' },
       { header: 'Claim ID', accessor: (r: SslClaimDeskItem) => r.claim_id || `JK-CLM-${r.id}` },
       { header: 'Vendor Name', accessor: (r: SslClaimDeskItem) => r.vendor_name },
       { header: 'Volume / Scheme', accessor: (r: SslClaimDeskItem) => r.volume || '—' },
@@ -842,29 +842,24 @@ export function SslClaimRequest() {
 
         {/* ── Responsive Horizontal Scroll Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1550 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1250 }}>
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th">Sr. No.</th>
                 <th className="ax-table__th">State</th>
-                <th className="ax-table__th">Claim ID</th>
                 <th className="ax-table__th">Vendor Name</th>
-                <th className="ax-table__th">Scheme / Volume</th>
-                <th className="ax-table__th">District</th>
-                <th className="ax-table__th ax-table__th--num">Claimed Sites</th>
+                <th className="ax-table__th">Claim Raised Date</th>
+                <th className="ax-table__th ax-table__th--num">Site Count</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Claim Invoice</th>
                 <th className="ax-table__th ax-table__th--num">Claim Amount (₹)</th>
-                <th className="ax-table__th">Submission Date</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Tax Invoice</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>CA Certificate</th>
-                <th className="ax-table__th">Remarks</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Status</th>
+                <th className="ax-table__th">Claim Update Date</th>
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={14} style={centerCell}>
+                  <td colSpan={9} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading claim request records...</span>
@@ -873,7 +868,7 @@ export function SslClaimRequest() {
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={14} style={centerCell}>
+                  <td colSpan={9} style={centerCell}>
                     <TableEmptyState
                       title="No claim requests found"
                       description={searchQuery ? 'Try adjusting your search criteria' : 'No records match this bifurcation view'}
@@ -883,34 +878,23 @@ export function SslClaimRequest() {
               ) : (
                 pagination.paged.map((row: SslClaimDeskItem, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
-                  const isApproved = row.claim_status === 2;
-                  const isRejected = row.claim_status === 3;
-                  const invFile = row.claim_invoice;
-                  const caFile = row.ca_certificate;
+                  const invFile = row.claim_invoice || row.invoice_file;
 
                   return (
                     <tr key={row.id}>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-                      <td className="ax-table__td">JAMMU & KASHMIR</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#2559bf', fontFamily: 'monospace' }}>
-                        {row.claim_id || `JK-CLM-${row.id}`}
-                      </td>
+                      <td className="ax-table__td">JAMMU</td>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>
                         {row.vendor_name}
-                      </td>
-                      <td className="ax-table__td">{row.volume || 'Phase I'}</td>
-                      <td className="ax-table__td">{row.district || '—'}</td>
-                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700, color: '#0f172a' }}>
-                        {num(row.claim_site_count)} Units
-                      </td>
-                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700, color: '#16a34a' }}>
-                        ₹{num(row.claim_amount)}
                       </td>
                       <td className="ax-table__td" style={{ fontSize: 12 }}>
                         {row.claim_raised_date || '—'}
                       </td>
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {num(row.site_count ?? row.claim_site_count)} Units
+                      </td>
 
-                      {/* Invoice Document */}
+                      {/* Claim Invoice */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {invFile ? (
                           <button
@@ -942,71 +926,12 @@ export function SslClaimRequest() {
                         )}
                       </td>
 
-                      {/* CA Certificate */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {caFile ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl(resolveJammuSslMediaUrl(caFile))}
-                            style={{
-                              border: '1px solid #cbd5e1',
-                              borderRadius: 6,
-                              padding: '3px 8px',
-                              background: '#fff',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: '#0891b2',
-                            }}
-                            title="Click to view CA Certificate"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                            CA Cert
-                          </button>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
-                        )}
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700, color: '#16a34a' }}>
+                        ₹{num(row.claim_amount)}
                       </td>
 
-                      <td className="ax-table__td" style={{ maxWidth: 170, fontSize: 11, lineHeight: 1.3 }}>
-                        {row.remarks && (
-                          <div>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>Vendor: </span>
-                            <span>{row.remarks}</span>
-                          </div>
-                        )}
-                        {row.audit_remarks && (
-                          <div style={{ marginTop: row.remarks ? 3 : 0, color: '#b45309' }}>
-                            <span style={{ fontWeight: 600 }}>Audit: </span>
-                            <span>{row.audit_remarks}</span>
-                          </div>
-                        )}
-                        {!row.remarks && !row.audit_remarks && (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {isApproved ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Approved
-                          </span>
-                        ) : isRejected ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Rejected
-                          </span>
-                        ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Pending Audit
-                          </span>
-                        )}
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>
+                        {row.claim_update_date || row.updated_at || '—'}
                       </td>
 
                       {/* Action */}
@@ -1030,10 +955,6 @@ export function SslClaimRequest() {
                             }}
                             title="View full claim details"
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="10" r="3" />
-                            </svg>
                             Details
                           </button>
                           <button
@@ -1041,7 +962,7 @@ export function SslClaimRequest() {
                             onClick={() => {
                               setSelectedClaimForAudit(row);
                               setAuditStatus(row.claim_status === 3 ? '3' : '2');
-                              setAuditRemarks(row.audit_remarks || '');
+                              setAuditRemarks(row.audit_remarks || row.remarks || '');
                             }}
                             style={{
                               padding: '4px 10px',
@@ -1175,7 +1096,7 @@ export function SslClaimRequest() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 8, fontSize: 13 }}>
                 <span style={{ color: '#64748b' }}>State:</span>
-                <span style={{ fontWeight: 600 }}>JAMMU & KASHMIR</span>
+                <span style={{ fontWeight: 600 }}>JAMMU</span>
 
                 <span style={{ color: '#64748b' }}>District:</span>
                 <span>{selectedDetails.district || '—'}</span>

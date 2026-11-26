@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -10,15 +10,10 @@ import {
 } from '../../../../../common';
 import {
   jammuAdminSwpService,
-  JAMMU_SWP_DISTRICTS,
+  type JammuSwpDashboardResponseData,
 } from './jammuSwpAdminService';
-import {
-  type JammuSwpDashboardData,
-  type JammuSwpDistrictwiseRow,
-  type JammuSwpMonthlyInstall,
-} from '../../../../V-Portal/jammu/jammu-services';
 
-// Code-split ApexCharts so shell renders instantly
+// Code-split ApexCharts so Jammu SWP Dashboard shell renders instantly
 const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
 
 // Palette constants matching Solar ERP design language
@@ -29,11 +24,25 @@ const LIGHT_AMBER = '#f59e0b';
 const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
 
-const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
-const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const num = (x: number | string | undefined | null) => {
+  const n = Number(x);
+  return isNaN(n) ? '0' : n.toLocaleString('en-IN');
+};
 
-// Responsive chart height hook matching DleDashboard
+const pctOf = (a: number | string | undefined | null, b: number | string | undefined | null) => {
+  const numA = Number(a) || 0;
+  const numB = Number(b) || 0;
+  return numB ? Math.round((numA / numB) * 1000) / 10 : 0;
+};
+
+const escapeHtml = (s: string) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+// Responsive chart height hook matching Solar ERP standard
 const useChartHeight = (desktop: number, mobile: number) => {
   const pick = () => (typeof window !== 'undefined' && window.innerWidth < 640 ? mobile : desktop);
   const [h, setH] = useState(pick);
@@ -45,11 +54,11 @@ const useChartHeight = (desktop: number, mobile: number) => {
   return h;
 };
 
-/* ───────── Responsive page CSS (Exact Solar ERP reference) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
@@ -61,7 +70,7 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* Card header: prioritize title width, condense actions */
+  /* ───── Card header (desktop): prioritize title width, condense actions ───── */
   .solar-erp-page .ax-card__header {
     display: flex;
     flex-wrap: nowrap;
@@ -122,7 +131,7 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* Tables: responsive scroll container */
+  /* Tables: responsive scroll container - NO fixed/sticky columns */
   .solar-erp-page .ax-table-wrap,
   .solar-erp-page .ax-table-wrapper {
     width: 100%;
@@ -130,8 +139,8 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ax-table { min-width: 850px; }
-  .solar-erp-page .ax-welcome__lede { max-width: 820px; }
+  .solar-erp-page .ax-table { min-width: 900px; }
+  .solar-erp-page .ax-welcome__lede { max-width: 860px; }
 
   /* Filter bar matching DleDashboard */
   .solar-erp-page .asw-filter-item { display: flex; align-items: center; gap: 6px; }
@@ -148,7 +157,7 @@ const PAGE_CSS = `
     border-color: rgba(var(--asw-primary-rgb), 0.35) !important;
   }
 
-  /* Tablet (<=1100px) */
+  /* ───── Tablet (<=1100px) ───── */
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
     .solar-erp-page .ax-col--6,
@@ -170,7 +179,7 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
   }
 
-  /* Mobile (<=760px): Stack and full width */
+  /* ───── Mobile (<=760px): Stack and full width ───── */
   @media (max-width: 760px) {
     .solar-erp-page {
       width: 100%;
@@ -198,6 +207,11 @@ const PAGE_CSS = `
       min-width: 0;
       width: 100%;
       max-width: 100%;
+    }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
     }
     .solar-erp-page .ax-card__actions {
       flex: 0 0 auto;
@@ -234,7 +248,7 @@ const PAGE_CSS = `
     }
   }
 
-  /* Small phones (<=490px) */
+  /* ───── Small phones (<=490px) ───── */
   @media (max-width: 490px) {
     .solar-erp-page .ax-welcome__stats {
       grid-template-columns: 1fr !important;
@@ -248,20 +262,23 @@ const PAGE_CSS = `
   }
 `;
 
-/* ───────── Clean SVG Icons matching ERP design language ───────── */
+/* ───────── SVG Icons matching Solar ERP standard ───────── */
 const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
 const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
-const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
 const I_CLOCK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 7v5l3 3" /></>);
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 10l4 4m0 -4l-4 4" /></>);
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></>);
 const I_CREDIT = svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="7" y1="15" x2="7.01" y2="15" /><line x1="11" y1="15" x2="13" y2="15" /></>);
+const I_USER = svg(<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>);
+const ICON_FILTER = (
+  <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
+);
 
-/* ───────── KPI card Component matching DLE Dashboard ───────── */
+/* ───────── KPI card Component matching Solar ERP reference ───────── */
 interface KpiProps {
   icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -355,7 +372,7 @@ const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding:
 
 export function SwpDashboard() {
   const navigate = useNavigate();
-  const [data, setData] = useState<JammuSwpDashboardData | null>(null);
+  const [data, setData] = useState<JammuSwpDashboardResponseData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -364,22 +381,24 @@ export function SwpDashboard() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [tableQuery, setTableQuery] = useState<string>('');
+  const [vendorQuery, setVendorQuery] = useState<string>('');
 
   // Chart heights
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
-  // 1. Load Dashboard Data
+  // 1. Load Live Dashboard Data (Strictly live API - zero fake fallback)
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
       const res = await jammuAdminSwpService.getDashboard();
-      setData(res);
+      setData(res || null);
       setUpdatedAt(new Date());
     } catch (err: any) {
-      console.error('Jammu Dashboard fetch error:', err);
+      console.error('Jammu SWP Dashboard fetch error:', err);
       setApiError(err?.message || 'Failed to fetch dynamic dashboard data');
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -389,22 +408,50 @@ export function SwpDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // Status Drill-down Navigation
-  const openDrillDown = (statusKey: string, _label?: string, district?: string) => {
+  // Vendor Lookup Map
+  const vendorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (data?.vendors || []).forEach((v) => {
+      const id = String(v.inst_vendor ?? v.vendor ?? '');
+      if (id && v.name) {
+        map.set(id, v.name);
+      }
+    });
+    return map;
+  }, [data?.vendors]);
+
+  const getVendorName = useCallback(
+    (vendorId: string | number) => {
+      const key = String(vendorId ?? '');
+      return vendorMap.get(key) || `Vendor #${key}`;
+    },
+    [vendorMap]
+  );
+
+  // ── Status Drill-down Navigation ──
+  const openDrillDown = (statusKey: string, _label?: string, district?: string, vendor?: string | number) => {
     const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
     const params = new URLSearchParams();
     params.set('status', statusKey);
     if (targetDistrict) {
       params.set('district', targetDistrict);
+      params.set('mode', 'district');
+      params.set('value', targetDistrict);
     }
-    navigate(`/vendor-management/jammu/installation/swp/status-view?${params.toString()}`);
+    if (vendor !== undefined && vendor !== null && vendor !== '') {
+      params.set('vendor', String(vendor));
+      params.set('mode', 'vendor');
+      params.set('value', String(vendor));
+    }
+    navigate(`/vendor-management/jammu/swp/status-view?${params.toString()}`);
   };
 
-  const districtwise: JammuSwpDistrictwiseRow[] = useMemo(() => data?.districtwise || [], [data]);
-  const monthlyInstallations: JammuSwpMonthlyInstall[] = useMemo(
-    () => data?.district_installation_month || [],
-    [data]
-  );
+  const districtwise = useMemo(() => data?.districtwise || [], [data]);
+  const vendorswise = useMemo(() => data?.vendorswise || [], [data]);
+  const monthlyInstallations = useMemo(() => {
+    const raw = data?.vendor_installation_month || [];
+    return [...raw].sort((a, b) => (a.month_year || '').localeCompare(b.month_year || ''));
+  }, [data]);
 
   // District options for filter
   const districtOptions = useMemo(
@@ -417,39 +464,39 @@ export function SwpDashboard() {
     return districtwise.filter((d) => {
       const matchDistrict = selectedDistrict === 'All' || d.district.toLowerCase() === selectedDistrict.toLowerCase();
       let matchStatus = true;
-      if (selectedStatus === 'Complete') matchStatus = (d.complete || 0) > 0;
-      else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
+      if (selectedStatus === 'Complete') matchStatus = (d.inst_complete || 0) > 0;
+      else if (selectedStatus === 'Pending') matchStatus = (d.inst_pending || 0) > 0;
+      else if (selectedStatus === 'Assigned') matchStatus = (Number(d.total_assigned) || 0) > 0;
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
       else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
-      else if (selectedStatus === 'DocApproved') matchStatus = (d.doc_submitted || 0) > 0;
-      else if (selectedStatus === 'DocPending') matchStatus = (d.doc_pending || 0) > 0;
       else if (selectedStatus === 'ClaimRaised') matchStatus = (d.claim_raised || 0) > 0;
       else if (selectedStatus === 'ClaimApproved') matchStatus = (d.claim_approved || 0) > 0;
-      else if (selectedStatus === 'PayComplete') matchStatus = (d.pay_done || 0) > 0;
-      else if (selectedStatus === 'PayPending') matchStatus = (d.pay_pending || 0) > 0;
+      else if (selectedStatus === 'PayComplete') matchStatus = (d.payment_done || 0) > 0;
+      else if (selectedStatus === 'PayPending') matchStatus = (d.payment_pending || 0) > 0;
       return matchDistrict && matchStatus;
     });
   }, [districtwise, selectedDistrict, selectedStatus]);
 
   const rawSwp = useMemo(() => data?.swp || {
     site_count: 0,
+    site_assigned: 0,
+    site_not_assigned: 0,
     complete: 0,
     pending: 0,
     verify_pending: 0,
     verify_approved: 0,
     verify_reject: 0,
-    doc_submitted: 0,
-    doc_pending: 0,
     claim_applicable: 0,
     claim_raised: 0,
     claim_approved: 0,
-    pay_done: 0,
-    pay_partially: 0,
-    pay_pending: 0,
+    claim_pending: 0,
+    inst_pay_done: 0,
+    inst_pay_partially: 0,
+    inst_pay_pending: 0,
   }, [data]);
 
-  // Dynamic swp metrics
+  // Dynamic swp metrics aggregated when filter active
   const swp = useMemo(() => {
     if (selectedDistrict === 'All' && selectedStatus === 'All') {
       return rawSwp;
@@ -457,709 +504,1320 @@ export function SwpDashboard() {
     if (filteredDistricts.length === 0) {
       return {
         site_count: 0,
+        site_assigned: 0,
+        site_not_assigned: 0,
         complete: 0,
         pending: 0,
         verify_pending: 0,
         verify_approved: 0,
         verify_reject: 0,
-        doc_submitted: 0,
-        doc_pending: 0,
         claim_applicable: 0,
         claim_raised: 0,
         claim_approved: 0,
-        pay_done: 0,
-        pay_partially: 0,
-        pay_pending: 0,
+        claim_pending: 0,
+        inst_pay_done: 0,
+        inst_pay_partially: 0,
+        inst_pay_pending: 0,
       };
     }
     return filteredDistricts.reduce(
       (acc, d) => ({
-        site_count: acc.site_count + (Number(d.site_count) || 0),
-        complete: acc.complete + (Number(d.complete) || 0),
-        pending: acc.pending + (Number(d.pending) || 0),
+        site_count: acc.site_count + (Number(d.total) || 0),
+        site_assigned: acc.site_assigned + (Number(d.total_assigned) || 0),
+        site_not_assigned: acc.site_not_assigned + Math.max(0, (Number(d.total) || 0) - (Number(d.total_assigned) || 0)),
+        complete: acc.complete + (Number(d.inst_complete) || 0),
+        pending: acc.pending + (Number(d.inst_pending) || 0),
         verify_pending: acc.verify_pending + (Number(d.verify_pending) || 0),
         verify_approved: acc.verify_approved + (Number(d.verify_approved) || 0),
         verify_reject: acc.verify_reject + (Number(d.verify_reject) || 0),
-        doc_submitted: acc.doc_submitted + (Number(d.doc_submitted) || 0),
-        doc_pending: acc.doc_pending + (Number(d.doc_pending) || 0),
-        claim_applicable: acc.claim_applicable + (Number(d.claim_applicable) || 0),
+        claim_applicable: acc.claim_applicable,
         claim_raised: acc.claim_raised + (Number(d.claim_raised) || 0),
         claim_approved: acc.claim_approved + (Number(d.claim_approved) || 0),
-        pay_done: acc.pay_done + (Number(d.pay_done) || 0),
-        pay_partially: acc.pay_partially + (Number(d.pay_partially) || 0),
-        pay_pending: acc.pay_pending + (Number(d.pay_pending) || 0),
+        claim_pending: acc.claim_pending,
+        inst_pay_done: acc.inst_pay_done + (Number(d.payment_done) || 0),
+        inst_pay_partially: acc.inst_pay_partially + (Number(d.payment_partially) || 0),
+        inst_pay_pending: acc.inst_pay_pending + (Number(d.payment_pending) || 0),
       }),
       {
         site_count: 0,
+        site_assigned: 0,
+        site_not_assigned: 0,
         complete: 0,
         pending: 0,
         verify_pending: 0,
         verify_approved: 0,
         verify_reject: 0,
-        doc_submitted: 0,
-        doc_pending: 0,
         claim_applicable: 0,
         claim_raised: 0,
         claim_approved: 0,
-        pay_done: 0,
-        pay_partially: 0,
-        pay_pending: 0,
+        claim_pending: 0,
+        inst_pay_done: 0,
+        inst_pay_partially: 0,
+        inst_pay_pending: 0,
       }
     );
   }, [rawSwp, filteredDistricts, selectedDistrict, selectedStatus]);
 
-  // Derived metrics
-  const installRate = useMemo(() => pctOf(swp.complete, swp.site_count), [swp]);
-  const verifyRate = useMemo(() => pctOf(swp.verify_approved, swp.complete), [swp]);
+  const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
-  // Sparkline data generators
-  const sparkAlloc = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.site_count) || 0), [districtwise]);
-  const sparkInstalled = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.complete) || 0), [districtwise]);
-  const sparkPending = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.pending) || 0), [districtwise]);
-  const sparkApproved = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.verify_approved) || 0), [districtwise]);
-  const sparkVerifyPending = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.verify_pending) || 0), [districtwise]);
-  const sparkVerifyReject = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.verify_reject) || 0), [districtwise]);
-  const sparkDocApproved = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.doc_submitted) || 0), [districtwise]);
-  const sparkDocPending = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.doc_pending) || 0), [districtwise]);
-  const sparkClaimApproved = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.claim_approved) || 0), [districtwise]);
-  const sparkPayDone = useMemo(() => districtwise.slice(0, 7).map((d) => Number(d.pay_done) || 0), [districtwise]);
+  // Table search & pagination for Districts
+  const deferredDistrictQuery = useDeferredValue(tableQuery);
+  const tableDistricts = useMemo(() => {
+    const q = deferredDistrictQuery.trim().toLowerCase();
+    return filteredDistricts.filter(
+      (d) => !q || d.district.toLowerCase().includes(q)
+    );
+  }, [filteredDistricts, deferredDistrictQuery]);
 
-  // Table search & pagination
-  const searchedDistricts = useMemo(() => {
-    const q = tableQuery.trim().toLowerCase();
-    if (!q) return filteredDistricts;
-    return filteredDistricts.filter((d) => (d.district || '').toLowerCase().includes(q));
-  }, [filteredDistricts, tableQuery]);
+  const {
+    paginatedData: pagedDistricts,
+    currentPage,
+    pageSize,
+    totalItems,
+    setPage,
+    setPageSize,
+  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
-  const pagination = usePagination({
-    totalItems: searchedDistricts.length,
-    initialPageSize: 10,
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [tableQuery, selectedDistrict, selectedStatus, setPage]);
 
-  const pagedDistricts = useMemo(() => {
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    return searchedDistricts.slice(start, start + pagination.pageSize);
-  }, [searchedDistricts, pagination.currentPage, pagination.pageSize]);
+  // Table search & pagination for Vendors
+  const deferredVendorQuery = useDeferredValue(vendorQuery);
+  const tableVendors = useMemo(() => {
+    const q = deferredVendorQuery.trim().toLowerCase();
+    return vendorswise.filter((v) => {
+      if (!q) return true;
+      const vName = (v.vendor_name || getVendorName(v.inst_vendor)).toLowerCase();
+      const vId = String(v.inst_vendor || '').toLowerCase();
+      return vName.includes(q) || vId.includes(q);
+    });
+  }, [vendorswise, deferredVendorQuery, getVendorName]);
 
-  // Export Columns
-  const exportColumns: ExportColumn[] = useMemo(
-    () => [
-      { key: 'district', header: 'District' },
-      { key: 'site_count', header: 'Allocated Sites' },
-      { key: 'complete', header: 'Installed' },
-      { key: 'pending', header: 'Pending' },
-      { key: 'verify_approved', header: 'Verify Approved' },
-      { key: 'verify_pending', header: 'Verify Pending' },
-      { key: 'verify_reject', header: 'Verify Rejected' },
-      { key: 'doc_submitted', header: 'Docs Submitted' },
-      { key: 'doc_pending', header: 'Docs Pending' },
-      { key: 'claim_raised', header: 'Claims Raised' },
-      { key: 'pay_done', header: 'Paid Sites' },
-    ],
-    []
+  const {
+    paginatedData: pagedVendors,
+    currentPage: currentVendorPage,
+    pageSize: vendorPageSize,
+    totalItems: totalVendorItems,
+    setPage: setVendorPage,
+    setPageSize: setVendorPageSize,
+  } = usePagination({ data: tableVendors, initialPageSize: 10 });
+
+  useEffect(() => {
+    setVendorPage(1);
+  }, [vendorQuery, setVendorPage]);
+
+  // Percentages & Rates
+  const pctComplete = pctOf(swp.complete, swp.site_count);
+  const pctPending = pctOf(swp.pending, swp.site_count);
+  const pctVerified = pctOf(swp.verify_approved, swp.complete || 1);
+  const pctClaimsApproved = pctOf(swp.claim_approved, swp.claim_raised || 1);
+  const pctPaid = pctOf(swp.inst_pay_done, swp.complete || 1);
+
+  // Milestones list
+  const milestones = [
+    { label: '1. Allocated Solar Pump Sites', v: swp.site_count, of: swp.site_count || 1, color: LIGHT_BLUE },
+    { label: '2. Assigned to Vendors', v: swp.site_assigned, of: swp.site_count || 1, color: LIGHT_CYAN },
+    { label: '3. Equipment Installed & Photos', v: swp.complete, of: swp.site_count || 1, color: LIGHT_GREEN },
+    { label: '4. Field Verification Approved', v: swp.verify_approved, of: swp.complete || swp.site_count || 1, color: LIGHT_VIOLET },
+    { label: '5. Payment Disbursement Settled', v: swp.inst_pay_done, of: swp.complete || swp.site_count || 1, color: LIGHT_AMBER },
+  ];
+
+  // Top districts for bar chart matching filters
+  const chartDistricts = useMemo(
+    () => [...filteredDistricts].sort((a, b) => (Number(b.inst_complete) || 0) - (Number(a.inst_complete) || 0)).slice(0, 15),
+    [filteredDistricts]
   );
 
-  // 1. District Comparison Chart Series & Options
-  const topDistricts = useMemo(() => districtwise.slice(0, 8), [districtwise]);
-  const districtChartSeries = useMemo(() => [
-    { name: 'Allocated Sites', data: topDistricts.map((d) => Number(d.site_count) || 0) },
-    { name: 'Installed Pumps', data: topDistricts.map((d) => Number(d.complete) || 0) },
-    { name: 'Audit Approved', data: topDistricts.map((d) => Number(d.verify_approved) || 0) },
-  ], [topDistricts]);
+  // Sparklines datasets derived from real data
+  const siteSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.total || 0) : undefined;
+  const completeSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.inst_complete || 0) : undefined;
+  const pendingSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.inst_pending || 0) : undefined;
+  const verifySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.verify_approved || 0) : undefined;
 
-  const districtChartOptions = useMemo(() => ({
-    chart: { type: 'bar' as const, toolbar: { show: false }, fontFamily: 'inherit' },
-    plotOptions: { bar: { horizontal: false, columnWidth: '50%', borderRadius: 4 } },
-    dataLabels: { enabled: false },
-    stroke: { show: true, width: 2, colors: ['transparent'] },
-    colors: [LIGHT_BLUE, LIGHT_GREEN, LIGHT_AMBER],
-    xaxis: {
-      categories: topDistricts.map((d) => d.district),
-      labels: { style: { colors: '#64748b', fontSize: '11px' } },
-    },
-    yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } },
-    grid: { borderColor: '#f1f5f9' },
-    tooltip: { theme: 'light', y: { formatter: (val: number) => `${num(val)} sites` } },
-    legend: { position: 'top' as const, horizontalAlign: 'right' as const, fontSize: '12px' },
-  }), [topDistricts]);
+  const docClearedSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.claim_approved, d.claim_raised || 1)) : undefined;
+  const claimSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.payment_done, d.inst_complete || 1)) : undefined;
 
-  // 2. Status Donut Chart Series & Options
-  const donutSeries = useMemo(() => [
-    Number(swp.verify_approved) || 0,
-    Number(swp.verify_pending) || 0,
-    Number(swp.verify_reject) || 0,
-    Number(swp.pending) || 0,
-  ], [swp]);
+  // Export Columns definition for District Table
+  const districtCols: ExportColumn<any>[] = useMemo(() => [
+    { header: 'District', accessor: 'district' },
+    { header: 'Allocated Sites', accessor: 'total' },
+    { header: 'Assigned Sites', accessor: 'total_assigned' },
+    { header: 'Installed Sites', accessor: 'inst_complete' },
+    { header: 'Pending Sites', accessor: 'inst_pending' },
+    { header: 'Verify Approved', accessor: 'verify_approved' },
+    { header: 'Verify Pending', accessor: 'verify_pending' },
+    { header: 'Verify Rejected', accessor: 'verify_reject' },
+    { header: 'Claims Raised', accessor: 'claim_raised' },
+    { header: 'Claims Approved', accessor: 'claim_approved' },
+    { header: 'Payment Settled', accessor: 'payment_done' },
+    { header: 'Partially Paid', accessor: 'payment_partially' },
+    { header: 'Payment Pending', accessor: 'payment_pending' },
+  ], []);
 
-  const donutOptions = useMemo(() => ({
-    chart: { type: 'donut' as const, fontFamily: 'inherit' },
-    labels: ['Verified Approved', 'Verify Pending', 'Verify Rejected', 'Pending Installation'],
-    colors: [LIGHT_GREEN, LIGHT_AMBER, LIGHT_RED, LIGHT_CYAN],
-    legend: { position: 'bottom' as const, fontSize: '11px', labels: { colors: '#64748b' } },
-    dataLabels: { enabled: true },
-    stroke: { width: 2, colors: ['#ffffff'] },
-    tooltip: { theme: 'light', y: { formatter: (val: number) => `${num(val)} pumps` } },
-  }), []);
+  // Export Columns definition for Vendor Performance Table
+  const vendorCols: ExportColumn<any>[] = useMemo(() => [
+    { header: 'Vendor Name', accessor: (v) => v.vendor_name || getVendorName(v.inst_vendor) },
+    { header: 'Vendor ID', accessor: 'inst_vendor' },
+    { header: 'Allocated Sites', accessor: 'site_count' },
+    { header: 'Installed Sites', accessor: 'inst_complete' },
+    { header: 'Pending Sites', accessor: 'inst_pending' },
+    { header: 'Verify Approved', accessor: 'verify_approved' },
+    { header: 'Verify Pending', accessor: 'verify_pending' },
+    { header: 'Claims Raised', accessor: 'claim_raised' },
+    { header: 'Payment Settled', accessor: 'payment_done' },
+  ], [getVendorName]);
 
-  // 3. Monthly Installation Area Chart Series & Options
-  const monthlySeries = useMemo(() => [
-    {
-      name: 'Installed Units',
-      data: monthlyInstallations.map((m) => Number(m.monthly_installations) || 0),
-    },
-  ], [monthlyInstallations]);
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = 'Jammu_SWP_District_Overview';
+  const fileTitle = 'Jammu SWP District-Wise Installation Performance';
 
-  const monthlyOptions = useMemo(() => ({
-    chart: { type: 'area' as const, toolbar: { show: false }, fontFamily: 'inherit' },
-    colors: [LIGHT_BLUE],
-    fill: {
-      type: 'gradient',
-      gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
-    },
-    stroke: { curve: 'smooth' as const, width: 2.5 },
-    dataLabels: { enabled: false },
-    xaxis: {
-      categories: monthlyInstallations.map((m) => m.month_year),
-      labels: { style: { colors: '#64748b', fontSize: '11px' } },
-    },
-    yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } },
-    grid: { borderColor: '#f1f5f9' },
-    tooltip: { theme: 'light', y: { formatter: (val: number) => `${num(val)} pumps` } },
-  }), [monthlyInstallations]);
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>) =>
+    typeof column.accessor === 'function'
+      ? (column.accessor as any)(row)
+      : (row as Record<string, unknown>)[column.accessor as string];
+
+  const escapeExportValue = (value: unknown) => String(value ?? '');
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out = [
+      columns.map((c) => c.header),
+      ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[], msg = 'Data copied to clipboard!') => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert(msg);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert(msg);
+    }
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c)))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
 
   return (
-    <div className="solar-erp-page ax-page">
+    <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
 
-      {/* Page Header */}
+      {/* 1. Page Header */}
       <PageHead
-        eyebrow="Super Admin · Vendor Management"
         title="Jammu SWP Installation Dashboard"
-        subtitle="Real-time operations, vendor work allocations, and technical audit overview for PM-KUSUM Solar Water Pumping across Jammu & Kashmir"
+        subtitle={
+          <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
+            Solar Water Pump (SWP) Operations, District Analysis & Execution Throughput
+            {updatedAt ? ` · Last updated ${updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
+          </span>
+        }
+        breadcrumbs={[
+          { label: 'ERP Dashboard', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Jammu' },
+          { label: 'Installation' },
+          { label: 'SWP' },
+          { label: 'Dashboard' },
+        ]}
         actions={
-          <div className="ax-cluster" style={actionsRowStyle}>
-            {updatedAt && (
-              <span style={labelStyle}>
-                Refreshed {updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={loadDashboardData}
-              disabled={loading}
-              title="Refresh dashboard metrics"
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}>
-                <path d="M23 4v6h-6" />
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-              </svg>
-              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
+              <span className="ax-badge__dot" /> State: Jammu
+            </span>
+            <Link to="/vendor-management/jammu/swp/status-view?status=complete" className="ax-btn ax-btn--primary ax-btn--sm">
+              Status Register
+            </Link>
+            <Link to="/vendor-management/jammu/installation/swp/assign-installation" className="ax-btn ax-btn--primary ax-btn--sm">
+              Assigned Requests
+            </Link>
+            <Link to="/vendor-management/jammu/installation/swp/view-installation" className="ax-btn ax-btn--primary ax-btn--sm">
+              View Installations
+            </Link>
+            <Link to="/vendor-management/jammu/installation/swp/verify-claim" className="ax-btn ax-btn--primary ax-btn--sm">
+              Verify Claims
+            </Link>
+            <Link to="/vendor-management/jammu/installation/swp/view-payment" className="ax-btn ax-btn--primary ax-btn--sm">
+              View Payments
+            </Link>
           </div>
         }
       />
 
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" style={{ marginBottom: 16 }}>
-        <ol className="ax-breadcrumb" style={{ display: 'flex', gap: 6, listStyle: 'none', padding: 0, margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-          <li><Link to="/vendor-management" style={{ color: 'var(--asw-primary)' }}>Home</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management" style={{ color: 'var(--asw-primary)' }}>Vendor Management</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu" style={{ color: 'var(--asw-primary)' }}>Jammu</Link></li>
-          <li>/</li>
-          <li style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>SWP Installation</li>
-        </ol>
-      </nav>
-
-      {/* Error Alert */}
-      {apiError && (
-        <div className="ax-card" style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, marginBottom: 16, color: '#dc2626', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>{apiError} (Loaded cached operational metrics)</span>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setApiError(null)} style={{ color: '#dc2626' }}>Dismiss</button>
-        </div>
-      )}
-
-      {/* Welcome Banner */}
-      <section className="ax-card ax-welcome" aria-labelledby="jammu-swp-welcome" style={{ padding: '20px 24px', borderRadius: 12, marginBottom: 20, background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)', border: '1px solid #bfdbfe' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ maxWidth: 700 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: LIGHT_BLUE }}>
-              PM-KUSUM Component-B Operations · Jammu & Kashmir
-            </span>
-            <h2 id="jammu-swp-welcome" style={{ margin: '4px 0 8px', fontSize: '1.4rem', fontWeight: 800, color: 'var(--ax-text-strong)' }}>
-              Operational Performance & Technical Audit Register
-            </h2>
-            <p className="ax-welcome__lede" style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)', lineHeight: 1.5 }}>
-              Central monitoring desk for solar water pumping allocations, vendor installations, field evidence audits, farmer handover certificates (HOC), and disbursement clearance across all 20 districts of UT Jammu & Kashmir.
-            </p>
+      <div className="ax-dash-grid mt-0 pt-0">
+        {apiError && (
+          <div className="ax-col--12" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 12%, transparent)', color: 'var(--ax-viz-red, #dc2626)', borderRadius: 'var(--ax-radius-md, 8px)', fontSize: 'var(--ax-text-xs)' }}>
+            <b>Error loading dashboard data:</b> {apiError}
           </div>
-          <div className="ax-welcome__stats" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ padding: '10px 16px', background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 120 }}>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total Allotted</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{num(swp.site_count)}</div>
-              <div style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>100% Volume Target</div>
+        )}
+
+        {/* 2. Operations Filter Bar */}
+        <section
+          className="ax-card ax-card--flat ax-col--12"
+          role="region"
+          aria-label="Jammu SWP Dashboard Filters"
+          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg, 12px)', border: '1px solid var(--ax-border-subtle, #f1f5f9)', background: 'var(--ax-bg-surface, #ffffff)' }}
+        >
+          <div className="ax-cluster" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)', alignItems: 'center' }}>
+            <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span
+                className="ax-cluster"
+                style={{
+                  gap: '6px', color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-xs)', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.04em', padding: '4px 10px',
+                  background: 'rgba(37, 99, 235, 0.08)', borderRadius: 'var(--ax-radius-pill, 9999px)',
+                  border: '1px solid rgba(37, 99, 235, 0.2)',
+                }}
+              >
+                {ICON_FILTER} Filter Operations
+              </span>
+
+              <div className="ax-cluster asw-filter-item">
+                <label htmlFor="asw-district-select" style={labelStyle}>District:</label>
+                <select
+                  id="asw-district-select"
+                  className="ax-input ax-input--sm"
+                  style={{ height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }}
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                >
+                  <option value="All">All Districts ({districtOptions.length})</option>
+                  {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+
+              <div className="ax-cluster asw-filter-item">
+                <label htmlFor="asw-status-select" style={labelStyle}>Status:</label>
+                <select
+                  id="asw-status-select"
+                  className="ax-input ax-input--sm"
+                  style={{ height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }}
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
+                  <option value="All">All Operations</option>
+                  <option value="Complete">Installed Sites</option>
+                  <option value="Pending">Pending Installation</option>
+                  <option value="Assigned">Assigned to Vendors</option>
+                  <option value="VerifyApproved">Verify Approved</option>
+                  <option value="VerifyPending">Verification Pending</option>
+                  <option value="VerifyReject">Verification Rejected</option>
+                  <option value="ClaimRaised">Claim Raised</option>
+                  <option value="ClaimApproved">Claim Approved</option>
+                  <option value="PayComplete">Payment Settled</option>
+                  <option value="PayPending">Payment Pending</option>
+                </select>
+              </div>
+
+              {filtersActive && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  style={{ height: 28, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); setTableQuery(''); }}
+                >
+                  Reset Filters
+                </button>
+              )}
             </div>
-            <div style={{ padding: '10px 16px', background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 120 }}>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Completed</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: LIGHT_GREEN }}>{num(swp.complete)}</div>
-              <div style={{ fontSize: 10, color: LIGHT_GREEN, fontWeight: 600 }}>{installRate}% Installed</div>
-            </div>
-            <div style={{ padding: '10px 16px', background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 120 }}>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Audited Approved</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: LIGHT_BLUE }}>{num(swp.verify_approved)}</div>
-              <div style={{ fontSize: 10, color: LIGHT_BLUE, fontWeight: 600 }}>{verifyRate}% Audit Pass</div>
+
+            <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+              <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{num(swp.site_count)}</b> Total Sites across <b style={{ color: 'var(--ax-text-strong)' }}>{filteredDistricts.length}</b> {filteredDistricts.length === 1 ? 'District' : 'Districts'}
+              </span>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Filter Toolbar */}
-      <section className="ax-card" aria-label="Filters" style={{ padding: '12px 16px', borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, background: '#ffffff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div className="asw-filter-item">
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>District:</label>
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="ax-form-control"
-              style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="All">All Districts ({districtOptions.length})</option>
-              {districtOptions.map((dist) => (
-                <option key={dist} value={dist}>{dist}</option>
-              ))}
-            </select>
+          {/* Quick Filter Status Tabs */}
+          <div className="ax-cluster" style={{ gap: 6, flexWrap: 'wrap', width: '100%', marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--ax-border, #e2e8f0)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quick Filter:</span>
+            {[
+              { key: 'All', label: 'All Operations' },
+              { key: 'Complete', label: 'Installed' },
+              { key: 'Pending', label: 'Pending' },
+              { key: 'VerifyApproved', label: 'Verify Approved' },
+              { key: 'VerifyPending', label: 'In Audit' },
+              { key: 'ClaimApproved', label: 'Claim Approved' },
+              { key: 'PayComplete', label: 'Payment Settled' },
+            ].map((p) => {
+              const isActive = selectedStatus === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setSelectedStatus(p.key)}
+                  className={`ax-btn ax-btn--xs ${isActive ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  style={{
+                    height: 24,
+                    fontSize: '11px',
+                    padding: '0 8px',
+                    borderRadius: 12,
+                    fontWeight: isActive ? 700 : 500,
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
+        </section>
 
-          <div className="asw-filter-item">
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Status:</label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="ax-form-control"
-              style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
-            >
-              <option value="All">All Stages</option>
-              <option value="Complete">Installed ({num(rawSwp.complete)})</option>
-              <option value="Pending">Pending Installation ({num(rawSwp.pending)})</option>
-              <option value="VerifyApproved">Audit Approved ({num(rawSwp.verify_approved)})</option>
-              <option value="VerifyPending">Audit Pending ({num(rawSwp.verify_pending)})</option>
-              <option value="VerifyReject">Audit Rejected ({num(rawSwp.verify_reject)})</option>
-              <option value="DocApproved">HOC Submitted ({num(rawSwp.doc_submitted)})</option>
-              <option value="DocPending">HOC Pending ({num(rawSwp.doc_pending)})</option>
-              <option value="ClaimRaised">Claim Raised ({num(rawSwp.claim_raised)})</option>
-              <option value="PayComplete">Payments Settled ({num(rawSwp.pay_done)})</option>
-            </select>
+        {/* 3. Executive Welcome Banner */}
+        <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Jammu SWP Operations Overview">
+          <div className="ax-welcome__body">
+            <div className="ax-welcome__text">
+              <p className="ax-welcome__eyebrow">Jammu Solar Water Pump System</p>
+              <h2 className="ax-card__title">Welcome to Jammu SWP Operations Dashboard</h2>
+              <p className="ax-welcome__lede">
+                {selectedDistrict !== 'All' ? (
+                  <>
+                    Jammu SWP execution overview for <b>{selectedDistrict}</b>: <b>{num(swp.site_count)} solar pump sites</b> allocated.
+                    <b> {num(swp.complete)} ({pctComplete}%)</b> installed, with <b>{num(swp.verify_approved)}</b> verified approved, <b>{num(swp.claim_approved)}</b> claims cleared, and <b>{num(swp.inst_pay_done)}</b> payment settlements.
+                  </>
+                ) : (
+                  <>
+                    Jammu SWP execution overview: <b>{num(swp.site_count)} solar pump sites</b> allocated across <b>{districtOptions.length} districts</b> in Jammu.
+                    <b> {num(swp.complete)} ({pctComplete}%)</b> installed, with <b>{num(swp.verify_approved)}</b> verified approved, <b>{num(swp.claim_approved)}</b> claims cleared, and <b>{num(swp.inst_pay_done)}</b> payment settlements.
+                  </>
+                )}
+              </p>
+            </div>
+
+            <dl className="ax-welcome__stats">
+              <div className="ax-welcome__stat">
+                <dt>{selectedDistrict !== 'All' ? 'District' : 'Total Districts'}</dt>
+                <dd className="ax-num" style={{ fontSize: selectedDistrict !== 'All' ? '1.1rem' : undefined }}>
+                  {selectedDistrict !== 'All' ? selectedDistrict : num(districtOptions.length)}
+                </dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>
+                  {selectedDistrict !== 'All' ? 'Active Filter Scope' : 'Jammu Operational Scope'}
+                </small>
+              </div>
+              <div className="ax-welcome__stat">
+                <dt>Allocated Sites</dt>
+                <dd className="ax-num">{num(swp.site_count)}</dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--asw-primary)' }}>Total Beneficiaries</small>
+              </div>
+              <div className="ax-welcome__stat">
+                <dt>Installed Sites</dt>
+                <dd className="ax-num">{num(swp.complete)}</dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>{pctComplete}% Complete</small>
+              </div>
+              <div className="ax-welcome__stat">
+                <dt>Verify Approved</dt>
+                <dd className="ax-num">{num(swp.verify_approved)}</dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(swp.verify_pending)} In Audit</small>
+              </div>
+            </dl>
           </div>
+        </section>
 
-          {(selectedDistrict !== 'All' || selectedStatus !== 'All') && (
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-              onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); }}
-              style={{ fontSize: 12, color: '#ef4444' }}
-            >
-              Reset Filters
-            </button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, color: '#64748b' }}>
-            Showing <strong>{filteredDistricts.length}</strong> of <strong>{districtwise.length}</strong> regional clusters
-          </span>
-        </div>
-      </section>
-
-      {/* 10 Interactive KPI Cards (4 + 3 + 3 Grid) */}
-      <section className="ax-dash-grid ax-grid ax-grid--12" aria-label="Key Performance Indicators" style={{ gap: 14, marginBottom: 24 }}>
+        {/* 4. Core 8 KPI Cards */}
         <KpiCard
           icon={I_PIN}
           tone="accent"
-          label="Total Allotted Sites"
+          label="Total Allocated Sites"
           value={num(swp.site_count)}
-          sub="Sanctioned PM-KUSUM units"
-          badge="Allocated"
-          spark={sparkAlloc}
-          onClick={() => openDrillDown('total', 'Total Sites')}
+          unit="Sites"
+          sub="Allocated solar pump sites"
+          spark={siteSpark}
+          onClick={() => openDrillDown('total', 'Total Allocated Sites')}
         />
-        <KpiCard
-          icon={I_BOLT}
-          tone="emerald"
-          label="Installed Pumps"
-          value={num(swp.complete)}
-          sub={`${installRate}% of target achieved`}
-          badge={`${installRate}%`}
-          spark={sparkInstalled}
-          onClick={() => openDrillDown('installed', 'Installed Pumps')}
-        />
-        <KpiCard
-          icon={I_CLOCK}
-          tone="cyan"
-          label="Pending Installation"
-          value={num(swp.pending)}
-          sub="Under civil / piping work"
-          badge="In Progress"
-          spark={sparkPending}
-          onClick={() => openDrillDown('pending', 'Pending Installation')}
-        />
+
         <KpiCard
           icon={I_DONE}
           tone="emerald"
-          label="Audit Approved"
-          value={num(swp.verify_approved)}
-          sub={`${verifyRate}% of completed installations`}
-          badge="Verified"
-          spark={sparkApproved}
-          onClick={() => openDrillDown('verify-approved', 'Audit Approved')}
+          label="Installed Sites"
+          value={num(swp.complete)}
+          unit="Sites"
+          sub="Equipment & photos uploaded"
+          badge={`${pctComplete}%`}
+          spark={completeSpark}
+          onClick={() => openDrillDown('complete', 'Completed Installations')}
         />
+
         <KpiCard
           icon={I_CLOCK}
           tone="amber"
-          label="Audit Pending"
-          value={num(swp.verify_pending)}
-          sub="Awaiting engineer site inspection"
-          badge="Pending Review"
-          spark={sparkVerifyPending}
-          onClick={() => openDrillDown('verify-pending', 'Audit Pending')}
+          label="Pending Installation"
+          value={num(swp.pending)}
+          unit="Sites"
+          sub="Awaiting field execution"
+          badge={`${pctPending}%`}
+          spark={pendingSpark}
+          onClick={() => openDrillDown('pending', 'Pending Installations')}
         />
+
+        <KpiCard
+          icon={I_SHIELD}
+          tone="cyan"
+          label="Verify Approved"
+          value={num(swp.verify_approved)}
+          unit="Sites"
+          sub={`${num(swp.verify_pending)} Audit in progress`}
+          badge={`${pctVerified}%`}
+          spark={verifySpark}
+          onClick={() => openDrillDown('verify-approved', 'Verified Approved Sites')}
+        />
+
+        <KpiCard
+          icon={I_CLOCK}
+          tone="amber"
+          label="Verification Pending"
+          value={num(swp.verify_pending)}
+          unit="Sites"
+          sub="Field audit pending review"
+          onClick={() => openDrillDown('verify-pending', 'Verification Pending Sites')}
+        />
+
         <KpiCard
           icon={I_X}
           tone="red"
-          label="Audit Rejected"
+          label="Verification Rejected"
           value={num(swp.verify_reject)}
-          sub="Flagged for rectification"
-          badge="Correction Req."
-          spark={sparkVerifyReject}
-          onClick={() => openDrillDown('verify-reject', 'Audit Rejected')}
+          unit="Sites"
+          sub="Requires vendor rework"
+          onClick={() => openDrillDown('verify-reject', 'Verification Rejected Sites')}
         />
+
         <KpiCard
           icon={I_DOC}
-          tone="emerald"
-          label="HOC Docs Ready"
-          value={num(swp.doc_submitted)}
-          sub="Farmer certificates submitted"
-          badge="Docs Received"
-          spark={sparkDocApproved}
-          onClick={() => openDrillDown('doc-approved', 'HOC Submitted')}
-        />
-        <KpiCard
-          icon={I_CLOCK}
-          tone="amber"
-          label="HOC Docs Pending"
-          value={num(swp.doc_pending)}
-          sub="Signoff pending from sarpanch/farmer"
-          badge="Awaiting Signoff"
-          spark={sparkDocPending}
-          onClick={() => openDrillDown('doc-pending', 'HOC Pending')}
-        />
-        <KpiCard
-          icon={I_SHIELD}
-          tone="emerald"
+          tone="violet"
           label="Claims Approved"
           value={num(swp.claim_approved)}
-          sub="Cleared for PFMS treasury"
-          badge="Approved"
-          spark={sparkClaimApproved}
-          onClick={() => openDrillDown('claim-approved', 'Claims Approved')}
+          unit="Claims"
+          sub={`${num(swp.claim_raised)} Claims raised`}
+          badge={`${pctClaimsApproved}%`}
+          onClick={() => openDrillDown('claim-approved', 'Claims Approved Sites')}
         />
+
         <KpiCard
           icon={I_CREDIT}
           tone="emerald"
-          label="Payments Settled"
-          value={num(swp.pay_done)}
-          sub="Disbursed to vendor account"
-          badge="Settled"
-          spark={sparkPayDone}
-          onClick={() => openDrillDown('pay-complete', 'Payments Settled')}
+          label="Payment Settled"
+          value={num(swp.inst_pay_done)}
+          unit="Sites"
+          sub={`${num(swp.inst_pay_partially)} Partially paid`}
+          badge={`${pctPaid}%`}
+          onClick={() => openDrillDown('inst-pay-done', 'Payment Settled Sites')}
         />
-      </section>
 
-      {/* Workflow Milestones Tracker */}
-      <section className="ax-card" aria-label="Workflow Milestones" style={{ padding: '18px 24px', borderRadius: 12, marginBottom: 24, background: '#ffffff' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-          PM-KUSUM Execution Lifecycle Milestones
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 14 }}>
-          {/* Step 1 */}
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: LIGHT_BLUE, marginBottom: 4 }}>Step 1 · Allocation</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{num(swp.site_count)} Units</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Work orders issued</div>
-            <Link to="/vendor-management/jammu/installation/swp/assign-installation" style={{ fontSize: 11, color: LIGHT_BLUE, fontWeight: 600, display: 'inline-block', marginTop: 6 }}>
-              Assign Sites →
-            </Link>
-          </div>
-
-          {/* Step 2 */}
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: LIGHT_GREEN, marginBottom: 4 }}>Step 2 · Installation</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{num(swp.complete)} Pumps</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{num(swp.pending)} in progress</div>
-            <Link to="/vendor-management/jammu/installation/swp/view-assign-installation" style={{ fontSize: 11, color: LIGHT_BLUE, fontWeight: 600, display: 'inline-block', marginTop: 6 }}>
-              View Sites →
-            </Link>
-          </div>
-
-          {/* Step 3 */}
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: LIGHT_AMBER, marginBottom: 4 }}>Step 3 · Tech Audit</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{num(swp.verify_approved)} Passed</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{num(swp.verify_pending)} pending</div>
-            <Link to="/vendor-management/jammu/installation/swp/verify-installation" style={{ fontSize: 11, color: LIGHT_BLUE, fontWeight: 600, display: 'inline-block', marginTop: 6 }}>
-              Audit Desk →
-            </Link>
-          </div>
-
-          {/* Step 4 */}
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: LIGHT_VIOLET, marginBottom: 4 }}>Step 4 · HOC Handover</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{num(swp.doc_submitted)} Certified</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{num(swp.doc_pending)} awaiting</div>
-            <Link to="/vendor-management/jammu/installation/swp/verify-document" style={{ fontSize: 11, color: LIGHT_BLUE, fontWeight: 600, display: 'inline-block', marginTop: 6 }}>
-              Verify HOC →
-            </Link>
-          </div>
-
-          {/* Step 5 */}
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>Step 5 · Settlement</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{num(swp.pay_done)} Paid</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{num(swp.pay_pending)} in queue</div>
-            <Link to="/vendor-management/jammu/installation/swp/view-payment" style={{ fontSize: 11, color: LIGHT_BLUE, fontWeight: 600, display: 'inline-block', marginTop: 6 }}>
-              Payment Desk →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Analytics Charts Grid */}
-      <section className="ax-grid ax-grid--12" aria-label="Visual Analytics" style={{ gap: 20, marginBottom: 24 }}>
-        {/* District Comparison Bar Chart */}
-        <div className="ax-card ax-col--8" style={{ padding: '18px 22px', borderRadius: 12, background: '#ffffff' }}>
-          <div className="ax-card__header" style={{ marginBottom: 12 }}>
-            <div className="ax-card__titles">
-              <h4 className="ax-card__title" style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
-                District-wise Deployment Throughput
-              </h4>
-              <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
-                Comparing allocated targets against field completions and certified installations
-              </p>
+        {/* 5. Additional Full Response Operational Highlights */}
+        <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
+          <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
+            <div>
+              <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                Operations & Quality Performance
+              </span>
+              <h2 className="ax-card__title" style={{ fontSize: 'var(--ax-text-lg)', margin: 0 }}>
+                Full Operational Metrics & Governance
+              </h2>
             </div>
-          </div>
-          <div style={{ minHeight: chartH }}>
-            <Suspense fallback={<div style={{ height: chartH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Loading chart data...</div>}>
-              <ApexChart
-                type="bar"
-                height={chartH}
-                series={districtChartSeries}
-                options={districtChartOptions}
-              />
-            </Suspense>
+            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 'var(--ax-text-xs)' }}>
+              Jammu SWP Full Response Tracker
+            </span>
           </div>
         </div>
 
-        {/* Installation Status Donut Chart */}
-        <div className="ax-card ax-col--4" style={{ padding: '18px 22px', borderRadius: 12, background: '#ffffff' }}>
-          <div className="ax-card__header" style={{ marginBottom: 12 }}>
-            <div className="ax-card__titles">
-              <h4 className="ax-card__title" style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
-                Audit Status Breakdown
-              </h4>
-              <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
-                Technical inspection proportions
-              </p>
-            </div>
-          </div>
-          <div style={{ minHeight: donutH, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Suspense fallback={<div style={{ height: donutH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Loading donut...</div>}>
-              <ApexChart
-                type="donut"
-                height={donutH}
-                series={donutSeries}
-                options={donutOptions}
-              />
-            </Suspense>
-          </div>
-        </div>
-      </section>
+        {/* Secondary Operational Metrics Cards */}
+        <KpiCard
+          icon={I_USER}
+          tone="accent"
+          label="Assigned Sites"
+          value={num(swp.site_assigned || 0)}
+          unit="Sites"
+          sub={`${num(swp.site_not_assigned || 0)} unassigned sites`}
+          badge={`${pctOf(swp.site_assigned || 0, swp.site_count || 1)}%`}
+          spark={siteSpark}
+          onClick={() => openDrillDown('site-assigned', 'Assigned Sites')}
+        />
 
-      {/* Monthly Installation Trend Area Chart */}
-      {monthlyInstallations.length > 0 && (
-        <section className="ax-card" aria-label="Monthly Trend" style={{ padding: '18px 22px', borderRadius: 12, marginBottom: 24, background: '#ffffff' }}>
-          <div className="ax-card__header" style={{ marginBottom: 12 }}>
+        <KpiCard
+          icon={I_DOC}
+          tone="violet"
+          label="Claims Cleared"
+          value={`${pctClaimsApproved}%`}
+          sub={`${num(swp.claim_approved)} approved · ${num(swp.claim_raised)} raised`}
+          spark={docClearedSpark}
+          onClick={() => openDrillDown('claim-approved', 'Claims Cleared Sites')}
+        />
+
+        <KpiCard
+          icon={I_CREDIT}
+          tone="cyan"
+          label="Payment Claims"
+          value={num(swp.claim_raised || 0)}
+          unit="Claims"
+          sub={`${num(swp.claim_approved || 0)} Approved · ${num(swp.verify_reject || 0)} Rejected`}
+          badge="Invoices"
+          onClick={() => openDrillDown('claim-raised', 'Raised Claims')}
+        />
+
+        <KpiCard
+          icon={I_CLOCK}
+          tone="amber"
+          label="Pending Disbursement"
+          value={num(swp.inst_pay_pending || 0)}
+          unit="Claims"
+          sub={`${num(swp.inst_pay_partially || 0)} Partially settled`}
+          spark={claimSpark}
+          onClick={() => openDrillDown('inst-pay-pending', 'Pending Disbursements')}
+        />
+
+        {/* State Operations Executive Card */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Jammu SWP Operations Overview">
+          <div className="ax-card__header">
             <div className="ax-card__titles">
-              <h4 className="ax-card__title" style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
-                Monthly Installation Run-Rate
-              </h4>
-              <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
-                Commissioned pump volume trajectory across recent billing cycles
-              </p>
+              <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>State Operations</span>
+              <h3 className="ax-card__title">Jammu · Solar Water Pump (SWP) Operations</h3>
+              <p className="ax-card__subtitle">{num(swp.complete)} pumps installed across {districtOptions.length} districts in Jammu</p>
             </div>
+            <Link to="/vendor-management/jammu/installation/swp/view-installation" className="ax-btn ax-btn--sm ax-btn--primary">
+              View Installation Register →
+            </Link>
           </div>
-          <div style={{ minHeight: 220 }}>
-            <Suspense fallback={<div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Loading monthly trend...</div>}>
-              <ApexChart
-                type="area"
-                height={220}
-                series={monthlySeries}
-                options={monthlyOptions}
-              />
-            </Suspense>
+          <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
+            <div className="ax-grid ax-grid--2" style={{ gap: 'var(--ax-space-2)' }}>
+              <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 'var(--ax-radius-md, 8px)' }}>
+                <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Installed & Operational</small>
+                <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-emerald, #10b981)' }}>
+                  {num(swp.complete)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctComplete}%)</span>
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 'var(--ax-radius-md, 8px)' }}>
+                <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Pending Execution</small>
+                <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-amber, #f59e0b)' }}>
+                  {num(swp.pending)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctPending}%)</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Overall Installation Execution Efficiency</span>
+                <b className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>
+                  {pctComplete}%
+                </b>
+              </div>
+              <div className="ax-progress ax-progress--sm">
+                <div className="ax-progress__track">
+                  <div className="ax-progress__fill" style={{ width: `${pctComplete}%`, background: 'var(--ax-viz-emerald, #10b981)' }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+              <b>Verification & Compliance Summary:</b> {num(swp.site_assigned)} assigned ({num(swp.site_not_assigned)} unassigned) · {num(swp.verify_approved)} verified approved ({num(swp.verify_pending)} QA pending, {num(swp.verify_reject)} rejected) · {num(swp.claim_raised)} claims raised ({num(swp.claim_approved)} approved) · {num(swp.inst_pay_done)} payments settled ({num(swp.inst_pay_partially)} partial, {num(swp.inst_pay_pending)} pending).
+            </div>
           </div>
         </section>
-      )}
 
-      {/* District Performance & Execution Register Table */}
-      <section className="ax-card" aria-label="District Register" style={{ borderRadius: 12, overflow: 'hidden', background: '#ffffff' }}>
-        <div className="ax-card__header" style={{ padding: '18px 24px', borderBottom: '1px solid #e2e8f0' }}>
-          <div className="ax-card__titles">
-            <h3 className="ax-card__title" style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-              District Operations & Performance Register
-            </h3>
-            <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
-              Comprehensive progress tracking across all regional distribution circles in Jammu & Kashmir
-            </p>
-          </div>
-
-          <div className="ax-card__actions">
-            <div className="ax-cluster">
-              <SearchInput
-                value={tableQuery}
-                onChange={setTableQuery}
-                placeholder="Search district..."
-              />
-              <TableExportToolbar
-                data={searchedDistricts}
-                columns={exportColumns}
-                filename="Jammu_SWP_District_Register"
-              />
+        {/* 6. Charts: District Wise Installations + Status Donut */}
+        <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="District wise installations">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Geographic Breakdown</span>
+              <h2 className="ax-card__title">District Wise Installations</h2>
+              <p className="ax-card__subtitle">{num(swp.complete)} installed of {num(swp.site_count)} allocated across {districtOptions.length} districts in Jammu</p>
+            </div>
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
+                {[
+                  { l: 'Installed Sites', c: LIGHT_GREEN },
+                  { l: 'Allocated Sites', c: LIGHT_BLUE },
+                ].map((i) => (
+                  <span key={i.l} className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+                    <i style={{ width: 10, height: 10, borderRadius: 2, background: i.c, display: 'inline-block' }} />
+                    <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{i.l}</small>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            {chartDistricts.length > 0 ? (
+              <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+                <ApexChart
+                  key={`dist-chart-${chartH}-${chartDistricts.map((d) => `${d.district}-${d.inst_complete}-${d.total}`).join('-')}`}
+                  type="bar"
+                  height={chartH}
+                  legend="none"
+                  ariaLabel="District-wise installation comparison"
+                  series={[
+                    { name: 'Installed Sites', data: chartDistricts.map((d) => d.inst_complete || 0) },
+                    { name: 'Allocated Sites', data: chartDistricts.map((d) => d.total || 0) },
+                  ]}
+                  apex={{
+                    colors: [LIGHT_GREEN, LIGHT_BLUE],
+                    plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '35%' } },
+                    xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' }, rotate: -35 } },
+                    yaxis: { title: { text: 'Solar Pumps (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                    chart: {
+                      events: {
+                        dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                          const dist = chartDistricts[opts?.dataPointIndex]?.district;
+                          if (dist) openDrillDown('complete', 'Completed Installations', dist);
+                        },
+                      },
+                    },
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div style={{ height: chartH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)', gap: 8 }}>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 500 }}>No district data returned by server.</span>
+              </div>
+            )}
+          </div>
+        </section>
 
-        <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontWeight: 700, textAlign: 'left' }}>
-                <th style={{ padding: '12px 16px' }}>District</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Target Sites</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Installed</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Pending</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Audit Pass</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Audit Pend</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Rejected</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>HOC Ready</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Paid Sites</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Completion %</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Drill-Down</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedDistricts.length === 0 ? (
+        {/* Status Distribution Donut Chart */}
+        <section className="ax-card ax-col--4" role="region" aria-label="Installation status split">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Execution Distribution</span>
+              <h2 className="ax-card__title">Status Breakdown</h2>
+              <p className="ax-card__subtitle">Total {num(swp.site_count)} Solar Pumps</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <Suspense fallback={<div className="ax-skeleton" style={{ height: donutH }} />}>
+              <ApexChart
+                key={`donut-${donutH}-${swp.complete}-${swp.pending}-${swp.verify_reject}`}
+                type="donut"
+                height={donutH}
+                legend="none"
+                ariaLabel="Installed, pending and rejected distribution"
+                series={[swp.complete, swp.pending, swp.verify_reject]}
+                apex={{
+                  labels: ['Installed', 'Pending', 'Rework Required'],
+                  colors: [LIGHT_GREEN, LIGHT_AMBER, LIGHT_RED],
+                  stroke: { width: 0 },
+                  chart: {
+                    events: {
+                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                        const labels = ['complete', 'pending', 'verify-reject'];
+                        const key = labels[opts?.dataPointIndex];
+                        if (key) openDrillDown(key, 'Sites Drilldown');
+                      },
+                    },
+                  },
+                  plotOptions: {
+                    pie: {
+                      donut: {
+                        size: '72%',
+                        labels: {
+                          show: true,
+                          name: { fontFamily: 'var(--ax-font-sans)' },
+                          value: { fontFamily: 'var(--ax-font-mono)', fontWeight: 600 },
+                          total: { show: true, label: 'Pumps', formatter: () => num(swp.site_count) },
+                        },
+                      },
+                    },
+                  },
+                }}
+              />
+            </Suspense>
+            <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
+              {[
+                { label: 'Installed', sub: 'Completed sites', v: swp.complete, p: pctComplete, color: LIGHT_GREEN, key: 'complete' },
+                { label: 'Pending', sub: 'Awaiting execution', v: swp.pending, p: pctPending, color: LIGHT_AMBER, key: 'pending' },
+                { label: 'Rework Required', sub: 'Audit rejected', v: swp.verify_reject, p: pctOf(swp.verify_reject, swp.site_count), color: LIGHT_RED, key: 'verify-reject' },
+              ].map((s) => (
+                <li
+                  key={s.label}
+                  className="ax-list__row"
+                  style={{ border: 0, paddingInline: 0, cursor: 'pointer' }}
+                  onClick={() => openDrillDown(s.key, s.label)}
+                >
+                  <span className="ax-list__leading"><i style={{ width: 9, height: 9, borderRadius: 3, background: s.color, display: 'inline-block' }} /></span>
+                  <span className="ax-list__content">
+                    <span className="ax-list__title" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{s.label}</span>
+                    <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{s.sub}</span>
+                  </span>
+                  <span className="ax-list__trailing ax-num" style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{num(s.v)} ({s.p}%)</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* 7. Monthly Installation Throughput + Milestones */}
+        <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="Monthly installation throughput">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Monthly Execution</span>
+              <h2 className="ax-card__title">Monthly Installation Trend</h2>
+              <p className="ax-card__subtitle">Installation pace and throughput across recent months</p>
+            </div>
+            <div className="ax-card__actions">
+              <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
+                {monthlyInstallations.length} Months Tracked
+              </span>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            {monthlyInstallations.length > 0 ? (
+              <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+                <ApexChart
+                  key={`monthly-${chartH}-${monthlyInstallations.map((m) => `${m.month_year}-${m.monthly_installations}`).join('-')}`}
+                  type="area"
+                  height={chartH}
+                  legend="top"
+                  ariaLabel="Monthly installations area chart"
+                  series={[
+                    {
+                      name: 'Monthly Installed Sites',
+                      data: monthlyInstallations.map((m) => m.monthly_installations || 0),
+                    },
+                  ]}
+                  apex={{
+                    colors: [LIGHT_BLUE],
+                    stroke: { curve: 'smooth', width: 2 },
+                    fill: {
+                      type: 'gradient',
+                      gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
+                    },
+                    markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+                    xaxis: {
+                      categories: monthlyInstallations.map((m) => m.month_year),
+                    },
+                    yaxis: { title: { text: 'Installed (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div style={{ height: chartH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)', gap: 8 }}>
+                <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
+                  <path d="M3 3v18h18" />
+                  <path d="m19 9-5 5-4-4-3 3" />
+                </svg>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 500 }}>No monthly installation timeline data returned by server.</span>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* SWP Workflow Milestones */}
+        <section className="ax-card ax-col--4" role="region" aria-label="SWP Workflow Milestones">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Workflow Lifecycle</span>
+              <h2 className="ax-card__title">SWP Milestones</h2>
+              <p className="ax-card__subtitle">Progress across installation stages</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
+            {milestones.map((m) => {
+              const p = pctOf(m.v, m.of);
+              return (
+                <div key={m.label}>
+                  <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
+                    <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
+                    <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%)</b>
+                  </div>
+                  <div className="ax-progress ax-progress--sm">
+                    <div className="ax-progress__track">
+                      <div className="ax-progress__fill" style={{ width: `${p}%`, background: m.color }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* 8. District Wise Detailed Table (Full Response Data) */}
+        <section className="ax-card ax-col--12" role="region" aria-label="District wise summary table">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Geographic Breakdown</span>
+              <h2 className="ax-card__title">District Wise SWP Summary (Complete Response Data)</h2>
+              <p className="ax-card__subtitle">Allocated, assigned, verification, document compliance & claim disbursement metrics across all districts</p>
+            </div>
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={tableQuery}
+                  onChange={setTableQuery}
+                  placeholder="Search district…"
+                  ariaLabel="Search districts"
+                />
+                <TableExportToolbar
+                  onCopy={() => copyToClipboard(tableDistricts, districtCols, 'District summary data copied to clipboard!')}
+                  onExportCSV={() => exportToCSV(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
+                  onExportExcel={() => exportToExcel(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
+                  onExportPDF={() => exportToPDF(tableDistricts, districtCols, fileTitle)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 1600, whiteSpace: 'nowrap' }}>
+              <thead className="ax-table__head">
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-                    No regional data found matching search criteria.
-                  </td>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Assigned</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Reject</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claims Raised</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claims Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Partially Paid</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
                 </tr>
-              ) : (
-                pagedDistricts.map((row) => {
-                  const compPct = pctOf(row.complete, row.site_count);
+              </thead>
+              <tbody>
+                {pagedDistricts.map((d) => {
+                  const pct = pctOf(d.inst_complete, d.total);
                   return (
-                    <tr key={row.district} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>
-                        {row.district}
+                    <tr
+                      key={d.district}
+                      className="ax-table__row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'District Installations', d.district); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                        <b>{d.district}</b>
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.site_count)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ fontWeight: 600, cursor: 'pointer' }}
+                        title={`View all allocated sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Sites', d.district); }}
+                      >
+                        {num(d.total || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600, color: LIGHT_GREEN, fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.complete)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View assigned sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('site-assigned', 'Assigned Sites', d.district); }}
+                      >
+                        {num(d.total_assigned || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: LIGHT_CYAN, fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.pending)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View completed sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Sites', d.district); }}
+                      >
+                        {num(d.inst_complete || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: LIGHT_BLUE, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.verify_approved)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View pending sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Sites', d.district); }}
+                      >
+                        {num(d.inst_pending || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: LIGHT_AMBER, fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.verify_pending)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View verify approved sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Sites', d.district); }}
+                      >
+                        {num(d.verify_approved || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: row.verify_reject > 0 ? LIGHT_RED : '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.verify_reject)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View verify pending sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-pending', 'Verify Pending Sites', d.district); }}
+                      >
+                        {num(d.verify_pending || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: LIGHT_VIOLET, fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.doc_submitted)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-red, #dc2626)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View verify rejected sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Verify Rejected Sites', d.district); }}
+                      >
+                        {num(d.verify_reject || 0)}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
-                        {num(row.pay_done)}
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--asw-primary)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View claim raised in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('claim-raised', 'Claim Raised', d.district); }}
+                      >
+                        {num(d.claim_raised || 0)}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 44, height: 6, borderRadius: 3, background: '#e2e8f0', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(compPct, 100)}%`, height: '100%', background: compPct >= 80 ? LIGHT_GREEN : compPct >= 40 ? LIGHT_BLUE : LIGHT_AMBER }} />
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View claim approved in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('claim-approved', 'Claim Approved', d.district); }}
+                      >
+                        {num(d.claim_approved || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View payment settled sites in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('inst-pay-done', 'Payment Settled Sites', d.district); }}
+                      >
+                        {num(d.payment_done || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}
+                      >
+                        {num(d.payment_partially || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View payment pending in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('inst-pay-pending', 'Payment Pending', d.district); }}
+                      >
+                        {num(d.payment_pending || 0)}
+                      </td>
+                      <td className="ax-table__td">
+                        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
+                          <div className="ax-progress ax-progress--sm" style={{ minWidth: 60, width: 60 }}>
+                            <div className="ax-progress__track">
+                              <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald, #10b981)' : 'var(--asw-primary)' }} />
+                            </div>
                           </div>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#334155' }}>{compPct}%</span>
+                          <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', minWidth: 36 }}>{pct}%</span>
                         </div>
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--sm"
-                          onClick={() => openDrillDown('total', row.district, row.district)}
-                          style={{ fontSize: 11, color: LIGHT_BLUE, fontWeight: 600 }}
-                        >
-                          View Sites →
-                        </button>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="ax-card__footer" style={footerStyle}>
-          <div className="ula-pagination-left">
-            <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={pagination.setCurrentPage}
-            />
+                })}
+                {!loading && pagedDistricts.length === 0 && (
+                  <tr>
+                    <td className="ax-table__td" colSpan={14} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                      No districts match the filter criteria.
+                    </td>
+                  </tr>
+                )}
+                {pagedDistricts.length > 0 && (
+                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
+                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Districts)</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ cursor: 'pointer' }} title="View all allocated sites" onClick={() => openDrillDown('total', 'Total Allocated Sites')}>{num(swp.site_count)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View all assigned sites" onClick={() => openDrillDown('site-assigned', 'Total Assigned Sites')}>{num(swp.site_assigned)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View completed sites" onClick={() => openDrillDown('complete', 'Total Installed Sites')}>{num(swp.complete)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View pending sites" onClick={() => openDrillDown('pending', 'Total Pending Sites')}>{num(swp.pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View verify approved sites" onClick={() => openDrillDown('verify-approved', 'Total Verify Approved Sites')}>{num(swp.verify_approved)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View verify pending sites" onClick={() => openDrillDown('verify-pending', 'Total Verify Pending Sites')}>{num(swp.verify_pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #dc2626)', cursor: 'pointer' }} title="View verify rejected sites" onClick={() => openDrillDown('verify-reject', 'Total Verify Rejected Sites')}>{num(swp.verify_reject)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)', cursor: 'pointer' }} title="View claims raised" onClick={() => openDrillDown('claim-raised', 'Total Claims Raised')}>{num(swp.claim_raised)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View claims approved" onClick={() => openDrillDown('claim-approved', 'Total Claims Approved')}>{num(swp.claim_approved)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View payment settled sites" onClick={() => openDrillDown('inst-pay-done', 'Total Payment Settled Sites')}>{num(swp.inst_pay_done)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(swp.inst_pay_partially)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View payment pending" onClick={() => openDrillDown('inst-pay-pending', 'Total Payment Pending')}>{num(swp.inst_pay_pending)}</td>
+                    <td className="ax-table__td">
+                      <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{pctComplete}%</b>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
 
-      {/* Quick Navigation Shortcuts */}
-      <section style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 12 }}>
-        <Link to="/vendor-management/jammu/installation/swp/assign-installation" className="ax-card" style={{ padding: '14px 16px', borderRadius: 10, textAlign: 'center', textDecoration: 'none', color: '#0f172a', border: '1px solid #e2e8f0', transition: 'all 0.15s' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: LIGHT_BLUE }}>Assign Installation</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Work order allocation</div>
-        </Link>
-        <Link to="/vendor-management/jammu/installation/swp/view-assign-installation" className="ax-card" style={{ padding: '14px 16px', borderRadius: 10, textAlign: 'center', textDecoration: 'none', color: '#0f172a', border: '1px solid #e2e8f0', transition: 'all 0.15s' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: LIGHT_BLUE }}>View Assigned</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Master contract register</div>
-        </Link>
-        <Link to="/vendor-management/jammu/installation/swp/verify-installation" className="ax-card" style={{ padding: '14px 16px', borderRadius: 10, textAlign: 'center', textDecoration: 'none', color: '#0f172a', border: '1px solid #e2e8f0', transition: 'all 0.15s' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: LIGHT_GREEN }}>Verify Installation</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Technical audit desk</div>
-        </Link>
-        <Link to="/vendor-management/jammu/installation/swp/verify-document" className="ax-card" style={{ padding: '14px 16px', borderRadius: 10, textAlign: 'center', textDecoration: 'none', color: '#0f172a', border: '1px solid #e2e8f0', transition: 'all 0.15s' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: LIGHT_VIOLET }}>Verify Document</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Farmer HOC audit</div>
-        </Link>
-        <Link to="/vendor-management/jammu/installation/swp/verify-claim" className="ax-card" style={{ padding: '14px 16px', borderRadius: 10, textAlign: 'center', textDecoration: 'none', color: '#0f172a', border: '1px solid #e2e8f0', transition: 'all 0.15s' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: LIGHT_AMBER }}>Verify Claim</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Vendor invoice audit</div>
-        </Link>
-        <Link to="/vendor-management/jammu/installation/swp/view-payment" className="ax-card" style={{ padding: '14px 16px', borderRadius: 10, textAlign: 'center', textDecoration: 'none', color: '#0f172a', border: '1px solid #e2e8f0', transition: 'all 0.15s' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>View Payment</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Disbursement ledger</div>
-        </Link>
-      </section>
+          <div className="ax-card__footer" style={footerStyle}>
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                pageSizeOptions={[10, 25, 50, 100, 200]}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 9. Vendor-Wise Performance Table */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Vendor Wise Performance">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Contractor & Vendor Execution</span>
+              <h2 className="ax-card__title">Vendor-Wise Installation Performance</h2>
+              <p className="ax-card__subtitle">Field throughput, audit approvals, compliance documentation and claim status per vendor contractor</p>
+            </div>
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={vendorQuery}
+                  onChange={setVendorQuery}
+                  placeholder="Search vendor…"
+                  ariaLabel="Search vendors"
+                />
+                <TableExportToolbar
+                  onCopy={() => copyToClipboard(tableVendors, vendorCols, 'Vendor performance data copied to clipboard!')}
+                  onExportCSV={() => exportToCSV(tableVendors, vendorCols, `Jammu_SWP_Vendor_Performance_${stamp}`)}
+                  onExportExcel={() => exportToExcel(tableVendors, vendorCols, `Jammu_SWP_Vendor_Performance_${stamp}`)}
+                  onExportPDF={() => exportToPDF(tableVendors, vendorCols, 'Jammu SWP Vendor-Wise Performance')}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 1200, whiteSpace: 'nowrap' }}>
+              <thead className="ax-table__head">
+                <tr>
+                  <th className="ax-table__th" scope="col">Vendor</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated Sites</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Installed Sites</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pending Sites</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claims Raised</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
+                  <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedVendors.map((v) => {
+                  const pct = pctOf(v.inst_complete, v.site_count);
+                  const vName = v.vendor_name || getVendorName(v.inst_vendor);
+                  return (
+                    <tr
+                      key={String(v.inst_vendor)}
+                      className="ax-table__row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDrillDown('complete', 'Vendor Installations', undefined, v.inst_vendor)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'Vendor Installations', undefined, v.inst_vendor); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <b>{vName}</b>
+                          <small style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>ID: #{v.inst_vendor}</small>
+                        </div>
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                        {num(v.site_count || 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                        {num(v.inst_complete || 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
+                        {num(v.inst_pending || 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600 }}>
+                        {num(v.verify_approved || 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
+                        {num(v.verify_pending || 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)', fontWeight: 600 }}>
+                        {num(v.claim_raised || 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                        {num(v.payment_done || 0)}
+                      </td>
+                      <td className="ax-table__td">
+                        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
+                          <div className="ax-progress ax-progress--sm" style={{ minWidth: 60, width: 60 }}>
+                            <div className="ax-progress__track">
+                              <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald, #10b981)' : 'var(--asw-primary)' }} />
+                            </div>
+                          </div>
+                          <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', minWidth: 36 }}>{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!loading && pagedVendors.length === 0 && (
+                  <tr>
+                    <td className="ax-table__td" colSpan={9} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                      No vendor performance records match your search.
+                    </td>
+                  </tr>
+                )}
+                {pagedVendors.length > 0 && (
+                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
+                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Vendors)</td>
+                    <td className="ax-table__td ax-table__td--num ax-num">{num(vendorswise.reduce((s, v) => s + (Number(v.site_count) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.inst_complete) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.inst_pending) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.verify_approved) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.verify_pending) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.claim_raised) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.payment_done) || 0), 0))}</td>
+                    <td className="ax-table__td">
+                      <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                        {pctOf(vendorswise.reduce((s, v) => s + (Number(v.inst_complete) || 0), 0), vendorswise.reduce((s, v) => s + (Number(v.site_count) || 0), 1))}%
+                      </b>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="ax-card__footer" style={footerStyle}>
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentVendorPage}
+                totalItems={totalVendorItems}
+                pageSize={vendorPageSize}
+                onPageChange={setVendorPage}
+                onPageSizeChange={setVendorPageSize}
+                pageSizeOptions={[5, 10, 25, 50]}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 10. District Quick-Access & Quick Actions */}
+        <section className="ax-card ax-col--6" role="region" aria-label="District Status & Quick Navigation">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">District Operations</span>
+              <h2 className="ax-card__title">Top Execution Districts (Leaderboard)</h2>
+              <p className="ax-card__subtitle">Highest installation completion across districts in Jammu</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <div>
+              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                  Installation Ranking
+                </span>
+                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(swp.complete)} Installed</span>
+              </div>
+              <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
+                {(() => {
+                  const items = filteredDistricts;
+                  return items
+                    .slice()
+                    .sort((a: any, b: any) => (Number(b.inst_complete) || 0) - (Number(a.inst_complete) || 0))
+                    .slice(0, 10)
+                    .map((d: any) => {
+                      const completeVal = Number(d.inst_complete) || 0;
+                      const totalVal = Number(d.total) || completeVal;
+                      const pct = pctOf(completeVal, totalVal);
+                      return (
+                        <button
+                          key={d.district}
+                          type="button"
+                          className="ax-cluster"
+                          onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                          style={{
+                            width: '100%',
+                            justifyContent: 'space-between',
+                            fontSize: 'var(--ax-text-xs)',
+                            border: 0,
+                            background: 'transparent',
+                            padding: '6px 0',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)',
+                          }}
+                        >
+                          <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
+                          <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                            {num(completeVal)} / {num(totalVal)} ({pct}%)
+                          </b>
+                        </button>
+                      );
+                    });
+                })()}
+                {districtwise.length === 0 && <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data.'}</span>}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 11. Quick Module Actions */}
+        <section className="ax-card ax-col--6" role="region" aria-label="Quick Module Actions">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Workflows & Portals</span>
+              <h2 className="ax-card__title">Quick Module Actions</h2>
+              <p className="ax-card__subtitle">Shortcuts to manage site assignments, audits and vendor disbursements</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Link to="/vendor-management/jammu/installation/swp/assign-installation" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Assign New Solar Water Pumps</span>
+                <span>→</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/swp/view-assign" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>View Assigned Vendor Allocations</span>
+                <span>📋</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/swp/view-installation" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Review Master Installation Registry</span>
+                <span>🔍</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/swp/verify-claim" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Verify Installation Claims</span>
+                <span>📑</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/swp/view-payment" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Submit & Disburse Payment Claim</span>
+                <span>₹</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

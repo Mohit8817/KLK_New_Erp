@@ -60,6 +60,7 @@ export function UPComplaintSRLMView() {
       loadingText="Loading SRLMSRT complaints…"
       emptyMessage="SRLMSRT complaints will appear here once they are registered."
       fetchData={() => upComplaintService.getSrlmsrtViewComplaints()}
+      onDeleteComplaint={(id) => upComplaintService.deleteSrlmsrtComplaint(id)}
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),

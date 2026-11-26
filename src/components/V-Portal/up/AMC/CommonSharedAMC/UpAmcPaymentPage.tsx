@@ -1,18 +1,10 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { resolveUpMediaUrl } from '../../up-services';
 import {
-  Pagination,
-  usePagination,
   SearchInput,
-  TableExportToolbar,
   TableEmptyState,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
-  type ExportColumn,
 } from '../../../../../common';
 
 export const DASH = '—';
@@ -105,16 +97,20 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await onFetchClaimData();
-      if (res.status && res.data) {
-        setPayments(res.data.payments || []);
-        setSites(res.data.sites || []);
+      const res: any = await onFetchClaimData();
+      if (res?.status) {
+        const rawPayments = res.data?.payments ?? res.payments ?? [];
+        const rawSites = res.data?.sites ?? res.data?.lights ?? res.sites ?? res.lights ?? [];
+        setPayments(Array.isArray(rawPayments) ? rawPayments : []);
+        setSites(Array.isArray(rawSites) ? rawSites : []);
       } else {
         setPayments([]);
         setSites([]);
-        if (res.message) setToast({ type: 'error', message: res.message });
+        if (res?.message) setToast({ type: 'error', message: res.message });
       }
     } catch (err: any) {
+      setPayments([]);
+      setSites([]);
       setToast({ type: 'error', message: err?.message || 'Failed to load claims data.' });
     } finally {
       setLoading(false);
@@ -221,8 +217,6 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
       setSubmittingClaim(false);
     }
   };
-
-  const stamp = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="solar-erp-page">
@@ -416,8 +410,8 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
                           )}
                         </td>
                         <td className="ax-table__td">
-                          <span className="ax-badge ax-badge--soft ax-badge--info">
-                            {p.claim_status === 1 ? 'Approved' : 'Submitted'}
+                          <span className={`ax-badge ax-badge--soft ${Number(p.claim_status) === 1 ? 'ax-badge--success' : Number(p.claim_status) === 2 ? 'ax-badge--danger' : 'ax-badge--info'}`}>
+                            {Number(p.claim_status) === 1 ? 'Approved' : Number(p.claim_status) === 2 ? 'Rejected' : 'Submitted'}
                           </span>
                         </td>
                       </tr>

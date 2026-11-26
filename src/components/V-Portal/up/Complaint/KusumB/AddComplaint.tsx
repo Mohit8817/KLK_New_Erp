@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ComplaintFormLayout,
   FloatingInput,
@@ -9,9 +9,10 @@ import {
   SectionHeader,
   opts,
   getTodayFormatted,
+  formatDateForInput,
   type SectionItem,
 } from '../CommonSharedComplaints';
-import { upComplaintService, type UpKusumBDetails } from '../../up-services';
+import { getMediaUrl, upComplaintService, type UpKusumBDetails } from '../../up-services';
 
 const SECTIONS: SectionItem[] = [
   { id: 'kb-sec-1', num: '1', title: 'Complaint & Beneficiary' },
@@ -49,8 +50,14 @@ type FormKey = keyof typeof INITIAL_FORM;
 
 export function UPComplaintKBAdd() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
 
   const [form, setForm] = useState(INITIAL_FORM);
+  const [complaintCode, setComplaintCode] = useState('');
+  const [existingFile, setExistingFile] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -84,6 +91,86 @@ export function UPComplaintKBAdd() {
       active = false;
     };
   }, []);
+
+  // Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const dist = String(rec.district || '').trim();
+      const village = String(rec.village || '').trim();
+      const bName = String(rec.beneficiary_name || rec.farmer_name || rec.f_name || '').trim();
+      const bId = String(rec.kbid || rec.kb_id || rec.beneficiary_id || rec.farmer_id || bName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'No').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile(getMediaUrl(rec.document || rec.file || rec.file1) || '');
+      setForm({
+        complaint_date: formatDateForInput(rec.complaint_date || rec.created_date || rec.created_at) || getTodayFormatted(),
+        district: dist,
+        village,
+        beneficiary_id: bId,
+        beneficiary_name: bName,
+        gender: String(rec.gender || ''),
+        contact_no: String(rec.contact_no || rec.contact_number || rec.f_mobile || ''),
+        application_no: String(rec.application_no || ''),
+        location: String(rec.location || ''),
+        father_name: String(rec.father_name || ''),
+        category: String(rec.category || ''),
+        aadhar_status: String(rec.aadhar_status || ''),
+        saral_id: String(rec.saral_id || ''),
+        required_pump: String(rec.required_pump || rec.pump_type || ''),
+        pump_sub_type: String(rec.pump_sub_type || ''),
+        pump_make: String(rec.pump_make || ''),
+        module_make: String(rec.module_make || ''),
+        spv_capacity: String(rec.spv_capacity || ''),
+        sys_installed_date: formatDateForInput(rec.sys_installed_date || rec.installation_date),
+        total_pump_cost: String(rec.total_pump_cost ?? rec.total_pumb_cost ?? ''),
+        complaint: String(rec.complaint || ''),
+        sms: rawSms === 'yes' || rawSms === '1' || rawSms === 'true' ? 'Yes' : 'No',
+      });
+
+      if (dist) {
+        try {
+          const vList = await upComplaintService.getKusumBVillages(dist);
+          if (active) setVillages(vList);
+        } catch {}
+        if (village) {
+          try {
+            const bList = await upComplaintService.getKusumBBeneficiaryNames(dist, village);
+            if (!active) return;
+            const matched = bList.find((b) => String(b.id) === bId || b.name === bName);
+            if (matched) {
+              setBeneficiaries(bList);
+              setForm((p) => ({ ...p, beneficiary_id: String(matched.id), beneficiary_name: matched.name }));
+            } else if (bId || bName) {
+              setBeneficiaries([{ id: bId || bName, name: bName || bId }, ...bList]);
+            } else {
+              setBeneficiaries(bList);
+            }
+          } catch {
+            if (active && (bId || bName)) setBeneficiaries([{ id: bId || bName, name: bName || bId }]);
+          }
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getKusumBEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
 
   const handleDistrictChange = async (d: string) => {
     setForm((p) => ({
@@ -143,7 +230,7 @@ export function UPComplaintKBAdd() {
     if (!bId) return;
 
     try {
-      const det: UpKusumBDetails | null = await upComplaintService.getKusumBDetails(bId);
+      const det: UpKusumBDetails | null = await upComplaintService.getKusumBDetails(bId, chosen?.name);
       if (det) {
         setForm((p) => ({
           ...p,
@@ -161,7 +248,7 @@ export function UPComplaintKBAdd() {
           module_make: det.module_make ? String(det.module_make) : p.module_make,
           spv_capacity: det.spv_capacity ? String(det.spv_capacity) : p.spv_capacity,
           sys_installed_date: det.sys_installed_date || det.installation_date ? String(det.sys_installed_date || det.installation_date).split('T')[0] : p.sys_installed_date,
-          total_pump_cost: det.total_pump_cost ? String(det.total_pump_cost) : p.total_pump_cost,
+          total_pump_cost: det.total_pump_cost ?? det.total_pumb_cost ? String(det.total_pump_cost ?? det.total_pumb_cost) : p.total_pump_cost,
         }));
       }
     } catch {}
@@ -184,7 +271,7 @@ export function UPComplaintKBAdd() {
     if (!form.contact_no.trim()) errs.contact_no = 'Contact Number is required.';
     if (!form.application_no.trim()) errs.application_no = 'Application Number is required.';
     if (!form.complaint.trim()) errs.complaint = 'Complaint description is required.';
-    if (!file) errs.document = 'Document / Photo is required.';
+    if (!isEdit && !file) errs.document = 'Document / Photo is required.';
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -210,7 +297,11 @@ export function UPComplaintKBAdd() {
         fd.set('kb_id', form.beneficiary_id);
         fd.set('beneficiary_id', form.beneficiary_id);
         fd.set('farmer_id', form.beneficiary_id);
-        fd.set('id', form.beneficiary_id);
+        if (!isEdit) fd.set('id', form.beneficiary_id);
+      }
+      if (isEdit && editId) {
+        fd.set('id', String(editId));
+        if (complaintCode) fd.set('complaint_id', complaintCode);
       }
       const smsVal = form.sms && String(form.sms).toLowerCase() === 'yes' ? 'Yes' : 'No';
       fd.set('sms', smsVal);
@@ -229,13 +320,19 @@ export function UPComplaintKBAdd() {
         fd.append('file', file);
       }
 
-      const res = await upComplaintService.saveKusumBComplaint(fd);
+      const res =
+        isEdit && editId
+          ? await upComplaintService.updateKusumBComplaint(editId, fd)
+          : await upComplaintService.saveKusumBComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'Complaint submitted successfully!' });
-        handleReset();
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'Complaint updated successfully!' : 'Complaint submitted successfully!'),
+        });
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/kusumb-view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
         if (res.errors) {
           const mapped: Record<string, string> = {};
@@ -246,7 +343,7 @@ export function UPComplaintKBAdd() {
           const firstErr = Object.values(mapped)[0];
           setToast({ type: 'error', message: firstErr || res.message || 'Validation failed.' });
         } else {
-          setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+          setToast({ type: 'error', message: res.message || (isEdit ? 'Failed to update complaint.' : 'Failed to submit complaint.') });
         }
       }
     } catch (err: any) {
@@ -258,21 +355,23 @@ export function UPComplaintKBAdd() {
 
   return (
     <ComplaintFormLayout
-      title="Welcome to, Add UP Kusum B Complaint"
-      subtitle="Register standalone solar pump maintenance & breakdown complaints"
+      title={isEdit ? 'Edit UP Kusum B Complaint' : 'Welcome to, Add UP Kusum B Complaint'}
+      subtitle={isEdit ? 'Update standalone solar pump maintenance & breakdown complaint' : 'Register standalone solar pump maintenance & breakdown complaints'}
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'View Vendor UP Kusum B Complaints', href: '/v/complaint/up/kusumb-view-complaint' },
-        { label: 'Add UP Kusum B Complaint' },
+        { label: isEdit ? 'Edit UP Kusum B Complaint' : 'Add UP Kusum B Complaint' },
       ]}
       viewLink="/v/complaint/up/kusumb-view-complaint"
       eyebrow="Kusum Component-B"
-      formTitle="Add UP Kusum B Complaint"
-      formSubtitle="Enter complaint information, select beneficiary farmer, and submit pump repair ticket across 4 dedicated sections."
+      formTitle={isEdit ? `Edit UP Kusum B Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add UP Kusum B Complaint'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Enter complaint information, select beneficiary farmer, and submit pump repair ticket across 4 dedicated sections.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={loading}
+      submitLabel={isEdit ? 'Update Complaint' : 'Submit Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* ── Section 1: Complaint & Beneficiary ── */}
@@ -334,7 +433,7 @@ export function UPComplaintKBAdd() {
       <div id="kb-sec-4" className="up-section-block">
         <SectionHeader num="4" total={4} title="Complaint Description & Attachment" desc="Describe the problem and attach a document or site photo." />
         <div className="up-form-grid up-form-grid--3col">
-          <FloatingFileInput id="kb-file" label="Upload Document / Photo" required file={file} onChange={setFile} error={errors.document} />
+          <FloatingFileInput id="kb-file" label="Upload Document / Photo" required={!isEdit} file={file} existingUrl={existingFile} onChange={setFile} error={errors.document} />
           <FloatingSelect id="kb-sms" label="Send SMS" value={form.sms} options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} onChange={(v) => setVal('sms', v)} />
           <FloatingTextarea id="kb-text" label="Complaint" required className="ax-col--span-3" value={form.complaint} onChange={(v) => setVal('complaint', v)} error={errors.complaint} />
         </div>

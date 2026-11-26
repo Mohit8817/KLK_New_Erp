@@ -4,4 +4,5 @@ export * from './ViewAssignSslLights';
 export * from './VerifySslLights';
 export * from './SslClaimRequest';
 export * from './SslPaymentRequest';
+export * from './StatusView';
 export * from './jammuSslAdminService';

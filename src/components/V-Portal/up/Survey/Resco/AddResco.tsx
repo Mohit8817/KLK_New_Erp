@@ -5,7 +5,7 @@ import {
   upSurveyService,
   getUpSurveyMediaUrl,
   type UpRescoPendingSite,
-  type UpRescoSiteDetail,
+  type UpRescoSurveySiteDetail,
   type UpRescoSurveyRecord,
 } from '../../up-services';
 
@@ -160,7 +160,7 @@ export function UP_Survey_Resco_AddResco() {
   const [sites, setSites] = useState<UpRescoPendingSite[]>([]);
   const [loadingSites, setLoadingSites] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
-  const [siteDetail, setSiteDetail] = useState<UpRescoSiteDetail | null>(null);
+  const [siteDetail, setSiteDetail] = useState<UpRescoSurveySiteDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [editRecord, setEditRecord] = useState<UpRescoSurveyRecord | null>(null);
 
@@ -224,7 +224,10 @@ export function UP_Survey_Resco_AddResco() {
     upSurveyService
       .getRescoPendingSites()
       .then((res) => setSites(res))
-      .catch((err) => console.error('Error loading pending Resco sites:', err))
+      .catch((err) => {
+        console.error('Error loading pending Resco sites:', err);
+        setErrorMsg('Failed to load pending sites from server.');
+      })
       .finally(() => setLoadingSites(false));
   }, [isEdit]);
 
@@ -304,10 +307,12 @@ export function UP_Survey_Resco_AddResco() {
       const detail = await upSurveyService.getRescoSiteDetail(siteId);
       setSiteDetail(detail);
       if (detail?.address) {
-        setFormData((prev) => ({ ...prev, site_address: prev.site_address || detail.address }));
+        const addr = String(detail.address);
+        setFormData((prev) => ({ ...prev, site_address: prev.site_address || addr }));
       }
     } catch (err) {
       console.error('Error fetching site detail:', err);
+      setErrorMsg('Failed to load site details from server.');
     } finally {
       setLoadingDetail(false);
     }
@@ -432,8 +437,6 @@ export function UP_Survey_Resco_AddResco() {
     siteSelectOptions.unshift({ value: String(editRecord.id), label: `${editRecord.site_name || 'Site'} (#${editId})` });
   }
 
-  const yesNo = opts(['Yes', 'No']);
-
   return (
     <div className="up-single-card-form">
       <style>{SINGLE_CARD_FORM_CSS}</style>
@@ -540,7 +543,7 @@ export function UP_Survey_Resco_AddResco() {
               />
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingInput id="up-uid" label="Unique ID" readOnly value={currentGeneral?.uid || ''} />
-                <FloatingInput id="up-state" label="State" readOnly value={(currentGeneral?.state || 'UP').toUpperCase()} />
+                <FloatingInput id="up-state" label="State" readOnly value={currentGeneral?.state ? currentGeneral.state.toUpperCase() : ''} />
                 <FloatingInput id="up-district" label="District" readOnly value={currentGeneral?.district || ''} />
                 <FloatingInput id="up-division" label="Division" readOnly value={currentGeneral?.division || ''} />
                 <FloatingInput id="up-subdivision" label="Sub Division" readOnly value={currentGeneral?.sub_division || ''} />

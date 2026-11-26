@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   upInstallationService,
+  resolveUpMediaUrl,
   type UpKusumCReadySiteItem,
+  type UpKusumCInstalledSiteItem,
 } from '../../up-services';
+import { parseModuleSerials, getRowModuleSerials } from './ViewInstallation';
 
 const DASH = '—';
 
@@ -81,11 +84,23 @@ const TOTAL_SECTIONS = SECTIONS.length;
 export function UP_Installation_KusumC_InstallSite() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const editId =
+    searchParams.get('edit_id') ||
+    (searchParams.get('mode') === 'edit'
+      ? searchParams.get('site_id') || searchParams.get('id') || ''
+      : '') ||
+    '';
   const preSelectedId = searchParams.get('site_id') || searchParams.get('id') || '';
+  const editItemFromState = (location.state as any)?.editItem as UpKusumCInstalledSiteItem | undefined;
+  const isEdit = Boolean(editId || (editItemFromState && editItemFromState.id));
 
   // Dropdown sites & selected site details
   const [readySites, setReadySites] = useState<UpKusumCReadySiteItem[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState(preSelectedId);
+  const [selectedSiteId, setSelectedSiteId] = useState(
+    editId || (editItemFromState ? String(editItemFromState.id) : preSelectedId)
+  );
   const [siteDetails, setSiteDetails] = useState<UpKusumCReadySiteItem | null>(null);
 
   // Form Fields
@@ -96,10 +111,15 @@ export function UP_Installation_KusumC_InstallSite() {
   const [longitude, setLongitude] = useState('');
   const [remarks, setRemarks] = useState('');
 
-  // 3 Photo uploads
+  // 3 Photo uploads (new files)
   const [moduleImage, setModuleImage] = useState<File | null>(null);
   const [inverterVfdImage, setInverterVfdImage] = useState<File | null>(null);
   const [runningWaterImage, setRunningWaterImage] = useState<File | null>(null);
+
+  // Existing image URLs (in edit mode)
+  const [existingModuleImg, setExistingModuleImg] = useState<string | null>(null);
+  const [existingInverterVfdImg, setExistingInverterVfdImg] = useState<string | null>(null);
+  const [existingRunningWaterImg, setExistingRunningWaterImg] = useState<string | null>(null);
 
   // States
   const [loading, setLoading] = useState(false);
@@ -112,22 +132,129 @@ export function UP_Installation_KusumC_InstallSite() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Load available sites
+  const applyEditSiteData = useCallback((s: any) => {
+    if (!s) return;
+    const sid = String(s.id || s.srt_id || editId || '');
+    if (sid) setSelectedSiteId(sid);
+
+    setSiteDetails({
+      id: Number(sid) || 0,
+      f_farmer_name: s.farmer_name || s.f_farmer_name || s.beneficiary_name || '',
+      f_father_name: s.father_name || s.f_father_name || '',
+      f_contact: s.contact_no || s.f_contact || s.farmer_contact || '',
+      f_district: s.district || s.f_district || '',
+      f_block: s.block || s.f_block || '',
+      f_village: s.village || s.f_village || '',
+      f_post: s.post || s.f_post || '',
+      lot_no: s.lot_no || '',
+      pump_capacity: s.pump_capacity || s.volume || '',
+    });
+
+    const inv = s.Inverter_no || s.inverter_no || s.inverter_serial_no || '';
+    if (inv) setInverterNo(inv);
+
+    const vfd = s.vfd_no || s.vfd_serial_no || '';
+    if (vfd) setVfdNo(vfd);
+
+    const serialsList = getRowModuleSerials(s);
+    if (serialsList.length > 0) {
+      setModuleSerials(serialsList);
+    } else if (s.module_serial_no) {
+      const parsed = parseModuleSerials(s.module_serial_no);
+      if (parsed.length > 0) {
+        setModuleSerials(parsed);
+      }
+    }
+
+    const lat = s.latitude || s.inst_latitude;
+    if (lat) setLatitude(String(lat));
+
+    const lng = s.longitude || s.inst_longitude;
+    if (lng) setLongitude(String(lng));
+
+    const rem = s.inst_remarks || s.remarks;
+    if (rem) setRemarks(String(rem));
+
+    const modImg = s.module_image || s.farmer_module_image || s.f_module_image;
+    if (modImg) setExistingModuleImg(resolveUpMediaUrl(modImg));
+
+    const invImg = s.inverter_vfd_image || s.farmer_inverter_vfd_image || s.f_inverter_vfd_image;
+    if (invImg) setExistingInverterVfdImg(resolveUpMediaUrl(invImg));
+
+    const waterImg = s.running_water_image || s.farmer_running_water_image || s.f_running_water_image;
+    if (waterImg) setExistingRunningWaterImg(resolveUpMediaUrl(waterImg));
+  }, [editId]);
+
+  // Load site for edit
   useEffect(() => {
+    if (!isEdit) return;
+
+    if (editItemFromState) {
+      applyEditSiteData(editItemFromState);
+    }
+
+    const targetEditId = editId || (editItemFromState ? String(editItemFromState.id) : '');
+    if (!targetEditId) return;
+
+    let active = true;
+    (async () => {
+      try {
+        setLoading(true);
+        let siteData: any = await upInstallationService.getKusumCSiteForEdit(targetEditId);
+        if (!siteData) {
+          const installed = await upInstallationService.getKusumCInstalledSites().catch(() => null);
+          const list = installed?.sites || [];
+          siteData = list.find((item: any) => String(item.id) === String(targetEditId));
+        }
+        if (active && siteData) {
+          const unwrapped = siteData.site || siteData.data || siteData;
+          applyEditSiteData(unwrapped);
+        }
+      } catch (err) {
+        console.warn('Failed to load edit site:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isEdit, editId, editItemFromState, applyEditSiteData]);
+
+  // Load available sites for new installation
+  useEffect(() => {
+    if (isEdit) return;
+    let active = true;
     setLoading(true);
-    upInstallationService
-      .getKusumCReadySites()
-      .then(async (sites) => {
-        setReadySites(sites || []);
-        const targetId = preSelectedId || (sites.length > 0 ? String(sites[0].id) : '');
+    (async () => {
+      try {
+        let sites = await upInstallationService.getKusumCReadySites();
+        if (!sites || sites.length === 0) {
+          const fallbackApiSites = await upInstallationService.getKusumCAvailableSites();
+          if (Array.isArray(fallbackApiSites) && fallbackApiSites.length > 0) {
+            sites = fallbackApiSites.map((s) => ({ id: s.id, f_farmer_name: s.f_farmer_name }));
+          }
+        }
+        if (!active) return;
+        const safeSites = Array.isArray(sites) ? sites : [];
+        setReadySites(safeSites);
+        const targetId = preSelectedId || (safeSites.length > 0 ? String(safeSites[0].id) : '');
         if (targetId) {
           setSelectedSiteId(targetId);
-          loadSiteDetail(targetId, sites);
+          loadSiteDetail(targetId, safeSites);
         }
-      })
-      .catch((err) => console.warn('Error loading Kusum-C sites:', err))
-      .finally(() => setLoading(false));
-  }, [preSelectedId]);
+      } catch (err) {
+        console.warn('Error loading Kusum-C sites:', err);
+        if (active) setReadySites([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isEdit, preSelectedId]);
 
   const loadSiteDetail = async (id: string, list: UpKusumCReadySiteItem[] = readySites) => {
     try {
@@ -199,9 +326,16 @@ export function UP_Installation_KusumC_InstallSite() {
     if (validSerials.length === 0) errs.module_serial = 'At least 1 module serial number is required.';
     if (!latitude.trim()) errs.inst_latitude = 'Latitude is required.';
     if (!longitude.trim()) errs.inst_longitude = 'Longitude is required.';
-    if (!moduleImage) errs.module_image = 'Farmer with Module photo is required.';
-    if (!inverterVfdImage) errs.inverter_vfd_image = 'Farmer with VFD & Inverter photo is required.';
-    if (!runningWaterImage) errs.running_water_image = 'Farmer with Running Water photo is required.';
+
+    if (!moduleImage && !(isEdit && existingModuleImg)) {
+      errs.module_image = 'Farmer with Module photo is required.';
+    }
+    if (!inverterVfdImage && !(isEdit && existingInverterVfdImg)) {
+      errs.inverter_vfd_image = 'Farmer with VFD & Inverter photo is required.';
+    }
+    if (!runningWaterImage && !(isEdit && existingRunningWaterImg)) {
+      errs.running_water_image = 'Farmer with Running Water photo is required.';
+    }
 
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -229,6 +363,7 @@ export function UP_Installation_KusumC_InstallSite() {
     fd.append('vfd_no', vfdNo.trim());
 
     const validSerials = moduleSerials.filter((s) => s.trim() !== '');
+    fd.append('module_serial_no', validSerials.join(', '));
     validSerials.forEach((sn) => {
       fd.append('module_serial_no[]', sn.trim());
     });
@@ -247,15 +382,29 @@ export function UP_Installation_KusumC_InstallSite() {
     if (runningWaterImage) fd.append('running_water_image', runningWaterImage);
 
     try {
-      const res = await upInstallationService.storeKusumCInstallation(fd);
-      if (res.status) {
-        setToast({ type: 'success', message: res.message || 'Site installation recorded successfully!' });
+      let res: { status?: boolean; message?: string; errors?: any };
+      if (isEdit) {
+        res = await upInstallationService.updateKusumCInstallation(fd);
+      } else {
+        res = await upInstallationService.storeKusumCInstallation(fd);
+      }
+
+      if (res?.status !== false) {
+        setToast({
+          type: 'success',
+          message:
+            res?.message ||
+            (isEdit ? 'Site installation updated successfully!' : 'Site installation recorded successfully!'),
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           navigate('/v/up/view-kusum-c-install-site');
         }, 1200);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit installation.' });
+        setToast({
+          type: 'error',
+          message: res?.message || (isEdit ? 'Failed to update installation.' : 'Failed to submit installation.'),
+        });
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Server error occurred.' });
@@ -265,10 +414,22 @@ export function UP_Installation_KusumC_InstallSite() {
   };
 
   // Build site dropdown options
-  const siteSelectOptions: Option[] = readySites.map((s) => ({
-    value: String(s.id),
-    label: `#${s.id} — ${s.f_farmer_name}${s.lot_no ? ` (${s.lot_no})` : ''}${s.pump_capacity ? ` [${s.pump_capacity}]` : ''}`,
-  }));
+  const siteSelectOptions: Option[] = useMemo(() => {
+    const opts: Option[] = readySites.map((s) => ({
+      value: String(s.id),
+      label: `${s.f_farmer_name || 'Site'}${s.lot_no ? ` (${s.lot_no})` : ''}${
+        s.pump_capacity ? ` [${s.pump_capacity}]` : ''
+      }`,
+    }));
+    if (selectedSiteId && !opts.some((o) => o.value === selectedSiteId)) {
+      const fName = siteDetails?.f_farmer_name || `Site #${selectedSiteId}`;
+      opts.unshift({
+        value: selectedSiteId,
+        label: `${fName} (Site #${selectedSiteId})${isEdit ? ' [Editing]' : ''}`,
+      });
+    }
+    return opts;
+  }, [readySites, selectedSiteId, siteDetails, isEdit]);
 
   return (
     <div className="up-single-card-form">
@@ -276,10 +437,12 @@ export function UP_Installation_KusumC_InstallSite() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="UP Kusum-C Install Site"
+        title={isEdit ? 'Edit Kusum-C Installed Site' : 'UP Kusum-C Install Site'}
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Record equipment serials, GPS coordinates, and photographic evidence for Kusum-C solar pump installation
+            {isEdit
+              ? 'Update equipment serials, GPS coordinates, and photographic compliance evidence for this site'
+              : 'Record equipment serials, GPS coordinates, and photographic evidence for Kusum-C solar pump installation'}
           </span>
         }
         breadcrumbs={[
@@ -287,7 +450,7 @@ export function UP_Installation_KusumC_InstallSite() {
           { label: 'Uttar Pradesh' },
           { label: 'Installation' },
           { label: 'Kusum C' },
-          { label: 'Install Site' },
+          { label: isEdit ? 'Edit Installed Site' : 'Install Site' },
         ]}
         actions={
           <Link to="/v/up/view-kusum-c-install-site" className="ax-btn ax-btn--secondary ax-btn--pill">
@@ -327,9 +490,9 @@ export function UP_Installation_KusumC_InstallSite() {
           {/* Card Header with Title and Section Pills */}
           <div className="ax-card__header">
             <div>
-              <span className="ax-card__eyebrow">Kusum-C Installation</span>
+              <span className="ax-card__eyebrow">{isEdit ? 'Update Kusum-C Installation' : 'Kusum-C Installation'}</span>
               <h2 className="ax-card__title" style={{ margin: 0 }}>
-                UP Kusum-C Site Installation
+                {isEdit ? `Update Installed Site #${selectedSiteId || editId}` : 'UP Kusum-C Site Installation'}
               </h2>
               <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
                 The field labels marked with <span style={{ color: 'var(--ax-danger-500)', fontWeight: 700 }}>*</span> are required input fields.
@@ -353,12 +516,12 @@ export function UP_Installation_KusumC_InstallSite() {
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingSelect
                   id="up-kusumc-site"
-                  label="Select Kusum-C Site"
+                  label={isEdit ? 'Selected Kusum-C Site (Edit Mode)' : 'Select Kusum-C Site'}
                   required
                   placeholder={loading ? 'Loading sites…' : '-- Choose Accepted Site --'}
                   value={selectedSiteId}
                   options={siteSelectOptions}
-                  disabled={loading}
+                  disabled={loading || isEdit}
                   onChange={handleSelectSite}
                   error={fieldErrors.srt_id}
                 />
@@ -448,8 +611,8 @@ export function UP_Installation_KusumC_InstallSite() {
                       <div style={{ flex: 1 }}>
                         <FloatingInput
                           id={`up-module-serial-${idx}`}
-                          label={`Module Serial #${idx + 1}`}
-                          placeholder={`Module Serial #${idx + 1}`}
+                          label={`Module Serial ${idx + 1}`}
+                          placeholder={`Module Serial ${idx + 1}`}
                           value={sn}
                           onChange={(v) => handleModuleSerialChange(idx, v)}
                         />
@@ -537,32 +700,35 @@ export function UP_Installation_KusumC_InstallSite() {
                 <FloatingFileInput
                   id="up-img-module"
                   label="Farmer with Module Photo"
-                  required
+                  required={!isEdit || !existingModuleImg}
                   accept="image/*"
                   file={moduleImage}
+                  existingUrl={existingModuleImg}
                   onChange={(file) => setModuleImage(file)}
                   error={fieldErrors.module_image}
-                  hint="Clear photo showing farmer beside installed solar panels."
+                  hint={existingModuleImg ? "Existing photo attached · Click to replace" : "Clear photo showing farmer beside installed solar panels."}
                 />
                 <FloatingFileInput
                   id="up-img-inverter-vfd"
                   label="Farmer with VFD & Inverter Photo"
-                  required
+                  required={!isEdit || !existingInverterVfdImg}
                   accept="image/*"
                   file={inverterVfdImage}
+                  existingUrl={existingInverterVfdImg}
                   onChange={(file) => setInverterVfdImage(file)}
                   error={fieldErrors.inverter_vfd_image}
-                  hint="Clear photo showing farmer with installed inverter & VFD unit."
+                  hint={existingInverterVfdImg ? "Existing photo attached · Click to replace" : "Clear photo showing farmer with installed inverter & VFD unit."}
                 />
                 <FloatingFileInput
                   id="up-img-running-water"
                   label="Farmer with Running Water Photo"
-                  required
+                  required={!isEdit || !existingRunningWaterImg}
                   accept="image/*"
                   file={runningWaterImage}
+                  existingUrl={existingRunningWaterImg}
                   onChange={(file) => setRunningWaterImage(file)}
                   error={fieldErrors.running_water_image}
-                  hint="Verification photo of solar pump discharging water."
+                  hint={existingRunningWaterImg ? "Existing photo attached · Click to replace" : "Verification photo of solar pump discharging water."}
                 />
               </div>
             </div>
@@ -571,8 +737,8 @@ export function UP_Installation_KusumC_InstallSite() {
 
         {/* Sticky Action Footer (outside the card, same as Kashmir) */}
         <div className="up-form-sticky-bar">
-          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">
-            New Installation
+          <span className={`ax-badge ax-badge--soft ${isEdit ? 'ax-badge--warning' : 'ax-badge--primary'} ax-badge--pill`}>
+            {isEdit ? `Update Mode · Site #${selectedSiteId}` : 'New Installation'}
           </span>
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
             <button type="button" className="ax-btn ax-btn--secondary" onClick={() => navigate('/v/up/view-kusum-c-install-site')} disabled={submitting}>
@@ -582,12 +748,12 @@ export function UP_Installation_KusumC_InstallSite() {
               {submitting ? (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'up-spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
-                  <span className="ax-btn__label">Submitting Installation…</span>
+                  <span className="ax-btn__label">{isEdit ? 'Updating Installation…' : 'Submitting Installation…'}</span>
                 </>
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit Installation Data</span>
+                  <span className="ax-btn__label">{isEdit ? 'Update Installation Data' : 'Submit Installation Data'}</span>
                 </>
               )}
             </button>

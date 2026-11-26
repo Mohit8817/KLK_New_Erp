@@ -2,6 +2,7 @@ export const STATE_NAME = 'Uttar Pradesh';
 
 // ── Installation: Kusum C ──
 export { UPKusumCDashboard } from './Installation/KusumC/UPKusumCDashboard';
+export { UPKusumCStatusView } from './Installation/KusumC/UPKusumCStatusView';
 export { UPKusumCAssignInstallation } from './Installation/KusumC/UPKusumCAssignInstallation';
 export { UPKusumCViewAssignInstallation } from './Installation/KusumC/UPKusumCViewAssignInstallation';
 export { UPKusumCVerifyInstallation } from './Installation/KusumC/UPKusumCVerifyInstallation';
@@ -11,6 +12,7 @@ export { UPKusumCViewPayment } from './Installation/KusumC/UPKusumCViewPayment';
 
 // ── Installation: Resco ──
 export { UPRescoInstallationDashboard } from './Installation/Resco/UPRescoInstallationDashboard';
+export { UPRescoStatusView } from './Installation/Resco/UPRescoStatusView';
 export { UPRescoAssignInstallation } from './Installation/Resco/UPRescoAssignInstallation';
 export { UPRescoViewAssignInstallation } from './Installation/Resco/UPRescoViewAssignInstallation';
 export { UPRescoVerifyInstallation } from './Installation/Resco/UPRescoVerifyInstallation';
@@ -22,6 +24,7 @@ export { UPRescoViewAssignVendorInstallation } from './Installation/Resco/UPResc
 
 // ── Installation: SSL 18W ──
 export { UPSSL18WInstallationDashboard } from './Installation/SSL18W/UPSSL18WInstallationDashboard';
+export { UPSSL18WStatusView } from './Installation/SSL18W/UPSSL18WStatusView';
 export { UPSSL18WAssignInstallation } from './Installation/SSL18W/UPSSL18WAssignInstallation';
 export { UPSSL18WViewAssignInstallation } from './Installation/SSL18W/UPSSL18WViewAssignInstallation';
 export { UPSSL18WVerifyInstallation } from './Installation/SSL18W/UPSSL18WVerifyInstallation';
@@ -68,6 +71,7 @@ export { UPOffgridAMCVerifySite } from './AMC/SolarSchemes/UPOffgridAMCVerifySit
 
 // ── Survey: Resco Survey ──
 export { UPRescoSurveyDashboard } from './Survey/Resco/UPRescoSurveyDashboard';
+export { UPRescoSurveyStatusView } from './Survey/Resco/UPRescoSurveyStatusView';
 export { UPRescoSurveyAssign } from './Survey/Resco/UPRescoSurveyAssign';
 export { UPRescoSurveyAssignView } from './Survey/Resco/UPRescoSurveyAssignView';
 export { UPRescoSurveyVerify } from './Survey/Resco/UPRescoSurveyVerify';

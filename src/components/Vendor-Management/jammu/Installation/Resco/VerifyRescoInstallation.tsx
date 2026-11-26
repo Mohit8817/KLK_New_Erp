@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -13,28 +14,24 @@ import {
 import {
   jammuRescoAdminService,
   resolveJammuMediaUrl,
-  type RescoVerifySiteItem,
+  type RescoInstallationSite,
+  type RescoDetailCounts,
 } from './jammuRescoAdminService';
 
-/* ───────── Responsive page CSS (Exact Solar ERP reference, all columns scrollable) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP / Jammu SRT 70MW reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2559bf;
     --asw-primary-rgb: 37, 89, 191;
-    --ax-primary: #2559bf;
-    --ax-primary-hover: #1e4699;
-    --ax-primary-rgb: 37, 89, 191;
   }
-  .solar-erp-page .ax-btn--primary,
-  .solar-erp-page .ax-button--primary {
-    background: #2559bf !important;
+  .solar-erp-page .ax-btn--primary {
+    background-color: #2559bf !important;
     border-color: #2559bf !important;
     color: #ffffff !important;
   }
-  .solar-erp-page .ax-btn--primary:hover,
-  .solar-erp-page .ax-button--primary:hover {
-    background: #1e4699 !important;
-    border-color: #1e4699 !important;
+  .solar-erp-page .ax-btn--primary:hover {
+    background-color: #1d4699 !important;
+    border-color: #1d4699 !important;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -43,38 +40,23 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-    .solar-erp-page .asw-cards-row {
+  .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
   }
-  .solar-erp-page .asw-cards-row span svg {
-    width: 15px !important;
-    height: 15px !important;
-    display: block !important;
+  @media (max-width: 1280px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
-  /* Compact table action buttons */
-  .solar-erp-page .ax-table .ax-btn--sm,
-  .solar-erp-page .ax-table .ax-btn--xs,
-  .solar-erp-page .ax-table button.ax-btn,
-  .solar-erp-page .ax-table a.ax-btn {
-    min-height: unset !important;
-    height: auto !important;
-    padding: 4px 8px !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-  }
-    @media (max-width: 1024px) {
+  @media (max-width: 768px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 640px) {
+  @media (max-width: 480px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
@@ -309,63 +291,14 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-function Modal({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
-  footer,
-  maxWidth = 640,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  footer?: ReactNode;
-  maxWidth?: number;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, open);
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div className="ax-modal" role="dialog" aria-modal="true">
-      <div className="ax-modal__backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="ax-modal__header">
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>{subtitle}</p>}
-          </div>
-          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            ✕
-          </button>
-        </div>
-        <div className="ax-modal__body">{children}</div>
-        {footer && <div className="ax-modal__footer">{footer}</div>}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-/* ── Top KPI Card Component ── */
+/* ── Top KPI Card Component (Exact reference styling) ── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -406,264 +339,723 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            {icon}
-          </span>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
       <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
         {sub}
       </div>
     </div>
   );
 }
 
-export function VerifyRescoInstallation() {
-  const [pendingList, setPendingList] = useState<RescoVerifySiteItem[]>([]);
-  const [approvedRejectedList, setApprovedRejectedList] = useState<RescoVerifySiteItem[]>([]);
-  const [stats, setStats] = useState({
-    total: 21,
-    assigned: 5,
-    not_assigned: 13,
-    installed_complete: 4,
-    installed_pending: 1,
-    verify_complete: 3,
-    verify_pending: 1,
-    verify_reject: 0,
-  });
-
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>('pending');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  // Modal states
-  const [selectedSiteForDetails, setSelectedSiteForDetails] = useState<RescoVerifySiteItem | null>(null);
-  const [selectedSiteForAction, setSelectedSiteForAction] = useState<RescoVerifySiteItem | null>(null);
-  const [actionStatus, setActionStatus] = useState<string>('1');
-  const [actionRemarks, setActionRemarks] = useState('');
-  const [submittingAction, setSubmittingAction] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await jammuRescoAdminService.getVerifyInstallation();
-      setPendingList(data.pending);
-      setApprovedRejectedList(data.approved_rejected);
-      setStats(data.stats);
-    } catch (e) {
-      console.error('Failed to load verify installation data:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+/* ───────── Modal Dialog Component ───────── */
+function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  maxWidth = 720,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  maxWidth?: number;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className="ax-modal__dialog" style={{ maxWidth }} tabIndex={-1}>
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#64748b' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div className="ax-modal__body">{children}</div>
+        {footer && <div className="ax-modal__footer">{footer}</div>}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Image & Document Lightbox Modal ───────── */
+function LightboxModal({
+  open,
+  onClose,
+  url,
+  title,
+}: {
+  open: boolean;
+  onClose: () => void;
+  url: string;
+  title: string;
+}) {
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 10000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: isPdf ? 1000 : 800,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            <span style={{ fontSize: 11.5, color: '#64748b' }}>Media Inspection</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ fontSize: 12 }}
+            >
+              Open Original ↗
+            </a>
+            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+              {X_ICON}
+            </button>
+          </div>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', background: '#0b1120', minHeight: 460 }}>
+          {isPdf ? (
+            <iframe src={url} title={title} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8, background: '#fff' }} />
+          ) : (
+            <img src={url} alt={title} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 8 }} />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// 23 Exact Columns Schema for Jammu RESCO Installation Verification
+export interface JammuVerifyInstallationItem {
+  id: number;
+  vendor: string;
+  state: string;
+  district: string;
+  siteName: string;
+  contactPerson: string;
+  contactNumber: string;
+  solarMeterNo: string;
+  inverterNo: string;
+  netSmartMeterNo: string;
+  panelNo: string;
+  logerNo: string;
+  systemImage?: string;
+  inverterImage?: string;
+  panelImage?: string;
+  netSmartMeterImage?: string;
+  logerImage?: string;
+  latitude: string;
+  longitude: string;
+  remark: string;
+  verifyFile?: string;
+  verifyRemarks: string;
+  verifyStatus: 'Pending' | 'Approved' | 'Rejected';
+  rawStatus: number; // 0 = Pending, 1 = Approved, 2 = Rejected
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function cleanPanelNo(val: any): string {
+  if (!val) return '—';
+  if (Array.isArray(val)) return val.join(', ');
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.join(', ');
+      } catch {
+        return trimmed.replace(/[\[\]"]/g, '').trim() || '—';
+      }
+    }
+    return trimmed || '—';
+  }
+  return String(val);
+}
+
+function extractFilePath(raw: any): string | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return undefined;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) return String(parsed[0]);
+      } catch {}
+    }
+    return trimmed;
+  }
+  if (Array.isArray(raw) && raw.length > 0) return String(raw[0]);
+  return undefined;
+}
+
+export function VerifyRescoInstallation() {
+  const [items, setItems] = useState<JammuVerifyInstallationItem[]>([]);
+  const [stats, setStats] = useState({
+    totalsite: 0,
+    complete: 0,
+    pendingsite: 0,
+    approvedsite: 0,
+    rejectsite: 0,
+    verifypending: 0,
+    claimedapplicable: 0,
+    claimraised: 0,
+    docsubmit: 0,
+    payment80: 0,
+    payment20: 0,
+    paymentsitecount: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'processed'>('all');
+  const [search, setSearch] = useState('');
+
+  // Modals state
+  const [selectedSiteForAction, setSelectedSiteForAction] = useState<JammuVerifyInstallationItem | null>(null);
+  const [actionStatus, setActionStatus] = useState<string>(''); // '' = -- Select Status --, 1 = Approved, 2 = Rejected
+  const [actionRemarks, setActionRemarks] = useState<string>('');
+  const [actionFile, setActionFile] = useState<File | null>(null);
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  const [selectedSiteForDetails, setSelectedSiteForDetails] = useState<JammuVerifyInstallationItem | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null);
+
+  // Top 5 KPI Metrics matching reference style
+  const totalSitesCount = stats.totalsite || 0;
+  const installedSitesCount = stats.complete || 0;
+  const verifyPendingCount = stats.verifypending || 0;
+  const verifiedApprovedCount = stats.approvedsite || 0;
+  const verifiedRejectedCount = stats.rejectsite || 0;
+
+  // Load from API (Strictly Live Jammu RESCO Data)
+  useEffect(() => {
+    let active = true;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const resp = await jammuRescoAdminService.getViewInstallation();
+        if (!active) return;
+        const rawDetail = (resp as any)?.detail || (resp as any)?.stats || resp || {};
+        setStats({
+          totalsite: Number(rawDetail.totalsite ?? rawDetail.total ?? 0),
+          complete: Number(rawDetail.complete ?? rawDetail.installed ?? 0),
+          pendingsite: Number(rawDetail.pendingsite ?? rawDetail.pending ?? 0),
+          approvedsite: Number(rawDetail.approvedsite ?? rawDetail.verify_approved ?? 0),
+          rejectsite: Number(rawDetail.rejectsite ?? rawDetail.verify_reject ?? 0),
+          verifypending: Number(rawDetail.verifypending ?? rawDetail.verify_pending ?? 0),
+          claimedapplicable: Number(rawDetail.claimedapplicable ?? 0),
+          claimraised: Number(rawDetail.claimraised ?? 0),
+          docsubmit: Number(rawDetail.docsubmit ?? 0),
+          payment80: Number(rawDetail.payment80 ?? 0),
+          payment20: Number(rawDetail.payment20 ?? 0),
+          paymentsitecount: Number(rawDetail.paymentsitecount ?? 0),
+        });
+
+        const pendingList: any[] = Array.isArray(resp.verify_pending)
+          ? resp.verify_pending
+          : Array.isArray((resp as any).verification)
+          ? (resp as any).verification
+          : Array.isArray((resp as any).pending)
+          ? (resp as any).pending
+          : [];
+        const completeList: any[] = Array.isArray(resp.verify_complete)
+          ? resp.verify_complete
+          : Array.isArray((resp as any).verified)
+          ? (resp as any).verified
+          : Array.isArray((resp as any).complete)
+          ? (resp as any).complete
+          : [];
+
+        const mapItem = (item: any, defaultSt: number): JammuVerifyInstallationItem => {
+          const rawStatus = Number(item.inst_verify_status ?? item.verify_status ?? defaultSt);
+          const verifyStatus: 'Pending' | 'Approved' | 'Rejected' =
+            rawStatus === 1 ? 'Approved' : rawStatus === 2 ? 'Rejected' : (defaultSt === 1 ? 'Approved' : 'Pending');
+
+          const rawVerifyFile =
+            item.inst_verify_file ||
+            item.verify_file ||
+            item.file ||
+            item.verify_doc ||
+            item.document ||
+            item.inst_verify_doc;
+          const cleanFile = extractFilePath(rawVerifyFile);
+
+          return {
+            id: Number(item.id),
+            vendor: item.vendor_name || item.vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
+            state: 'Jammu',
+            district: item.district || 'Jammu',
+            siteName: item.site_name || item.farmer_name || `Site #${item.id}`,
+            contactPerson: item.contact_person || '—',
+            contactNumber: item.contact_number || '—',
+            solarMeterNo: item.solarmeter_no || item.solar_meter_no || '—',
+            inverterNo: item.inverter_no || '—',
+            netSmartMeterNo: item.nm_sm_no || item.net_smart_meter_no || '—',
+            panelNo: cleanPanelNo(item.panel_no),
+            logerNo: item.loger_no || '—',
+            systemImage: item.system_image ? resolveJammuMediaUrl(item.system_image) : undefined,
+            inverterImage: item.inverter_image ? resolveJammuMediaUrl(item.inverter_image) : undefined,
+            panelImage: item.panel_image ? resolveJammuMediaUrl(item.panel_image) : undefined,
+            netSmartMeterImage: (item.nm_sm_image || item.net_meter_image) ? resolveJammuMediaUrl(item.nm_sm_image || item.net_meter_image) : undefined,
+            logerImage: item.loger_image ? resolveJammuMediaUrl(item.loger_image) : undefined,
+            latitude: item.latitude || item.inst_latitude || '—',
+            longitude: item.longitude || item.inst_longitude || '—',
+            remark: item.remark || item.inst_remarks || item.remarks || '—',
+            verifyFile: cleanFile ? resolveJammuMediaUrl(cleanFile) : undefined,
+            verifyRemarks: item.inst_verify_remarks || item.verify_remarks || item.inst_verify_remark || item.remark || '',
+            verifyStatus,
+            rawStatus,
+          };
+        };
+
+        const combined: JammuVerifyInstallationItem[] = [
+          ...pendingList.map((x) => mapItem(x, 0)),
+          ...completeList.map((x) => mapItem(x, 1)),
+        ];
+        setItems(combined);
+      } catch (err: any) {
+        console.error('Failed to load live Jammu RESCO verification data:', err);
+        setItems([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
     loadData();
-  }, [loadData]);
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const currentList = activeTab === 'pending' ? pendingList : approvedRejectedList;
+  // Filter based on bifurcation tabs and search
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (activeTab === 'pending') {
+      result = result.filter((s) => s.verifyStatus === 'Pending');
+    } else if (activeTab === 'processed') {
+      result = result.filter((s) => s.verifyStatus === 'Approved' || s.verifyStatus === 'Rejected');
+    }
 
-  const filteredList = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return currentList;
-    return currentList.filter(
-      (s) =>
-        s.site_name.toLowerCase().includes(q) ||
-        s.uid.toLowerCase().includes(q) ||
-        s.district.toLowerCase().includes(q) ||
-        s.contact_person.toLowerCase().includes(q) ||
-        s.inverter_no.toLowerCase().includes(q) ||
-        s.solar_meter_no.toLowerCase().includes(q)
-    );
-  }, [currentList, searchQuery]);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.siteName.toLowerCase().includes(q) ||
+          s.vendor.toLowerCase().includes(q) ||
+          s.district.toLowerCase().includes(q) ||
+          s.contactPerson.toLowerCase().includes(q) ||
+          s.contactNumber.toLowerCase().includes(q) ||
+          s.inverterNo.toLowerCase().includes(q) ||
+          s.solarMeterNo.toLowerCase().includes(q) ||
+          s.netSmartMeterNo.toLowerCase().includes(q) ||
+          s.panelNo.toLowerCase().includes(q) ||
+          s.logerNo.toLowerCase().includes(q) ||
+          String(s.id).includes(q)
+      );
+    }
+    return result;
+  }, [items, activeTab, search]);
 
-  const pagination = usePagination(filteredList, { initialPageSize: 10 });
+  const pagination = usePagination(filteredItems, { initialPageSize: 100 });
 
+  // Reset page to 1 when changing tabs or search
+  useEffect(() => {
+    pagination.setPage(1);
+  }, [activeTab, search]);
+
+  // Export Columns (covering all 23 columns matching user's exact specification)
+  const exportColumns: ExportColumn[] = [
+    { header: 'Sr. No.', accessor: 'id' },
+    { header: 'Vendor', accessor: 'vendor' },
+    { header: 'State', accessor: 'state' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Site Name', accessor: 'siteName' },
+    { header: 'Contact Person', accessor: 'contactPerson' },
+    { header: 'Contact Number', accessor: 'contactNumber' },
+    { header: 'Solar Meter No.', accessor: 'solarMeterNo' },
+    { header: 'Inverter No.', accessor: 'inverterNo' },
+    { header: 'Net/Smart Meter No.', accessor: 'netSmartMeterNo' },
+    { header: 'Panel No.', accessor: 'panelNo' },
+    { header: 'Loger No.', accessor: 'logerNo' },
+    { header: 'System Image', accessor: 'systemImage' },
+    { header: 'Inverter Image', accessor: 'inverterImage' },
+    { header: 'Panel Image', accessor: 'panelImage' },
+    { header: 'Net Meter/Smart Meter Image', accessor: 'netSmartMeterImage' },
+    { header: 'Loger Image', accessor: 'logerImage' },
+    { header: 'Latitude', accessor: 'latitude' },
+    { header: 'Longitude', accessor: 'longitude' },
+    { header: 'Remark', accessor: 'remark' },
+    { header: 'Verify Status', accessor: 'verifyStatus' },
+    { header: 'Verify File', accessor: 'verifyFile' },
+    { header: 'Verify Remarks', accessor: 'verifyRemarks' },
+  ];
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = async () => {
+    if (!filteredItems.length) return;
+    const t = [
+      exportColumns.map((c) => c.header).join('\t'),
+      ...filteredItems.map((row) =>
+        exportColumns.map((c) => String((row as any)[c.accessor as string] || '')).join('\t')
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert('Data copied to clipboard!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Data copied to clipboard!');
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!filteredItems.length) return;
+    const out = [
+      exportColumns.map((c) => c.header),
+      ...filteredItems.map((row) =>
+        exportColumns.map((c) => `"${String((row as any)[c.accessor as string] || '').replace(/"/g, '""')}"`)
+      ),
+    ];
+    downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `Jammu_RESCO_Verify_${activeTab}.csv`, 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!filteredItems.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredItems.map((row) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_RESCO_Verify_${activeTab}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = () => {
+    if (!filteredItems.length) return;
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8"/><title>Jammu RESCO Verify Sites</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Jammu RESCO Installation Verification</h1><table><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredItems.map((r) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  // Action Submit for verification approval/rejection
   const handleActionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSiteForAction) return;
 
+    if (!actionStatus) {
+      alert('Please select status.');
+      return;
+    }
+    if (!actionFile && !selectedSiteForAction.verifyFile) {
+      alert('Please choose a file.');
+      return;
+    }
+
     setSubmittingAction(true);
     try {
-      const st = parseInt(actionStatus, 10);
-      await jammuRescoAdminService.submitVerifyStatus(selectedSiteForAction.id, st, actionRemarks);
+      const res = await jammuRescoAdminService.verifyInstallationStatus({
+        id: selectedSiteForAction.id,
+        status: Number(actionStatus), // 1=Approved, 2=Rejected
+        file: actionFile,
+        remark: actionRemarks,
+        remarks: actionRemarks,
+        inst_verify_remarks: actionRemarks,
+      });
+      if (res.success) {
+        const targetStatus = Number(actionStatus);
+        const newStatusLabel: 'Pending' | 'Approved' | 'Rejected' =
+          targetStatus === 1 ? 'Approved' : targetStatus === 2 ? 'Rejected' : 'Pending';
 
-      const updated: RescoVerifySiteItem = {
-        ...selectedSiteForAction,
-        verify_status: st as 1 | 2 | 0,
-        verify_remarks: actionRemarks,
-        verify_date: new Date().toISOString().slice(0, 10),
-      };
+        const updatedFileUrl = actionFile
+          ? URL.createObjectURL(actionFile)
+          : selectedSiteForAction.verifyFile;
 
-      if (st === 1 || st === 2) {
-        setPendingList((prev) => prev.filter((p) => p.id !== selectedSiteForAction.id));
-        setApprovedRejectedList((prev) => [updated, ...prev.filter((p) => p.id !== selectedSiteForAction.id)]);
+        setItems((prev) =>
+          prev.map((s) =>
+            s.id === selectedSiteForAction.id
+              ? {
+                  ...s,
+                  rawStatus: targetStatus,
+                  verifyStatus: newStatusLabel,
+                  verifyRemarks: actionRemarks,
+                  verifyFile: updatedFileUrl,
+                }
+              : s
+          )
+        );
+
+        setStats((prev) => ({
+          ...prev,
+          verifypending: Math.max(0, (prev.verifypending || 0) - 1),
+          approvedsite: targetStatus === 1 ? (prev.approvedsite || 0) + 1 : prev.approvedsite,
+          rejectsite: targetStatus === 2 ? (prev.rejectsite || 0) + 1 : prev.rejectsite,
+        }));
+
+        setSelectedSiteForAction(null);
+        setActionStatus('');
+        setActionRemarks('');
+        setActionFile(null);
+        alert(res.message || 'Verification status updated successfully.');
       } else {
-        setApprovedRejectedList((prev) => prev.filter((p) => p.id !== selectedSiteForAction.id));
-        setPendingList((prev) => [updated, ...prev.filter((p) => p.id !== selectedSiteForAction.id)]);
+        alert(res.message || 'Failed to update verification status.');
       }
-
-      setSelectedSiteForAction(null);
-      setActionRemarks('');
-    } catch (e) {
-      console.error('Submit verify action failed:', e);
+    } catch (err: any) {
+      alert(err?.message || 'Error updating verification status.');
     } finally {
       setSubmittingAction(false);
     }
   };
 
   return (
-    <div className="solar-erp-page">
+    <div className="solar-erp-page ax-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <PageHead
-        title="Welcome to, Verify Jammu Resco Installation"
-        subtitle="Verification desk for commissioned rooftop solar installations, CEIG electrical clearances, solar meter telemetry, and grid sync proof."
+        title="Verify Jammu RESCO Installation"
+        subtitle="Technical audit desk for grid-connected rooftop solar installations, bi-directional net meters, solar inverters, and DISCOM commissioning across Jammu"
         breadcrumbs={[
-          { label: 'Home', href: '/' },
+          { label: 'ERP Dashboard', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu' },
-          { label: 'RESCO Installation', href: '/vendor-management/jammu/installation/resco/dashboard' },
-          { label: 'Verify Jammu Resco Installation' },
+          { label: 'Installation', href: '/vendor-management/jammu/installation/resco' },
+          { label: 'RESCO', href: '/vendor-management/jammu/installation/resco' },
+          { label: 'Verify Installation' },
         ]}
+        actions={
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)' }}>
+            <Link
+              to="/vendor-management/jammu/installation/resco/view-assign"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+            >
+              Assigned Sites Register
+            </Link>
+            <Link
+              to="/vendor-management/jammu/installation/resco/assign"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+            >
+              + Assign Sites
+            </Link>
+          </div>
+        }
       />
 
-      {/* Top 3 Metric Cards exactly matching user's summary format */}
+      {/* ── Top 5 KPI Metric Cards in .asw-cards-row ── */}
       <div className="asw-cards-row">
         <KpiCard
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
           }
           tone="accent"
-          label="Total / Assigned / Not Assigned"
-          value={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span>{stats.total}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#16a34a' }}>{stats.assigned}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#d97706' }}>{stats.not_assigned}</span>
-            </div>
-          }
-          sub={`Total Sites: ${stats.total} • Assigned: ${stats.assigned} • Not Assigned: ${stats.not_assigned}`}
+          label="Total Sites"
+          value={totalSitesCount}
+          sub="Sanctioned RESCO rooftop capacity"
         />
-
         <KpiCard
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
             </svg>
           }
-          tone="emerald"
-          label="Installation Status"
-          value={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ color: '#16a34a' }}>{stats.installed_complete}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#d97706' }}>{stats.installed_pending}</span>
-            </div>
-          }
-          sub={`Complete: ${stats.installed_complete} • Pending: ${stats.installed_pending}`}
+          tone="cyan"
+          label="Installed Sites"
+          value={installedSitesCount}
+          sub="Contractor completed work"
         />
-
         <KpiCard
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+          tone="amber"
+          label="Verify Pending"
+          value={verifyPendingCount}
+          sub="Awaiting admin QA review"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           }
-          tone="cyan"
-          label="Verify Status"
-          value={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ color: '#16a34a' }}>{stats.verify_complete}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#d97706' }}>{stats.verify_pending}</span>
-              <span style={{ fontSize: 18, color: '#94a3b8' }}>/</span>
-              <span style={{ color: '#dc2626' }}>{stats.verify_reject}</span>
-            </div>
+          tone="emerald"
+          label="Verified Approved"
+          value={verifiedApprovedCount}
+          sub="QA verified & approved"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
           }
-          sub={`Complete: ${stats.verify_complete} • Pending: ${stats.verify_pending} • Reject: ${stats.verify_reject}`}
+          tone="violet"
+          label="Verified Rejected"
+          value={verifiedRejectedCount}
+          sub="Requires re-inspection"
         />
       </div>
 
-      {/* Report Wise Bifurcation Pills */}
+      {/* ── Report Wise Bifurcation Pills ── */}
       <div className="asw-bifurcation-row">
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>Report Wise Bifurcation:</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+          onClick={() => setActiveTab('all')}
+          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
+        >
+          All Sites
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {items.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('pending')}
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
         >
           Verification Pending
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {pendingList.length}
+            {verifyPendingCount}
           </span>
         </button>
+
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active' : ''}`}
-          onClick={() => setActiveTab('approved_rejected')}
+          onClick={() => setActiveTab('processed')}
+          className={`asw-pill-btn ${activeTab === 'processed' ? 'active' : ''}`}
         >
           Approved / Rejected Data
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
-            {approvedRejectedList.length}
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'processed' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {verifiedApprovedCount + verifiedRejectedCount}
           </span>
         </button>
       </div>
 
-      {/* Main Table Card */}
+      {/* ── Main Data Card ── */}
       <section className="ax-card ax-col--12">
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">
-              {activeTab === 'pending' ? 'Jammu RESCO Verification Pending Sites' : 'Jammu RESCO Approved / Rejected Sites'}
+              {activeTab === 'all'
+                ? 'All Jammu RESCO Installed Sites'
+                : activeTab === 'pending'
+                ? 'Jammu RESCO Installations Pending Verification'
+                : 'Jammu RESCO Verified Installations Register'}
             </h2>
-            <p className="ax-card__subtitle">Showing {filteredList.length} site installations with proof images</p>
+            <p className="ax-card__subtitle">
+              Showing {filteredItems.length} site{filteredItems.length === 1 ? '' : 's'} with on-site equipment barcodes & high-resolution proof photos
+            </p>
           </div>
+
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {searchQuery.trim() !== '' && (
+              {search.trim() !== '' && (
                 <button
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    pagination.setPage(1);
-                  }}
-                  style={{ height: 30, padding: '0 8px', fontSize: '11px' }}
+                  onClick={() => setSearch('')}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                 >
                   Reset
                 </button>
               )}
-              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search site, UID, meter..." size="sm" />
-              <TableExportToolbar onCopy={() => {}} onExportCSV={() => {}} onExportExcel={() => {}} onExportPDF={() => {}} />
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search vendor, site, meter..."
+                size="sm"
+              />
+              <TableExportToolbar
+                onCopy={copyToClipboard}
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
+              />
             </div>
           </div>
         </div>
 
-        {/* Responsive Table */}
+        {/* ── Horizontally Scrollable Table with 23 exact columns ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 2200 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 2600 }}>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th">Sr. No.</th>
-                <th className="ax-table__th">Installation Date</th>
-                <th className="ax-table__th">UID</th>
+                <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>Sr. No.</th>
+                <th className="ax-table__th">Vendor</th>
                 <th className="ax-table__th">State</th>
                 <th className="ax-table__th">District</th>
                 <th className="ax-table__th">Site Name</th>
@@ -672,154 +1064,397 @@ export function VerifyRescoInstallation() {
                 <th className="ax-table__th">Solar Meter No.</th>
                 <th className="ax-table__th">Inverter No.</th>
                 <th className="ax-table__th">Net/Smart Meter No.</th>
-                <th className="ax-table__th">Loger No.</th>
                 <th className="ax-table__th">Panel No.</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>System Image</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Inverter Image</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Panel Image</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Net Meter Image</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Loger Image</th>
+                <th className="ax-table__th">Loger No.</th>
+                <th className="ax-table__th" style={{ width: 85, textAlign: 'center' }}>System Image</th>
+                <th className="ax-table__th" style={{ width: 85, textAlign: 'center' }}>Inverter Image</th>
+                <th className="ax-table__th" style={{ width: 85, textAlign: 'center' }}>Panel Image</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Net Meter/Smart Meter Image</th>
+                <th className="ax-table__th" style={{ width: 85, textAlign: 'center' }}>Loger Image</th>
                 <th className="ax-table__th">Latitude</th>
                 <th className="ax-table__th">Longitude</th>
                 <th className="ax-table__th">Remark</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Installation Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Panel Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Verify Status</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Verify File</th>
+                <th className="ax-table__th">Verify Remarks</th>
+                {activeTab === 'pending' && (
+                  <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={25} style={centerCell}>Loading installations...</td>
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading installation verification records...</span>
+                    </div>
+                  </td>
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={25} style={centerCell}>
-                    <TableEmptyState title="No installation records found" description="No sites match current filter" />
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+                    <TableEmptyState
+                      title="No Verification Records Found"
+                      description={`No records found under "${activeTab === 'pending' ? 'Verification Pending' : 'Approved/Rejected Data'}" matching your criteria.`}
+                    />
                   </td>
                 </tr>
               ) : (
                 pagination.paged.map((row, idx) => {
-                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const serialNo = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   return (
                     <tr key={row.id}>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-                      <td className="ax-table__td" style={{ fontSize: 12 }}>{row.installation_date}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2559bf' }}>
-                        {row.uid}
+                      {/* 1. Sr. No. */}
+                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
+                        {serialNo}
                       </td>
-                      <td className="ax-table__td">JAMMU &amp; KASHMIR</td>
-                      <td className="ax-table__td">{row.district}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>{row.site_name}</td>
-                      <td className="ax-table__td">{row.contact_person}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', color: '#2559bf' }}>{row.contact_number}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>{row.solar_meter_no}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>{row.inverter_no}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>{row.net_smart_meter_no}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>{row.loger_no}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>{row.panel_no}</td>
 
-                      {/* Evidence Images */}
-                      {[
-                        { img: row.system_image, label: 'System' },
-                        { img: row.inverter_image, label: 'Inverter' },
-                        { img: row.panel_image, label: 'Panel' },
-                        { img: row.net_meter_image, label: 'Net Meter' },
-                        { img: row.loger_image, label: 'Loger' },
-                      ].map((thumb, ti) => (
-                        <td key={ti} className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {thumb.img ? (
-                            <button
-                              type="button"
-                              onClick={() => setLightboxUrl(resolveJammuMediaUrl(thumb.img))}
-                              style={{ border: '1px solid #cbd5e1', borderRadius: 4, padding: 2, background: '#fff', cursor: 'pointer' }}
-                            >
-                              <img src={resolveJammuMediaUrl(thumb.img)} alt={thumb.label} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 2 }} />
-                            </button>
-                          ) : (
-                            <span style={{ color: '#94a3b8' }}>—</span>
-                          )}
-                        </td>
-                      ))}
+                      {/* 2. Vendor */}
+                      <td className="ax-table__td">
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.vendor}</div>
+                      </td>
 
-                      <td className="ax-table__td" style={{ fontSize: 11, fontFamily: 'monospace' }}>{row.latitude}</td>
-                      <td className="ax-table__td" style={{ fontSize: 11, fontFamily: 'monospace' }}>{row.longitude}</td>
-                      <td className="ax-table__td" style={{ fontSize: 11, maxWidth: 160, whiteSpace: 'normal' }}>{row.remark}</td>
+                      {/* 3. State */}
+                      <td className="ax-table__td" style={{ color: '#334155' }}>
+                        {row.state}
+                      </td>
 
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: 11 }}>
-                          {row.installation_status}
+                      {/* 4. District */}
+                      <td className="ax-table__td">
+                        <span className="ax-badge ax-badge--subtle" style={{ fontWeight: 600 }}>
+                          {row.district}
                         </span>
                       </td>
 
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--info" style={{ padding: '2px 6px', fontSize: 11 }}>
-                          {row.panel_status}
-                        </span>
-                      </td>
-
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <span
-                          className={`ax-badge ax-badge--soft ${
-                            row.verify_status === 1
-                              ? 'ax-badge--success'
-                              : row.verify_status === 2
-                              ? 'ax-badge--danger'
-                              : 'ax-badge--warning'
-                          }`}
-                          style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
+                      {/* 5. Site Name */}
+                      <td className="ax-table__td">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSiteForDetails(row)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            font: 'inherit',
+                            fontWeight: 600,
+                            color: '#2559bf',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            textDecoration: 'underline',
+                            textUnderlineOffset: 2,
+                          }}
+                          title="Click to view full technical verification details"
                         >
-                          {row.verify_status === 1 ? 'Approved' : row.verify_status === 2 ? 'Rejected' : 'Pending'}
-                        </span>
+                          {row.siteName}
+                        </button>
                       </td>
 
+                      {/* 6. Contact Person */}
+                      <td className="ax-table__td" style={{ color: '#334155' }}>
+                        {row.contactPerson}
+                      </td>
+
+                      {/* 7. Contact Number */}
+                      <td className="ax-table__td" style={{ color: '#334155' }}>
+                        {row.contactNumber}
+                      </td>
+
+                      {/* 8. Solar Meter No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.solarMeterNo || '—'}
+                      </td>
+
+                      {/* 9. Inverter No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.inverterNo || '—'}
+                      </td>
+
+                      {/* 10. Net/Smart Meter No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.netSmartMeterNo || '—'}
+                      </td>
+
+                      {/* 11. Panel No. */}
+                      <td className="ax-table__td" style={{ fontSize: 12, maxWidth: 180 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.panelNo}>
+                          {row.panelNo}
+                        </div>
+                      </td>
+
+                      {/* 12. Loger No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.logerNo || '—'}
+                      </td>
+
+                      {/* 13. System Image */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        {row.systemImage ? (
                           <button
                             type="button"
-                            onClick={() => setSelectedSiteForDetails(row)}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            onClick={() => setLightboxUrl({ url: row.systemImage!, title: `System Image - ${row.siteName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view System Image"
+                          >
+                            <img
+                              src={row.systemImage}
+                              alt="System"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 14. Inverter Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.inverterImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.inverterImage!, title: `Inverter Image - ${row.siteName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Inverter Image"
+                          >
+                            <img
+                              src={row.inverterImage}
+                              alt="Inverter"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 15. Panel Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.panelImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.panelImage!, title: `Panel Image - ${row.siteName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Panel Image"
+                          >
+                            <img
+                              src={row.panelImage}
+                              alt="Panel"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 16. Net Meter/Smart Meter Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.netSmartMeterImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.netSmartMeterImage!, title: `Net Meter Image - ${row.siteName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Net Meter Image"
+                          >
+                            <img
+                              src={row.netSmartMeterImage}
+                              alt="Net Meter"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 17. Loger Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.logerImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.logerImage!, title: `Loger Image - ${row.siteName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Loger Image"
+                          >
+                            <img
+                              src={row.logerImage}
+                              alt="Loger"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 18. Latitude */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.latitude || '—'}
+                      </td>
+
+                      {/* 19. Longitude */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.longitude && row.longitude !== '—' ? (
+                          <a
+                            href={`https://maps.google.com/?q=${row.latitude},${row.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             style={{
-                              padding: '4px 8px',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              lineHeight: 1.2,
-                              height: 'auto',
-                              minHeight: 'unset',
+                              gap: 3,
+                              color: '#2559bf',
+                              textDecoration: 'none',
+                              fontWeight: 600,
                             }}
-                            title="View full site details"
+                            title="Open Google Maps"
                           >
-                            Details
-                          </button>
+                            <span>{row.longitude}</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+
+                      {/* 20. Remark */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.remark}>
+                          {row.remark || '—'}
+                        </div>
+                      </td>
+
+                      {/* 21. Verify Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '3px 10px',
+                            borderRadius: 9999,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            background:
+                              row.verifyStatus === 'Approved'
+                                ? '#ecfdf5'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fef2f2'
+                                : '#fffbeb',
+                            color:
+                              row.verifyStatus === 'Approved'
+                                ? '#059669'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#dc2626'
+                                : '#d97706',
+                            border: `1px solid ${
+                              row.verifyStatus === 'Approved'
+                                ? '#a7f3d0'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fecaca'
+                                : '#fde68a'
+                            }`,
+                          }}
+                        >
+                          {row.verifyStatus}
+                        </span>
+                      </td>
+
+                      {/* 22. Verify File */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.verifyFile ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/\.(jpe?g|png|webp|gif|svg)$/i.test(row.verifyFile) ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightboxUrl({ url: row.verifyFile!, title: `Verify File - ${row.siteName}` })}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: 6,
+                                  padding: 2,
+                                  background: '#fff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                }}
+                                title="Click to preview Verify File image"
+                              >
+                                <img
+                                  src={row.verifyFile}
+                                  alt="Verify File"
+                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={row.verifyFile}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '5px 10px',
+                                  borderRadius: 6,
+                                  background: '#eff4fc',
+                                  color: '#2559bf',
+                                  textDecoration: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  border: '1px solid #bfd3f8',
+                                }}
+                                title="Open / Download Verify File"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>View File</span>
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 23. Verify Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
+                          {row.verifyRemarks || '—'}
+                        </div>
+                      </td>
+
+                      {/* 24. Action (ONLY on Verification Pending tab) */}
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
                             type="button"
                             onClick={() => {
                               setSelectedSiteForAction(row);
-                              setActionStatus(String(row.verify_status || '1'));
-                              setActionRemarks(row.verify_remarks || '');
+                              setActionStatus('');
+                              setActionRemarks(row.verifyRemarks || '');
+                              setActionFile(null);
                             }}
-                            className="ax-btn ax-btn--primary ax-btn--sm"
                             style={{
-                              padding: '4px 10px',
-                              fontSize: 11,
+                              padding: '5px 12px',
+                              borderRadius: 6,
+                              background: '#2559bf',
+                              color: '#ffffff',
+                              border: 'none',
+                              fontSize: 11.5,
                               fontWeight: 700,
                               cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
-                              lineHeight: 1.2,
-                              height: 'auto',
-                              minHeight: 'unset',
                             }}
+                            title="Verify Site Status"
                           >
                             Verify
                           </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -828,7 +1463,7 @@ export function VerifyRescoInstallation() {
           </table>
         </div>
 
-        {/* Footer Pagination */}
+        {/* ── Left Aligned Pagination in Footer ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -837,107 +1472,277 @@ export function VerifyRescoInstallation() {
               pageSize={pagination.pageSize}
               onPageChange={pagination.setPage}
               onPageSizeChange={pagination.setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
       </section>
 
-      {/* Full Details Modal */}
+      {/* ── Verification Action Modal ── */}
+      <Modal
+        open={Boolean(selectedSiteForAction)}
+        onClose={() => {
+          setSelectedSiteForAction(null);
+          setActionStatus('');
+          setActionRemarks('');
+          setActionFile(null);
+        }}
+        title="Verify Status"
+        subtitle={selectedSiteForAction ? `Site: ${selectedSiteForAction.siteName} • Vendor: ${selectedSiteForAction.vendor}` : undefined}
+        maxWidth={480}
+      >
+        {selectedSiteForAction && (
+          <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                Status <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <select
+                value={actionStatus}
+                onChange={(e) => setActionStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: 42,
+                  padding: '0 12px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 13,
+                  color: actionStatus ? '#0f172a' : '#64748b',
+                  background: '#fff',
+                }}
+                required
+              >
+                <option value="">-- Select Status --</option>
+                <option value="1">Verify Approve</option>
+                <option value="2">Verify Reject</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                File <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                onChange={(e) => setActionFile(e.target.files?.[0] || null)}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 12.5,
+                  background: '#f8fafc',
+                }}
+                required
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                Remark
+              </label>
+              <textarea
+                rows={3}
+                value={actionRemarks}
+                onChange={(e) => setActionRemarks(e.target.value)}
+                placeholder="Enter remark"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  resize: 'vertical',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={() => {
+                  setSelectedSiteForAction(null);
+                  setActionStatus('');
+                  setActionRemarks('');
+                  setActionFile(null);
+                }}
+                disabled={submittingAction}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={submittingAction}
+                style={{ background: '#2559bf', color: '#fff' }}
+              >
+                {submittingAction ? 'Updating...' : 'Submit'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* ── Technical Details Modal ── */}
       <Modal
         open={Boolean(selectedSiteForDetails)}
         onClose={() => setSelectedSiteForDetails(null)}
-        title="Jammu RESCO Commissioning Details"
-        subtitle={selectedSiteForDetails ? `${selectedSiteForDetails.site_name} (${selectedSiteForDetails.uid})` : ''}
-        maxWidth={780}
+        title="Technical Verification Details"
+        subtitle={`${selectedSiteForDetails?.siteName} • ${selectedSiteForDetails?.district}`}
+        maxWidth={840}
         footer={
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setSelectedSiteForDetails(null)}>
+          <button
+            type="button"
+            className="ax-btn ax-btn--secondary"
+            onClick={() => setSelectedSiteForDetails(null)}
+          >
             Close
           </button>
         }
       >
         {selectedSiteForDetails && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}>
-              <div><span style={{ color: '#64748b' }}>Solar Meter:</span> <strong>{selectedSiteForDetails.solar_meter_no}</strong></div>
-              <div><span style={{ color: '#64748b' }}>Inverter:</span> <strong>{selectedSiteForDetails.inverter_no}</strong></div>
-              <div><span style={{ color: '#64748b' }}>Net Meter:</span> <strong>{selectedSiteForDetails.net_smart_meter_no}</strong></div>
-              <div><span style={{ color: '#64748b' }}>RMS Logger:</span> <strong>{selectedSiteForDetails.loger_no}</strong></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* Beneficiary & Site Summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle, #f8fafc)', padding: 14, borderRadius: 8 }}>
+              <div>
+                <span style={{ fontSize: 11.5, color: '#64748b' }}>Vendor Name</span>
+                <div style={{ fontWeight: 600, color: '#0f172a' }}>{selectedSiteForDetails.vendor}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11.5, color: '#64748b' }}>State & District</span>
+                <div style={{ fontWeight: 600, color: '#0f172a' }}>{selectedSiteForDetails.state}, {selectedSiteForDetails.district}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11.5, color: '#64748b' }}>Contact Person</span>
+                <div style={{ fontWeight: 600, color: '#0f172a' }}>{selectedSiteForDetails.contactPerson} ({selectedSiteForDetails.contactNumber})</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11.5, color: '#64748b' }}>Verification Status</span>
+                <div>
+                  <span className={`ax-badge ax-badge--${selectedSiteForDetails.verifyStatus === 'Approved' ? 'success' : selectedSiteForDetails.verifyStatus === 'Rejected' ? 'danger' : 'warning'}`} style={{ fontWeight: 600 }}>
+                    {selectedSiteForDetails.verifyStatus}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#2559bf', marginBottom: 10 }}>Site Contacts &amp; Location</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 6, fontSize: 12 }}>
-                <span style={{ color: '#64748b' }}>Contact Person:</span> <span>{selectedSiteForDetails.contact_person}</span>
-                <span style={{ color: '#64748b' }}>Phone Number:</span> <span style={{ fontFamily: 'monospace', color: '#2559bf' }}>{selectedSiteForDetails.contact_number}</span>
-                <span style={{ color: '#64748b' }}>Coordinates:</span> <span>{selectedSiteForDetails.latitude}, {selectedSiteForDetails.longitude}</span>
-                <span style={{ color: '#64748b' }}>Remarks:</span> <span>{selectedSiteForDetails.remark}</span>
+            {/* Technical Equipment Serials */}
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                Technical Equipment & Meter Serials
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Solar Meter No.</span>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 13, color: '#0f172a' }}>{selectedSiteForDetails.solarMeterNo || '—'}</div>
+                </div>
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Inverter Serial No.</span>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 13, color: '#0f172a' }}>{selectedSiteForDetails.inverterNo || '—'}</div>
+                </div>
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Net / Smart Meter No.</span>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 13, color: '#0f172a' }}>{selectedSiteForDetails.netSmartMeterNo || '—'}</div>
+                </div>
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Logger Serial No.</span>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 13, color: '#0f172a' }}>{selectedSiteForDetails.logerNo || '—'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Site Photos Gallery */}
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                Site Verification Photos
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+                {selectedSiteForDetails.systemImage && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img
+                      src={selectedSiteForDetails.systemImage}
+                      alt="System"
+                      onClick={() => setLightboxUrl({ url: selectedSiteForDetails.systemImage!, title: `System Image - ${selectedSiteForDetails.siteName}` })}
+                      style={{ width: '100%', height: 90, borderRadius: 6, objectFit: 'cover', cursor: 'pointer', border: '1px solid #cbd5e1' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>System Image</span>
+                  </div>
+                )}
+                {selectedSiteForDetails.inverterImage && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img
+                      src={selectedSiteForDetails.inverterImage}
+                      alt="Inverter"
+                      onClick={() => setLightboxUrl({ url: selectedSiteForDetails.inverterImage!, title: `Inverter Image - ${selectedSiteForDetails.siteName}` })}
+                      style={{ width: '100%', height: 90, borderRadius: 6, objectFit: 'cover', cursor: 'pointer', border: '1px solid #cbd5e1' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>Inverter Image</span>
+                  </div>
+                )}
+                {selectedSiteForDetails.panelImage && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img
+                      src={selectedSiteForDetails.panelImage}
+                      alt="Panels"
+                      onClick={() => setLightboxUrl({ url: selectedSiteForDetails.panelImage!, title: `Panel Image - ${selectedSiteForDetails.siteName}` })}
+                      style={{ width: '100%', height: 90, borderRadius: 6, objectFit: 'cover', cursor: 'pointer', border: '1px solid #cbd5e1' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>Panel Image</span>
+                  </div>
+                )}
+                {selectedSiteForDetails.netSmartMeterImage && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img
+                      src={selectedSiteForDetails.netSmartMeterImage}
+                      alt="Net Meter"
+                      onClick={() => setLightboxUrl({ url: selectedSiteForDetails.netSmartMeterImage!, title: `Net Meter Image - ${selectedSiteForDetails.siteName}` })}
+                      style={{ width: '100%', height: 90, borderRadius: 6, objectFit: 'cover', cursor: 'pointer', border: '1px solid #cbd5e1' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>Net Meter Image</span>
+                  </div>
+                )}
+                {selectedSiteForDetails.logerImage && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img
+                      src={selectedSiteForDetails.logerImage}
+                      alt="Logger"
+                      onClick={() => setLightboxUrl({ url: selectedSiteForDetails.logerImage!, title: `Loger Image - ${selectedSiteForDetails.siteName}` })}
+                      style={{ width: '100%', height: 90, borderRadius: 6, objectFit: 'cover', cursor: 'pointer', border: '1px solid #cbd5e1' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>Loger Image</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Remarks & Verify Remarks */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Contractor Remarks:</span>
+                <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#334155', background: '#f8fafc', padding: 8, borderRadius: 6 }}>
+                  {selectedSiteForDetails.remark || 'No contractor remarks recorded.'}
+                </p>
+              </div>
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Audit / Verify Remarks:</span>
+                <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#334155', background: '#f8fafc', padding: 8, borderRadius: 6 }}>
+                  {selectedSiteForDetails.verifyRemarks || 'No audit remarks entered.'}
+                </p>
               </div>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Verify Action Modal */}
-      <Modal
-        open={Boolean(selectedSiteForAction)}
-        onClose={() => setSelectedSiteForAction(null)}
-        title="Verify RESCO Installation Status"
-        subtitle={selectedSiteForAction ? `${selectedSiteForAction.site_name} (${selectedSiteForAction.uid})` : ''}
-        maxWidth={500}
-        footer={
-          <>
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setSelectedSiteForAction(null)} disabled={submittingAction}>
-              Cancel
-            </button>
-            <button type="button" className="ax-btn ax-btn--primary" onClick={handleActionSubmit} disabled={submittingAction}>
-              {submittingAction ? 'Updating...' : 'Submit Verification'}
-            </button>
-          </>
-        }
-      >
-        <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Verification Status <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <select
-              value={actionStatus}
-              onChange={(e) => setActionStatus(e.target.value)}
-              className="ax-select"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
-              required
-            >
-              <option value="1">Approved</option>
-              <option value="2">Rejected</option>
-              <option value="0">Pending</option>
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Audit Remarks
-            </label>
-            <textarea
-              rows={3}
-              value={actionRemarks}
-              onChange={(e) => setActionRemarks(e.target.value)}
-              placeholder="Enter electrical inspection or approval notes..."
-              className="ax-textarea"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
-            />
-          </div>
-        </form>
-      </Modal>
-
-      {/* Lightbox Modal */}
-      <Modal open={Boolean(lightboxUrl)} onClose={() => setLightboxUrl(null)} title="Installation Proof Image" maxWidth={720}>
-        {lightboxUrl && (
-          <div style={{ textAlign: 'center', padding: 8 }}>
-            <img src={lightboxUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: 8 }} />
-          </div>
-        )}
-      </Modal>
+      {/* ── Lightbox Modal ── */}
+      <LightboxModal
+        open={Boolean(lightboxUrl)}
+        onClose={() => setLightboxUrl(null)}
+        url={lightboxUrl?.url || ''}
+        title={lightboxUrl?.title || 'Photo Inspection'}
+      />
     </div>
   );
 }

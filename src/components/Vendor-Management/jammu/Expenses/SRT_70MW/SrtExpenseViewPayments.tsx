@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -15,27 +16,22 @@ import {
   resolveJammuMediaUrl,
   JAMMU_EXPENSE_VENDORS,
   type JammuSrtExpensePaymentItem,
+  type JammuExpenseVendor,
 } from './jammuSrtExpenseService';
+import {
+  copyRowsToClipboard,
+  exportRowsCSV,
+  exportRowsExcel,
+  exportRowsPDF,
+} from '../../../up/Installation/upInstallationShared';
 
-/* ───────── Responsive page CSS matching Solar ERP standard ───────── */
+/* ───────── Responsive page CSS matching Exact Reference ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2559bf;
-    --asw-primary-rgb: 37, 89, 191;
-    --ax-primary: #2559bf;
-    --ax-primary-hover: #1e4699;
-    --ax-primary-rgb: 37, 89, 191;
-  }
-  .solar-erp-page .ax-btn--primary,
-  .solar-erp-page .ax-button--primary {
-    background: #2559bf !important;
-    border-color: #2559bf !important;
-    color: #ffffff !important;
-  }
-  .solar-erp-page .ax-btn--primary:hover,
-  .solar-erp-page .ax-button--primary:hover {
-    background: #1e4699 !important;
-    border-color: #1e4699 !important;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: 37, 99, 235;
+    --ax-primary: #2563eb;
+    --ax-primary-hover: #1d4ed8;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -55,20 +51,7 @@ const PAGE_CSS = `
     height: 15px !important;
     display: block !important;
   }
-  /* Compact table action buttons - STRICTLY NO icons */
-  .solar-erp-page .ax-table .ax-btn--sm,
-  .solar-erp-page .ax-table .ax-btn--xs,
-  .solar-erp-page .ax-table button.ax-btn,
-  .solar-erp-page .ax-table a.ax-btn {
-    min-height: unset !important;
-    height: auto !important;
-    padding: 4px 10px !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
+
   @media (max-width: 1024px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -80,22 +63,12 @@ const PAGE_CSS = `
     }
   }
 
-  /* Filter card row styling */
-  .solar-erp-page .payment-filter-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.6fr 1.2fr auto;
-    gap: 12px;
-    align-items: end;
-  }
-  @media (max-width: 1024px) {
-    .solar-erp-page .payment-filter-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-  @media (max-width: 640px) {
-    .solar-erp-page .payment-filter-grid {
-      grid-template-columns: 1fr;
-    }
+  .solar-erp-page .asw-filter-card {
+    background: var(--ax-surface, #ffffff);
+    border: 1px solid var(--ax-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
   }
 
   .solar-erp-page .asw-bifurcation-row {
@@ -120,14 +93,14 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2559bf;
-    color: #2559bf;
+    border-color: #2563eb;
+    color: #2563eb;
   }
   .solar-erp-page .asw-pill-btn.active {
-    background: #2559bf;
+    background: #2563eb;
     color: #ffffff;
-    border-color: #2559bf;
-    box-shadow: 0 2px 4px rgba(37, 89, 191, 0.2);
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
   }
 
   .solar-erp-page .ax-card__header {
@@ -185,6 +158,21 @@ const PAGE_CSS = `
   .solar-erp-page .ax-export-toolbar__button {
     padding-inline: 8px !important;
     min-width: 0;
+  }
+
+  /* Compact table action buttons */
+  .solar-erp-page .ax-table .ax-btn--sm,
+  .solar-erp-page .ax-table .ax-btn--xs,
+  .solar-erp-page .ax-table button.ax-btn,
+  .solar-erp-page .ax-table a.ax-btn {
+    min-height: unset !important;
+    height: auto !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   /* All table columns fully scrollable horizontally */
@@ -302,7 +290,14 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-/* ── Modal Component ── */
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+/* ── Modal Dialog Component ── */
 function Modal({
   open,
   onClose,
@@ -348,7 +343,7 @@ function Modal({
             {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>{subtitle}</p>}
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            ✕
+            {X_ICON}
           </button>
         </div>
         <div className="ax-modal__body">{children}</div>
@@ -363,7 +358,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -397,8 +392,8 @@ function KpiCard({
         borderRadius: 12,
         minWidth: 0,
         cursor: onClick ? 'pointer' : 'default',
-        border: active ? '2px solid #2559bf' : undefined,
-        background: active ? '#f8faff' : undefined,
+        border: active ? '2px solid #2563eb' : '1px solid var(--ax-border, #e2e8f0)',
+        background: active ? '#f0f7ff' : '#ffffff',
         transition: 'all 0.15s ease',
       }}
     >
@@ -416,44 +411,110 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          {icon}
+          <span style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            {icon}
+          </span>
         </span>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            color: 'var(--ax-text-muted, #64748b)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div
-        style={{
-          fontFamily: 'var(--ax-font-display)',
-          fontSize: 22,
-          fontWeight: 700,
-          color: 'var(--ax-text-strong, #0f172a)',
-          lineHeight: 1.2,
-        }}
-      >
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
         {value}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+        {sub}
+      </div>
     </div>
   );
 }
 
-/* ───────── Main Component ───────── */
-export const SrtExpenseViewPayments: React.FC = () => {
+/* ── In-Row Media File Thumbnail Component ── */
+function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: (url: string) => void }) {
+  if (!file) {
+    return <span style={{ color: 'var(--ax-text-muted, #94a3b8)', fontSize: 12 }}>—</span>;
+  }
+
+  const url = resolveJammuMediaUrl(file);
+  const isPdf = /\.pdf($|\?)/i.test(file);
+  const isImage = /\.(jpe?g|png|webp|gif|bmp|svg)($|\?)/i.test(file);
+
+  return (
+    <div
+      onClick={() => onClick(url)}
+      title="Click to preview file"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 36,
+        height: 36,
+        borderRadius: 6,
+        border: '1px solid #cbd5e1',
+        background: '#f8fafc',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        transition: 'all 0.15s ease',
+        margin: '0 auto',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'scale(1.08)';
+        e.currentTarget.style.borderColor = '#2563eb';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
+        e.currentTarget.style.borderColor = '#cbd5e1';
+      }}
+    >
+      {isImage ? (
+        <img
+          src={url}
+          alt="Invoice"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = 'none';
+            if (e.currentTarget.parentElement) {
+              const span = document.createElement('span');
+              span.innerText = 'IMG';
+              span.style.fontSize = '9px';
+              span.style.fontWeight = '700';
+              span.style.color = '#2563eb';
+              e.currentTarget.parentElement.appendChild(span);
+            }
+          }}
+        />
+      ) : isPdf ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2} style={{ width: 14, height: 14 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span style={{ fontSize: 8, fontWeight: 700, color: '#ef4444', lineHeight: 1 }}>PDF</span>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} style={{ width: 14, height: 14 }}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span style={{ fontSize: 8, fontWeight: 700, color: '#2563eb', lineHeight: 1 }}>DOC</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────── Main SrtExpenseViewPayments Component ───────── */
+export function SrtExpenseViewPayments() {
+  const [searchParams] = useSearchParams();
+  const initialClaimId = searchParams.get('claim_id');
+
   const [loading, setLoading] = useState<boolean>(true);
   const [payments, setPayments] = useState<JammuSrtExpensePaymentItem[]>([]);
-  const [stats, setStats] = useState({ total: 156, complete: 0, partially: 0, pending: 156 });
+  const [stats, setStats] = useState({ total: 0, complete: 0, partially: 0, pending: 0 });
+  const [availableVendors, setAvailableVendors] = useState<JammuExpenseVendor[]>([]);
   const [search, setSearch] = useState<string>('');
 
   // Filters state
@@ -462,44 +523,62 @@ export const SrtExpenseViewPayments: React.FC = () => {
   const [filterVendor, setFilterVendor] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
-  // Active status quick toggle
+  // Quick Bifurcation active tab
   const [activeTab, setActiveTab] = useState<'ALL' | 'Pending' | 'Paid' | 'Partially'>('ALL');
 
-  // Modals state
+  // Disburse Payment Modal state
   const [settleItem, setSettleItem] = useState<JammuSrtExpensePaymentItem | null>(null);
   const [payAmountInput, setPayAmountInput] = useState<number>(0);
-  const [paymentModeInput, setPaymentModeInput] = useState<string>('RTGS');
-  const [utrNoInput, setUtrNoInput] = useState<string>('');
   const [settlementDateInput, setSettlementDateInput] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
   const [payRemarksInput, setPayRemarksInput] = useState<string>('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Preview invoice lightbox
-  const [previewInvoice, setPreviewInvoice] = useState<{ url: string; title: string } | null>(null);
+  // Lightbox preview state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  // Notification toast
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // Toast notification
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const showToast = useCallback((msg: string) => {
-    setToastMsg(msg);
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg({ type, message });
     setTimeout(() => setToastMsg(null), 3500);
   }, []);
 
-  // Fetch initial data
+  // Fetch payments list
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await jammuSrtExpenseService.getExpensePayments();
+      const statusParam =
+        filterStatus !== 'ALL'
+          ? filterStatus === 'Paid'
+            ? 1
+            : filterStatus === 'Partially'
+            ? 2
+            : 0
+          : undefined;
+
+      const res = await jammuSrtExpenseService.getExpensePayments({
+        from_date: filterFromDate || undefined,
+        to_date: filterToDate || undefined,
+        vendor: filterVendor || undefined,
+        status: statusParam,
+      });
+
       setPayments(res.list);
       setStats(res.stats);
-    } catch {
-      // Sandboxed mock fallback
+      if (res.vendors && res.vendors.length > 0) {
+        setAvailableVendors(res.vendors);
+      }
+    } catch (err: any) {
+      console.error('Failed to load Jammu expense payments:', err);
+      showToast(err?.message || 'Failed to fetch payment ledger', 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterFromDate, filterToDate, filterVendor, filterStatus, showToast]);
 
   useEffect(() => {
     loadData();
@@ -508,11 +587,11 @@ export const SrtExpenseViewPayments: React.FC = () => {
   // Handle open settle modal
   const handleOpenSettle = (item: JammuSrtExpensePaymentItem) => {
     setSettleItem(item);
-    setPayAmountInput(item.balance_amount || item.amount);
-    setPaymentModeInput(item.payment_mode || 'RTGS');
-    setUtrNoInput(item.utr_no || '');
-    setSettlementDateInput(item.pay_date || new Date().toISOString().slice(0, 10));
-    setPayRemarksInput(item.pay_remarks || '');
+    const balance = item.balance_amount != null ? item.balance_amount : item.amount;
+    setPayAmountInput(balance > 0 ? balance : item.amount);
+    setSettlementDateInput(new Date().toISOString().slice(0, 10));
+    setPayRemarksInput('');
+    setSubmitError(null);
   };
 
   // Submit payment settlement
@@ -521,30 +600,35 @@ export const SrtExpenseViewPayments: React.FC = () => {
     if (!settleItem) return;
 
     if (!payAmountInput || payAmountInput <= 0) {
-      alert('Please enter a valid payment amount.');
+      setSubmitError('Please enter a valid disbursement amount greater than zero.');
       return;
     }
-    if (!utrNoInput.trim()) {
-      alert('Please enter the UTR or Bank Transaction Reference Number.');
+
+    const maxAllowed = settleItem.balance_amount != null ? settleItem.balance_amount : settleItem.amount;
+    if (payAmountInput > maxAllowed) {
+      setSubmitError(`Disbursement amount cannot exceed remaining balance of ₹${maxAllowed.toLocaleString('en-IN')}.`);
       return;
     }
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await jammuSrtExpenseService.submitPaymentSettlement({
+      const res = await jammuSrtExpenseService.verifyPaymentExpenses({
         id: settleItem.id,
-        pay_amount: Number(payAmountInput),
-        payment_mode: paymentModeInput,
-        utr_no: utrNoInput.trim(),
-        settlement_date: settlementDateInput,
-        remarks: payRemarksInput.trim(),
+        amount: Number(payAmountInput),
+        date: settlementDateInput,
+        remarks: payRemarksInput.trim() || undefined,
       });
 
-      showToast(`Payment of ₹${Number(payAmountInput).toLocaleString('en-IN')} recorded successfully for ${settleItem.vendor}!`);
+      showToast(
+        res.message || `Payment of ₹${Number(payAmountInput).toLocaleString('en-IN')} disbursed successfully!`,
+        'success'
+      );
       setSettleItem(null);
       await loadData();
     } catch (err: any) {
-      alert(err?.message || 'Failed to settle payment.');
+      console.error('Settlement error:', err);
+      setSubmitError(err?.message || 'Failed to disburse payment.');
     } finally {
       setIsSubmitting(false);
     }
@@ -563,6 +647,12 @@ export const SrtExpenseViewPayments: React.FC = () => {
   // Filtered dataset
   const filteredPayments = useMemo(() => {
     let result = payments;
+
+    // Filter by claim_id from searchParams if present
+    if (initialClaimId) {
+      const matched = result.filter((p) => String(p.id) === String(initialClaimId));
+      if (matched.length > 0) return matched;
+    }
 
     // Quick status tab
     if (activeTab !== 'ALL') {
@@ -586,7 +676,10 @@ export const SrtExpenseViewPayments: React.FC = () => {
 
     // Vendor filter
     if (filterVendor) {
-      result = result.filter((p) => p.vendor === filterVendor);
+      result = result.filter((p) => {
+        if (p.vendor_id && String(p.vendor_id) === String(filterVendor)) return true;
+        return p.vendor === filterVendor;
+      });
     }
 
     // Free text search
@@ -597,69 +690,52 @@ export const SrtExpenseViewPayments: React.FC = () => {
           p.vendor.toLowerCase().includes(q) ||
           p.district.toLowerCase().includes(q) ||
           p.site_name.toLowerCase().includes(q) ||
+          (p.site_code && p.site_code.toLowerCase().includes(q)) ||
           p.purpose.toLowerCase().includes(q) ||
           p.remarks.toLowerCase().includes(q) ||
           (p.pay_remarks && p.pay_remarks.toLowerCase().includes(q)) ||
-          (p.utr_no && p.utr_no.toLowerCase().includes(q)) ||
           p.pay_status.toLowerCase().includes(q)
       );
     }
 
     return result;
-  }, [payments, activeTab, filterStatus, filterFromDate, filterToDate, filterVendor, search]);
+  }, [payments, activeTab, filterStatus, filterFromDate, filterToDate, filterVendor, search, initialClaimId]);
 
-  // Pagination hook
-  const { page, setPage, totalPages, paginatedItems, pageSize } = usePagination(filteredPayments, 15);
+  const pagination = usePagination(filteredPayments, { initialPageSize: 100 });
 
   // Export Columns definition
-  const exportColumns: ExportColumn[] = [
-    { key: 'id', label: 'S.No.' },
-    { key: 'date', label: 'Date' },
-    { key: 'vendor', label: 'Vendor' },
-    { key: 'district', label: 'District' },
-    { key: 'site_name', label: 'Site Name' },
-    { key: 'purpose', label: 'Purpose' },
-    { key: 'amount', label: 'Amount (₹)' },
-    { key: 'remarks', label: 'Remarks' },
-    { key: 'pay_amount', label: 'Pay Amount (₹)' },
-    { key: 'balance_amount', label: 'Balance Amount (₹)' },
-    { key: 'pay_date', label: 'Pay Date' },
-    { key: 'pay_remarks', label: 'Pay Remarks' },
-    { key: 'pay_status', label: 'Pay Status' },
-    { key: 'utr_no', label: 'UTR / Ref No' },
-  ];
+  const exportCols: ExportColumn<JammuSrtExpensePaymentItem>[] = useMemo(
+    () => [
+      { header: 'S.No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Date', accessor: (r) => r.date },
+      { header: 'Vendor', accessor: (r) => r.vendor },
+      { header: 'District', accessor: (r) => r.district },
+      { header: 'Site Name', accessor: (r) => r.site_name },
+      { header: 'Purpose', accessor: (r) => r.purpose },
+      { header: 'Invoice', accessor: (r) => r.invoice || '—' },
+      { header: 'Amount', accessor: (r) => `₹${r.amount.toLocaleString('en-IN')}` },
+      { header: 'Remarks', accessor: (r) => r.remarks || '—' },
+      { header: 'Pay Amount', accessor: (r) => (r.pay_amount != null ? `₹${r.pay_amount.toLocaleString('en-IN')}` : '—') },
+      {
+        header: 'Balance Amount',
+        accessor: (r) =>
+          r.balance_amount != null
+            ? `₹${r.balance_amount.toLocaleString('en-IN')}`
+            : `₹${r.amount.toLocaleString('en-IN')}`,
+      },
+      { header: 'Pay Date', accessor: (r) => r.pay_date || '—' },
+      { header: 'Pay Remarks', accessor: (r) => r.pay_remarks || '—' },
+      { header: 'Pay Status', accessor: (r) => r.pay_status },
+    ],
+    []
+  );
 
   return (
-    <div className="solar-erp-page" style={{ padding: '0 0 var(--ax-space-8)' }}>
+    <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 24,
-            right: 24,
-            zIndex: 10000,
-            background: '#16a34a',
-            color: '#ffffff',
-            padding: '12px 20px',
-            borderRadius: 8,
-            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
-            fontWeight: 600,
-            fontSize: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <span>✓</span>
-          <span>{toastMsg}</span>
-        </div>
-      )}
-
-      {/* Page Header matching exact title and breadcrumb */}
+      {/* Page Header */}
       <PageHead
         breadcrumbs={[
           { label: 'Home', href: '/' },
@@ -672,7 +748,7 @@ export const SrtExpenseViewPayments: React.FC = () => {
         subtitle="View Jammu Installation Payment - Monitor expense disbursement transactions, banking settlement receipts, and audit histories across Jammu & Kashmir."
       />
 
-      {/* Top 4 KPI Cards matching exact prompt numbers & layout */}
+      {/* Top 4 KPI Metric Cards */}
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
@@ -683,6 +759,7 @@ export const SrtExpenseViewPayments: React.FC = () => {
           onClick={() => {
             setActiveTab('ALL');
             setFilterStatus('ALL');
+            pagination.setPage(1);
           }}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -702,6 +779,7 @@ export const SrtExpenseViewPayments: React.FC = () => {
           onClick={() => {
             setActiveTab('Paid');
             setFilterStatus('Paid');
+            pagination.setPage(1);
           }}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -719,6 +797,7 @@ export const SrtExpenseViewPayments: React.FC = () => {
           onClick={() => {
             setActiveTab('Partially');
             setFilterStatus('Partially');
+            pagination.setPage(1);
           }}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -736,6 +815,7 @@ export const SrtExpenseViewPayments: React.FC = () => {
           onClick={() => {
             setActiveTab('Pending');
             setFilterStatus('Pending');
+            pagination.setPage(1);
           }}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -747,116 +827,138 @@ export const SrtExpenseViewPayments: React.FC = () => {
         />
       </div>
 
-      {/* Filter Card: "Jammu Expenses Payment" */}
-      <div className="ax-card" style={{ padding: '18px 20px', borderRadius: 12, marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
-            Jammu Expenses Payment - Filter Desk
+      {/* Filter Card: "Filter By Date & Status" */}
+      <div className="asw-filter-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+            Filter By Date &amp; Status
           </h4>
-          <span style={{ fontSize: 12, color: '#64748b' }}>
-            Filter transactions by date range, contracted agency vendor, or payment status
-          </span>
         </div>
 
-        <div className="payment-filter-grid">
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 5 }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            loadData();
+          }}
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}
+        >
+          <div style={{ flex: '1 1 150px', minWidth: 140 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
               From Date
             </label>
             <input
               type="date"
-              className="ax-input"
               value={filterFromDate}
               onChange={(e) => setFilterFromDate(e.target.value)}
-              style={{ width: '100%', height: 36, padding: '4px 10px', fontSize: 13, borderRadius: 6 }}
+              className="ax-input"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 5 }}>
+          <div style={{ flex: '1 1 150px', minWidth: 140 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
               To Date
             </label>
             <input
               type="date"
-              className="ax-input"
               value={filterToDate}
               onChange={(e) => setFilterToDate(e.target.value)}
-              style={{ width: '100%', height: 36, padding: '4px 10px', fontSize: 13, borderRadius: 6 }}
+              className="ax-input"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 5 }}>
+          <div style={{ flex: '1 1 170px', minWidth: 150 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
               Select Vendor
             </label>
             <select
-              className="ax-input"
               value={filterVendor}
               onChange={(e) => setFilterVendor(e.target.value)}
-              style={{ width: '100%', height: 36, padding: '4px 10px', fontSize: 13, borderRadius: 6 }}
+              className="ax-select"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
             >
-              <option value="">-- Select Vendor --</option>
-              {JAMMU_EXPENSE_VENDORS.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
+              <option value="">All Vendors</option>
+              {availableVendors.length > 0
+                ? availableVendors.map((v) => (
+                    <option key={v.id} value={String(v.id)}>
+                      {v.name}
+                    </option>
+                  ))
+                : JAMMU_EXPENSE_VENDORS.map((v, i) => (
+                    <option key={i} value={v}>
+                      {v}
+                    </option>
+                  ))}
             </select>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 5 }}>
+          <div style={{ flex: '1 1 150px', minWidth: 130 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4, color: '#64748b' }}>
               Payment Status
             </label>
             <select
-              className="ax-input"
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
                 if (e.target.value === 'ALL') setActiveTab('ALL');
                 else setActiveTab(e.target.value as any);
               }}
-              style={{ width: '100%', height: 36, padding: '4px 10px', fontSize: 13, borderRadius: 6 }}
+              className="ax-select"
+              style={{ width: '100%', height: 34, padding: '0 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
             >
-              <option value="ALL">All Status</option>
-              <option value="Pending">Payment Pending</option>
+              <option value="ALL">All Statuses</option>
               <option value="Paid">Payment Complete</option>
               <option value="Partially">Payment Partially</option>
+              <option value="Pending">Payment Pending</option>
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              style={{ height: 34, padding: '0 14px', fontSize: 12 }}
+            >
+              Apply Filter
+            </button>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
               onClick={handleResetFilters}
-              style={{ height: 36, padding: '0 14px', fontSize: 13, borderRadius: 6 }}
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              style={{ height: 34, padding: '0 12px', fontSize: 12 }}
             >
-              Reset
+              Clear
             </button>
           </div>
-        </div>
+        </form>
       </div>
 
-      {/* Bifurcation quick filter tabs */}
-      <div className="asw-bifurcation-row">
+      {/* Report Wise Bifurcation quick filter tabs */}
+      <div className="asw-bifurcation-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted, #64748b)' }}>
+          Report Wise Bifurcation:
+        </span>
+
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'ALL' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'ALL' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => {
             setActiveTab('ALL');
             setFilterStatus('ALL');
+            pagination.setPage(1);
           }}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
           <span>All Payment Claims</span>
           <span
             style={{
-              padding: '2px 8px',
-              borderRadius: 12,
+              padding: '1px 6px',
+              borderRadius: 10,
               fontSize: 11,
               fontWeight: 700,
-              background: activeTab === 'ALL' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
-              color: activeTab === 'ALL' ? '#ffffff' : '#0f172a',
+              background: activeTab === 'ALL' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)',
+              color: activeTab === 'ALL' ? '#ffffff' : 'inherit',
             }}
           >
             {stats.total}
@@ -865,21 +967,23 @@ export const SrtExpenseViewPayments: React.FC = () => {
 
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'Pending' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'Pending' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => {
             setActiveTab('Pending');
             setFilterStatus('Pending');
+            pagination.setPage(1);
           }}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <span>Pending Settlement</span>
+          <span>Payment Pending</span>
           <span
             style={{
-              padding: '2px 8px',
-              borderRadius: 12,
+              padding: '1px 6px',
+              borderRadius: 10,
               fontSize: 11,
               fontWeight: 700,
-              background: activeTab === 'Pending' ? 'rgba(255,255,255,0.25)' : '#fef3c7',
-              color: activeTab === 'Pending' ? '#ffffff' : '#b45309',
+              background: activeTab === 'Pending' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)',
+              color: activeTab === 'Pending' ? '#ffffff' : 'inherit',
             }}
           >
             {stats.pending}
@@ -888,21 +992,23 @@ export const SrtExpenseViewPayments: React.FC = () => {
 
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'Partially' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'Partially' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => {
             setActiveTab('Partially');
             setFilterStatus('Partially');
+            pagination.setPage(1);
           }}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <span>Partially Paid</span>
+          <span>Payment Partially</span>
           <span
             style={{
-              padding: '2px 8px',
-              borderRadius: 12,
+              padding: '1px 6px',
+              borderRadius: 10,
               fontSize: 11,
               fontWeight: 700,
-              background: activeTab === 'Partially' ? 'rgba(255,255,255,0.25)' : '#dbeafe',
-              color: activeTab === 'Partially' ? '#ffffff' : '#1d4ed8',
+              background: activeTab === 'Partially' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)',
+              color: activeTab === 'Partially' ? '#ffffff' : 'inherit',
             }}
           >
             {stats.partially}
@@ -911,21 +1017,23 @@ export const SrtExpenseViewPayments: React.FC = () => {
 
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'Paid' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'Paid' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => {
             setActiveTab('Paid');
             setFilterStatus('Paid');
+            pagination.setPage(1);
           }}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <span>Fully Disbursed</span>
+          <span>Payment Complete</span>
           <span
             style={{
-              padding: '2px 8px',
-              borderRadius: 12,
+              padding: '1px 6px',
+              borderRadius: 10,
               fontSize: 11,
               fontWeight: 700,
-              background: activeTab === 'Paid' ? 'rgba(255,255,255,0.25)' : '#dcfce7',
-              color: activeTab === 'Paid' ? '#ffffff' : '#15803d',
+              background: activeTab === 'Paid' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)',
+              color: activeTab === 'Paid' ? '#ffffff' : 'inherit',
             }}
           >
             {stats.complete}
@@ -934,249 +1042,293 @@ export const SrtExpenseViewPayments: React.FC = () => {
       </div>
 
       {/* Main Table Card */}
-      <div className="ax-card" style={{ borderRadius: 12, overflow: 'hidden' }}>
-        <div className="ax-card__header" style={{ padding: '16px 20px' }}>
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
           <div className="ax-card__titles">
-            <span
-              className="ax-card__eyebrow"
-              style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#2559bf' }}
-            >
-              FINANCIAL DISBURSEMENT REGISTER
-            </span>
-            <h3 className="ax-card__title" style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 700 }}>
-              Jammu SRT 70MW Expense Payment Records
-            </h3>
-            <p className="ax-card__subtitle" style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>
-              Showing {filteredPayments.length} transactions {filterVendor ? `for vendor "${filterVendor}"` : ''}
+            <h2 className="ax-card__title">Expenses Payment Details</h2>
+            <p className="ax-card__subtitle">
+              Showing {filteredPayments.length} payment transaction record{filteredPayments.length === 1 ? '' : 's'}
             </p>
           </div>
 
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              <div style={{ width: 220 }}>
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Search vendor, site, UTR..."
-                />
-              </div>
+              {search.trim() !== '' && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={() => {
+                    setSearch('');
+                    pagination.setPage(1);
+                  }}
+                  style={{ height: 30, padding: '0 8px', fontSize: '11px' }}
+                >
+                  Reset
+                </button>
+              )}
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search vendor, district, site..."
+                size="sm"
+              />
               <TableExportToolbar
-                data={filteredPayments}
-                columns={exportColumns}
-                fileName={`jammu_srt_expense_payments_${new Date().toISOString().slice(0, 10)}`}
+                onCopy={() => copyRowsToClipboard(filteredPayments, exportCols)}
+                onExportCSV={() => exportRowsCSV(filteredPayments, exportCols, 'Jammu_SRT_70MW_Expenses_Payment')}
+                onExportExcel={() => exportRowsExcel(filteredPayments, exportCols, 'Jammu_SRT_70MW_Expenses_Payment')}
+                onExportPDF={() => exportRowsPDF(filteredPayments, exportCols, 'Jammu SRT 70MW Expenses Payment')}
               />
             </div>
           </div>
         </div>
 
-        {/* Scrollable Table */}
+        {/* Scrollable Table matching exact user column structure */}
         <div className="ax-table-wrap">
-          <table className="ax-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>S.No.</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Date</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Vendor</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>District</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', minWidth: 160 }}>Site Name</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', minWidth: 160 }}>Purpose</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Invoice</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Amount</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', minWidth: 180 }}>Remarks</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Pay Amount</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Balance Amount</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Pay Date</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', minWidth: 160 }}>Pay Remarks</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Pay Status</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', textAlign: 'center' }}>Action</th>
+          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 1650 }}>
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th">S.No.</th>
+                <th className="ax-table__th">Date</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th">Site Name</th>
+                <th className="ax-table__th">Purpose</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Invoice</th>
+                <th className="ax-table__th ax-table__th--num">Amount</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th ax-table__th--num">Pay Amount</th>
+                <th className="ax-table__th ax-table__th--num">Balance Amount</th>
+                <th className="ax-table__th">Pay Date</th>
+                <th className="ax-table__th">Pay Remarks</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Pay Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={15} style={centerCell}>
-                    <div style={{ display: 'inline-block', padding: 20, color: '#64748b' }}>
-                      Loading Jammu expense payment ledger...
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading payment records...</span>
                     </div>
                   </td>
                 </tr>
-              ) : paginatedItems.length === 0 ? (
+              ) : pagination.paged.length === 0 ? (
                 <tr>
                   <td colSpan={15} style={centerCell}>
                     <TableEmptyState
                       title="No payment records found"
-                      description="No expense disbursement records matched your filter criteria."
+                      description={search ? 'Try adjusting your search query' : 'No disbursement records found for this filter'}
                     />
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((item, idx) => {
-                  const serialNo = (page - 1) * pageSize + idx + 1;
+                pagination.paged.map((item, idx) => {
+                  const serialNo = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const isPaid = item.pay_status === 'Paid';
                   const isPartial = item.pay_status === 'Partially';
 
                   return (
-                    <tr
-                      key={item.id}
-                      style={{
-                        borderBottom: '1px solid #e2e8f0',
-                        transition: 'background-color 0.1s ease',
-                      }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = '#f8faff')}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.backgroundColor = '')}
-                    >
-                      <td style={{ padding: '10px 12px', color: '#64748b', fontWeight: 500 }}>
-                        {serialNo}
-                      </td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: '#1e293b' }}>
-                        {item.date}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#0f172a' }}>
-                        {item.vendor}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#334155' }}>
-                        {item.district}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#0f172a', fontWeight: 500 }}>
+                    <tr key={item.id}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{serialNo}</td>
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>{item.date}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>{item.vendor}</td>
+                      <td className="ax-table__td">{item.district}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#2563eb' }}>
                         {item.site_name}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#475569' }}>
-                        {item.purpose}
-                      </td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                        {item.invoice ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreviewInvoice({
-                                url: resolveJammuMediaUrl(item.invoice),
-                                title: `Invoice #${item.id} - ${item.vendor} (${item.purpose})`,
-                              })
-                            }
-                            style={{
-                              border: 'none',
-                              background: 'transparent',
-                              color: '#2559bf',
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              fontWeight: 600,
-                              fontSize: 12,
-                              padding: 0,
-                            }}
-                          >
-                            View Invoice
-                          </button>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
+                        {item.site_code && (
+                          <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>({item.site_code})</span>
                         )}
                       </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
+                        {item.purpose}
+                      </td>
+
+                      {/* Invoice Thumbnail */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <MediaFileThumbnail file={item.invoice} onClick={(url) => setLightboxUrl(url)} />
+                      </td>
+
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 800 }}>
                         ₹{item.amount.toLocaleString('en-IN')}
                       </td>
-                      <td
-                        style={{
-                          padding: '10px 12px',
-                          color: '#64748b',
-                          fontSize: 12,
-                          maxWidth: 200,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={item.remarks}
-                      >
+                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: 12 }}>
                         {item.remarks || '—'}
                       </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#16a34a', whiteSpace: 'nowrap' }}>
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700, color: '#16a34a' }}>
                         {item.pay_amount != null && item.pay_amount > 0
                           ? `₹${item.pay_amount.toLocaleString('en-IN')}`
                           : '—'}
                       </td>
-                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#dc2626', whiteSpace: 'nowrap' }}>
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700, color: '#dc2626' }}>
                         {item.balance_amount != null
                           ? `₹${item.balance_amount.toLocaleString('en-IN')}`
                           : `₹${item.amount.toLocaleString('en-IN')}`}
                       </td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: '#475569' }}>
-                        {item.pay_date || '—'}
-                      </td>
-                      <td
-                        style={{
-                          padding: '10px 12px',
-                          color: '#64748b',
-                          fontSize: 12,
-                          maxWidth: 180,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={item.pay_remarks || ''}
-                      >
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>{item.pay_date || '—'}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: 12 }}>
                         {item.pay_remarks || '—'}
                       </td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+
+                      {/* Pay Status badge */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {isPaid ? (
                           <span
+                            className="ax-badge"
                             style={{
-                              display: 'inline-block',
                               padding: '3px 8px',
-                              borderRadius: 6,
                               fontSize: 11,
                               fontWeight: 700,
-                              background: '#dcfce7',
-                              color: '#15803d',
+                              color: '#16a34a',
+                              background: 'rgba(22, 163, 74, 0.1)',
+                              border: '1px solid rgba(22, 163, 74, 0.25)',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
                             }}
                           >
-                            Paid
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a' }} />
+                            Complete
                           </span>
                         ) : isPartial ? (
                           <span
+                            className="ax-badge"
                             style={{
-                              display: 'inline-block',
                               padding: '3px 8px',
-                              borderRadius: 6,
                               fontSize: 11,
                               fontWeight: 700,
-                              background: '#dbeafe',
-                              color: '#1d4ed8',
+                              color: '#2563eb',
+                              background: 'rgba(37, 99, 235, 0.1)',
+                              border: '1px solid rgba(37, 99, 235, 0.25)',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
                             }}
                           >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
                             Partially
                           </span>
                         ) : (
                           <span
+                            className="ax-badge"
                             style={{
-                              display: 'inline-block',
                               padding: '3px 8px',
-                              borderRadius: 6,
                               fontSize: 11,
                               fontWeight: 700,
-                              background: '#fef3c7',
-                              color: '#b45309',
+                              color: '#d97706',
+                              background: 'rgba(217, 119, 6, 0.1)',
+                              border: '1px solid rgba(217, 119, 6, 0.25)',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
                             }}
                           >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d97706' }} />
                             Pending
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {isPaid ? (
+
+                      {/* Action column */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {item.can_pay ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSettle(item)}
+                              className="ax-btn ax-btn--primary ax-btn--sm"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 10px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                height: 'auto',
+                                lineHeight: 1.2,
+                                whiteSpace: 'nowrap',
+                              }}
+                              title="Disburse Settlement"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width="12"
+                                height="12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Pay Now
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              title="Settled (Locked)"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 8px',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'not-allowed',
+                                height: 'auto',
+                                lineHeight: 1.2,
+                                whiteSpace: 'nowrap',
+                                opacity: 0.7,
+                              }}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width="12"
+                                height="12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                              Paid
+                            </button>
+                          )}
+
                           <button
                             type="button"
-                            className="ax-btn ax-btn--secondary ax-btn--xs"
                             onClick={() => handleOpenSettle(item)}
+                            title="View Payment Breakdown"
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '4px 8px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              height: 'auto',
+                              lineHeight: 1.2,
+                              whiteSpace: 'nowrap',
+                            }}
                           >
-                            Edit UTR
+                            Details
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--primary ax-btn--xs"
-                            onClick={() => handleOpenSettle(item)}
-                          >
-                            Settle
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1186,48 +1338,86 @@ export const SrtExpenseViewPayments: React.FC = () => {
           </table>
         </div>
 
-        {/* Left-aligned Pagination */}
+        {/* Footer Pagination */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── Settlement Modal ── */}
+      {/* ── Settlement / Disburse Modal ── */}
       <Modal
         open={Boolean(settleItem)}
-        onClose={() => setSettleItem(null)}
-        title={settleItem?.pay_status === 'Paid' ? 'Edit Settlement & Banking Details' : 'Disburse & Settle Expense Payment'}
-        subtitle={`Vendor: ${settleItem?.vendor} | Site: ${settleItem?.site_name}`}
-        maxWidth={580}
+        onClose={() => {
+          setSettleItem(null);
+          setSubmitError(null);
+        }}
+        title={
+          settleItem?.can_pay
+            ? 'Disburse & Settle Expense Payment'
+            : 'Expense Payment & Installment Details'
+        }
+        subtitle={
+          settleItem
+            ? `Vendor: ${settleItem.vendor} | Site: ${settleItem.site_name}${
+                settleItem.site_code ? ` (${settleItem.site_code})` : ''
+              } | Claim #${settleItem.id}`
+            : ''
+        }
+        maxWidth={620}
         footer={
           <>
             <button
               type="button"
               className="ax-btn ax-btn--secondary"
-              onClick={() => setSettleItem(null)}
+              onClick={() => {
+                setSettleItem(null);
+                setSubmitError(null);
+              }}
               disabled={isSubmitting}
             >
-              Cancel
+              {settleItem?.can_pay ? 'Cancel' : 'Close'}
             </button>
-            <button
-              type="button"
-              className="ax-btn ax-btn--primary"
-              onClick={handleConfirmSettlement}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Processing...' : 'Confirm Settlement'}
-            </button>
+            {settleItem?.can_pay ? (
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary"
+                onClick={handleConfirmSettlement}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Confirm Disbursement'}
+              </button>
+            ) : null}
           </>
         }
       >
         {settleItem && (
           <form onSubmit={handleConfirmSettlement}>
+            {submitError && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  marginBottom: 14,
+                }}
+              >
+                ⚠️ {submitError}
+              </div>
+            )}
+
             {/* Summary card */}
             <div
               style={{
@@ -1261,154 +1451,170 @@ export const SrtExpenseViewPayments: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                  Disbursement Amount (₹) <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  className="ax-input"
-                  min={1}
-                  max={settleItem.balance_amount || settleItem.amount}
-                  value={payAmountInput}
-                  onChange={(e) => setPayAmountInput(Number(e.target.value))}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 6 }}
-                />
-                <span style={{ fontSize: 11, color: '#64748b' }}>
-                  Max: ₹{(settleItem.balance_amount || settleItem.amount).toLocaleString('en-IN')}
-                </span>
+            {!settleItem.can_pay ? (
+              <div
+                style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  fontSize: 13,
+                  color: '#166534',
+                  marginBottom: 16,
+                }}
+              >
+                ✓ <strong>Payment Complete:</strong> The full reimbursement claim of ₹
+                {settleItem.amount.toLocaleString('en-IN')} has been disbursed. No further balance is pending.
               </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                      Disbursement Amount (₹) <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="ax-input"
+                      min={1}
+                      max={settleItem.balance_amount != null ? settleItem.balance_amount : settleItem.amount}
+                      value={payAmountInput}
+                      onChange={(e) => setPayAmountInput(Number(e.target.value))}
+                      required
+                      style={{ width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 6 }}
+                    />
+                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                      Max: ₹{(settleItem.balance_amount != null ? settleItem.balance_amount : settleItem.amount).toLocaleString('en-IN')}
+                    </span>
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                  Payment Mode <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <select
-                  className="ax-input"
-                  value={paymentModeInput}
-                  onChange={(e) => setPaymentModeInput(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 6 }}
-                >
-                  <option value="RTGS">RTGS Bank Transfer</option>
-                  <option value="NEFT">NEFT Transfer</option>
-                  <option value="IMPS">IMPS Immediate Pay</option>
-                  <option value="Cheque">Company Cheque</option>
-                  <option value="Direct Transfer">Direct Account Settlement</option>
-                </select>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                      Disbursement Date <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="ax-input"
+                      value={settlementDateInput}
+                      onChange={(e) => setSettlementDateInput(e.target.value)}
+                      required
+                      style={{ width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 6 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                    Disbursement Remarks
+                  </label>
+                  <textarea
+                    className="ax-input"
+                    rows={2}
+                    placeholder="Enter banking voucher number, RTGS reference, or disbursement note..."
+                    value={payRemarksInput}
+                    onChange={(e) => setPayRemarksInput(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6 }}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Past Installment History */}
+            {settleItem.allpayment && settleItem.allpayment.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
+                  Previous Payment Installments ({settleItem.allpayment.length})
+                </div>
+                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600 }}>#</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600 }}>Date</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>Paid (₹)</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>Balance (₹)</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600 }}>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {settleItem.allpayment.map((pay, pIdx) => (
+                        <tr key={pay.id || pIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '6px 10px', color: '#64748b' }}>{pIdx + 1}</td>
+                          <td style={{ padding: '6px 10px' }}>{pay.date || '—'}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>
+                            ₹{Number(pay.amount).toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', color: '#dc2626' }}>
+                            ₹{Number(pay.balance).toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '6px 10px', color: '#64748b' }}>{pay.pay_remarks || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                  UTR / Transaction Ref No. <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className="ax-input"
-                  placeholder="e.g. SBIN2610294819"
-                  value={utrNoInput}
-                  onChange={(e) => setUtrNoInput(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 6 }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                  Settlement Date <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="date"
-                  className="ax-input"
-                  value={settlementDateInput}
-                  onChange={(e) => setSettlementDateInput(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 6 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                Disbursement Remarks / Banking Reference
-              </label>
-              <textarea
-                className="ax-input"
-                rows={3}
-                placeholder="Enter bank advice notes, voucher number, or internal auditor remarks..."
-                value={payRemarksInput}
-                onChange={(e) => setPayRemarksInput(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 6 }}
-              />
-            </div>
+            )}
           </form>
         )}
       </Modal>
 
-      {/* ── Invoice Lightbox Modal ── */}
-      <Modal
-        open={Boolean(previewInvoice)}
-        onClose={() => setPreviewInvoice(null)}
-        title={previewInvoice?.title || 'Invoice Preview'}
-        maxWidth={700}
-        footer={
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setPreviewInvoice(null)}>
-            Close
-          </button>
-        }
-      >
-        <div style={{ textAlign: 'center', padding: '16px 0' }}>
-          <div
-            style={{
-              background: '#f8fafc',
-              border: '2px dashed #cbd5e1',
-              borderRadius: 12,
-              padding: 30,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: 'rgba(37, 89, 191, 0.1)',
-                color: '#2559bf',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-              }}
-            >
-              📄
+      {/* ── Invoice Document Lightbox Preview ── */}
+      <Modal open={Boolean(lightboxUrl)} onClose={() => setLightboxUrl(null)} title="Claim Invoice Document" maxWidth={750}>
+        {lightboxUrl && (
+          <div style={{ textAlign: 'center', padding: 8 }}>
+            <div style={{ maxHeight: '72vh', overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              {/\.pdf($|\?)/i.test(lightboxUrl) ? (
+                <iframe src={lightboxUrl} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8 }} title="PDF Preview" />
+              ) : (
+                <img
+                  src={lightboxUrl}
+                  alt="Invoice Document"
+                  style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 8 }}
+                />
+              )}
             </div>
-            <h4 style={{ margin: 0, fontSize: 16, color: '#0f172a' }}>Expense Invoice Document</h4>
-            <p style={{ margin: 0, fontSize: 13, color: '#64748b', maxWidth: 420 }}>
-              Verified reimbursement receipt file uploaded by vendor partner for Jammu SRT 70MW installation work.
-            </p>
-            <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+            <div style={{ marginTop: 14 }}>
               <a
-                href={previewInvoice?.url || '#'}
+                href={lightboxUrl}
                 target="_blank"
-                rel="noreferrer"
-                className="ax-btn ax-btn--primary"
-                style={{ fontSize: 13 }}
+                rel="noopener noreferrer"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{ textDecoration: 'none', padding: '6px 16px' }}
               >
-                Open Full Document
+                Open in New Tab ↗
               </a>
             </div>
           </div>
-        </div>
+        )}
       </Modal>
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            zIndex: 10000,
+            background: toastMsg.type === 'error' ? '#ef4444' : '#16a34a',
+            color: '#ffffff',
+            padding: '12px 20px',
+            borderRadius: 8,
+            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+            fontWeight: 600,
+            fontSize: 14,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span>{toastMsg.type === 'error' ? '⚠️' : '✓'}</span>
+          <span>{toastMsg.message}</span>
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default SrtExpenseViewPayments;

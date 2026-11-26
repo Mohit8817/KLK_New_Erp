@@ -21,7 +21,7 @@ const LIGHT_AMBER = '#f59e0b';
 const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
 
-const num = (x: number) => (x ?? 0).toLocaleString('en-IN');
+const num = (x: number | string | null | undefined) => (Number(x) || 0).toLocaleString('en-IN');
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -29,16 +29,24 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 function normalizeKashmirDashboardStatus(status?: string): string {
   if (!status) return 'total-site';
   const s = status.toLowerCase().replace(/[\s_]+/g, '-');
-  if (s === 'all' || s === 'total' || s === 'total-site' || s === 'site_count') return 'total-site';
+  if (s === 'all' || s === 'total' || s === 'total-site' || s === 'site-count') return 'total-site';
   if (s === 'complete' || s === 'installed') return 'complete';
   if (s === 'pending' || s === 'install-pending') return 'pending';
-  if (s === 'assigned' || s === 'site-assigned') return 'site-assigned';
+  if (s === 'assigned' || s === 'site-assigned' || s === 'total-assigned') return 'site-assigned';
+  if (s === 'site-not-assigned' || s === 'unassigned') return 'site-not-assigned';
+  if (s === 'material-dispatch' || s === 'material-dispatched') return 'material-dispatch';
+  if (s === 'material-pending') return 'material-pending';
   if (s === 'verify-approved' || s === 'verified') return 'verify-approved';
   if (s === 'verify-pending' || s === 'in-audit') return 'verify-pending';
   if (s === 'verify-reject' || s === 'rejected') return 'verify-reject';
   if (s === 'claim-raised' || s === 'claims') return 'claim-raised';
+  if (s === 'claim-applicable') return 'claim-applicable';
   if (s === 'pay80-complete' || s === 'pay-complete' || s === 'payment-settled') return 'pay80-complete';
   if (s === 'pay20-complete') return 'pay20-complete';
+  if (s === 'pay80-pending') return 'pay80-pending';
+  if (s === 'pay20-pending') return 'pay20-pending';
+  if (s === 'inst-doc-complete' || s === 'doc-complete') return 'inst-doc-complete';
+  if (s === 'inst-doc-pending' || s === 'doc-pending') return 'inst-doc-pending';
   return s;
 }
 
@@ -139,12 +147,11 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ax-table { min-width: 850px; }
   .solar-erp-page .ax-welcome__lede { max-width: 820px; }
 
   /* Filter bar matching DleDashboard */
   .solar-erp-page .asw-filter-item { display: flex; align-items: center; gap: 6px; }
-  .solar-erp-page .asw-filter-item select { width: 165px; }
+  .solar-erp-page .asw-filter-item select { width: 175px; }
 
   /* Interactive KPI cursor & hover */
   .asw-interactive-kpi {
@@ -274,6 +281,11 @@ const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></>);
 const I_CREDIT = svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="7" y1="15" x2="7.01" y2="15" /><line x1="11" y1="15" x2="13" y2="15" /></>);
+const I_TRUCK = svg(<><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /><path d="M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5" /></>);
+const I_BOX = svg(<><path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" /><path d="M12 12l8 -4.5" /><path d="M12 12l0 9" /><path d="M12 12l-8 -4.5" /></>);
+const I_USER_CHECK = svg(<><circle cx="9" cy="7" r="4" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 11l2 2l4 -4" /></>);
+const I_CALENDAR = svg(<><rect x="4" y="5" width="16" height="16" rx="2" /><line x1="16" y1="3" x2="16" y2="7" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="4" y1="11" x2="20" y2="11" /><rect x="8" y="15" width="2" height="2" /></>);
+
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
@@ -387,13 +399,15 @@ export function KashmirSrtDashboard() {
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
-  // 1. Load Dashboard Data
+  // 1. Load Dashboard Data (Unpack { success: true, data: { ... } } safely)
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
       const res = await kashmirAdminService.getDashboard();
-      setData(res?.data || null);
+      const raw = (res as any)?.data ?? res;
+      const payload = raw?.kashmir_srt70mws ? raw : raw?.data ?? raw;
+      setData(payload || null);
       setUpdatedAt(new Date());
     } catch (err: any) {
       console.error('Kashmir SRT Dashboard fetch error:', err);
@@ -424,12 +438,18 @@ export function KashmirSrtDashboard() {
 
   const rawDistricts = useMemo(() => (Array.isArray(data?.districtwise) ? data.districtwise : []), [data]);
   const rawVendors = useMemo(() => (Array.isArray(data?.vendorswise) ? data.vendorswise : []), [data]);
-  const monthlyInstallations = useMemo(
-    () => (Array.isArray(data?.vendor_installation_month) ? data.vendor_installation_month : []),
-    [data]
-  );
+  
+  // Sort monthly installations chronologically ascending by month_year
+  const monthlyInstallations = useMemo(() => {
+    if (!Array.isArray(data?.vendor_installation_month)) return [];
+    return [...data.vendor_installation_month].sort((a: any, b: any) => {
+      const ma = String(a.month_year || '');
+      const mb = String(b.month_year || '');
+      return ma.localeCompare(mb);
+    });
+  }, [data]);
 
-  // Vendor name lookup map
+  // Vendor name lookup map from data.vendors
   const vendorMap = useMemo(() => {
     const map: Record<string, string> = {};
     if (Array.isArray(data?.vendors)) {
@@ -449,6 +469,25 @@ export function KashmirSrtDashboard() {
     [vendorMap]
   );
 
+  // Vendor today installation map
+  const todayInstallMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (Array.isArray(data?.vendor_today_installation)) {
+      for (const item of data.vendor_today_installation) {
+        if (item?.inst_vendor != null) {
+          map[String(item.inst_vendor)] = Number(item.today_install || 0);
+        }
+      }
+    }
+    return map;
+  }, [data]);
+
+  // Total installations submitted today across all vendors
+  const totalTodayInstall = useMemo(() => {
+    if (!Array.isArray(data?.vendor_today_installation)) return 0;
+    return data.vendor_today_installation.reduce((acc: number, item: any) => acc + (Number(item?.today_install) || 0), 0);
+  }, [data]);
+
   // District options for filter dropdown
   const districtOptions = useMemo(
     () => [...new Set(rawDistricts.map((d: any) => d.district).filter(Boolean))].sort(),
@@ -462,11 +501,15 @@ export function KashmirSrtDashboard() {
       let matchStatus = true;
       if (selectedStatus === 'Complete') matchStatus = (d.inst_complete || 0) > 0;
       else if (selectedStatus === 'Pending') matchStatus = (d.inst_pending || 0) > 0;
+      else if (selectedStatus === 'MaterialDispatch') matchStatus = (d.material_dispatch || 0) > 0;
+      else if (selectedStatus === 'MaterialPending') matchStatus = (d.material_pending || 0) > 0;
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
       else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
       else if (selectedStatus === 'Pay80Complete') matchStatus = (d.inst_pay80_complete || 0) > 0;
+      else if (selectedStatus === 'Pay80Pending') matchStatus = (d.inst_pay80_pending || 0) > 0;
       else if (selectedStatus === 'Pay20Complete') matchStatus = (d.inst_pay20_complete || 0) > 0;
+      else if (selectedStatus === 'Pay20Pending') matchStatus = (d.inst_pay20_pending || 0) > 0;
       return matchDistrict && matchStatus;
     });
   }, [rawDistricts, selectedDistrict, selectedStatus]);
@@ -490,6 +533,8 @@ export function KashmirSrtDashboard() {
     inst_pay20_complete: 0,
     inst_pay80_pending: 0,
     inst_pay20_pending: 0,
+    inst_pay80_amount: 0,
+    inst_pay20_amount: 0,
   }, [data]);
 
   // Dynamic metrics: aggregates from filteredDistricts when any filter is selected
@@ -517,6 +562,8 @@ export function KashmirSrtDashboard() {
         inst_pay20_complete: 0,
         inst_pay80_pending: 0,
         inst_pay20_pending: 0,
+        inst_pay80_amount: 0,
+        inst_pay20_amount: 0,
       };
     }
     return filteredDistricts.reduce(
@@ -525,20 +572,22 @@ export function KashmirSrtDashboard() {
         material_dispatch: acc.material_dispatch + (Number(d.material_dispatch) || 0),
         material_pending: acc.material_pending + (Number(d.material_pending) || 0),
         site_assigned: acc.site_assigned + (Number(d.total_assigned) || 0),
-        site_not_assigned: acc.site_not_assigned,
+        site_not_assigned: Math.max(0, (acc.site_count + (Number(d.site_count) || 0)) - (acc.site_assigned + (Number(d.total_assigned) || 0))),
         complete: acc.complete + (Number(d.inst_complete) || 0),
         pending: acc.pending + (Number(d.inst_pending) || 0),
         verify_pending: acc.verify_pending + (Number(d.verify_pending) || 0),
         verify_approved: acc.verify_approved + (Number(d.verify_approved) || 0),
         verify_reject: acc.verify_reject + (Number(d.verify_reject) || 0),
-        claim_applicable: acc.claim_applicable,
-        claim_raised: acc.claim_raised,
-        inst_doc_complete: acc.inst_doc_complete,
-        inst_doc_pending: acc.inst_doc_pending,
+        claim_applicable: rawSrt.claim_applicable,
+        claim_raised: rawSrt.claim_raised,
+        inst_doc_complete: rawSrt.inst_doc_complete,
+        inst_doc_pending: rawSrt.inst_doc_pending,
         inst_pay80_complete: acc.inst_pay80_complete + (Number(d.inst_pay80_complete) || 0),
         inst_pay20_complete: acc.inst_pay20_complete + (Number(d.inst_pay20_complete) || 0),
         inst_pay80_pending: acc.inst_pay80_pending + (Number(d.inst_pay80_pending) || 0),
         inst_pay20_pending: acc.inst_pay20_pending + (Number(d.inst_pay20_pending) || 0),
+        inst_pay80_amount: rawSrt.inst_pay80_amount,
+        inst_pay20_amount: rawSrt.inst_pay20_amount,
       }),
       {
         site_count: 0,
@@ -559,6 +608,8 @@ export function KashmirSrtDashboard() {
         inst_pay20_complete: 0,
         inst_pay80_pending: 0,
         inst_pay20_pending: 0,
+        inst_pay80_amount: 0,
+        inst_pay20_amount: 0,
       }
     );
   }, [rawSrt, filteredDistricts, selectedDistrict, selectedStatus]);
@@ -617,16 +668,18 @@ export function KashmirSrtDashboard() {
   const pctVerified = pctOf(srt.verify_approved, srt.complete || 1);
   const pctPay80 = pctOf(srt.inst_pay80_complete, srt.complete || 1);
   const pctAssigned = pctOf(srt.site_assigned, srt.site_count || 1);
+  const pctMaterialDispatch = pctOf(srt.material_dispatch, srt.site_count || 1);
 
   // Milestones list matching Workflow Lifecycle
   const milestones = [
     { label: '1. Total Sanctioned Sites', v: srt.site_count, of: srt.site_count || 1, color: LIGHT_BLUE },
-    { label: '2. Sites Assigned to Contractors', v: srt.site_assigned, of: srt.site_count || 1, color: LIGHT_CYAN },
-    { label: '3. Equipment Installed & Live', v: srt.complete, of: srt.site_count || 1, color: LIGHT_GREEN },
-    { label: '4. Physical Field Audit Approved', v: srt.verify_approved, of: srt.complete || srt.site_count || 1, color: LIGHT_CYAN },
-    { label: '5. Claims Raised for Review', v: srt.claim_raised, of: srt.complete || srt.site_count || 1, color: LIGHT_AMBER },
-    { label: '6. Milestone 80% Payment Done', v: srt.inst_pay80_complete, of: srt.complete || srt.site_count || 1, color: LIGHT_VIOLET },
-    { label: '7. Final 20% Settlement Done', v: srt.inst_pay20_complete, of: srt.complete || srt.site_count || 1, color: LIGHT_GREEN },
+    { label: '2. Material Dispatched to Sites', v: srt.material_dispatch, of: srt.site_count || 1, color: LIGHT_GREEN },
+    { label: '3. Sites Assigned to Contractors', v: srt.site_assigned, of: srt.site_count || 1, color: LIGHT_CYAN },
+    { label: '4. Equipment Installed & Live', v: srt.complete, of: srt.site_count || 1, color: LIGHT_GREEN },
+    { label: '5. Physical Field Audit Approved', v: srt.verify_approved, of: srt.complete || srt.site_count || 1, color: LIGHT_CYAN },
+    { label: '6. Claims Raised for Review', v: srt.claim_raised, of: srt.complete || srt.site_count || 1, color: LIGHT_AMBER },
+    { label: '7. Milestone 80% Payment Done', v: srt.inst_pay80_complete, of: srt.complete || srt.site_count || 1, color: LIGHT_VIOLET },
+    { label: '8. Final 20% Settlement Done', v: srt.inst_pay20_complete, of: srt.complete || srt.site_count || 1, color: LIGHT_GREEN },
   ];
 
   // Top districts for bar chart
@@ -637,6 +690,7 @@ export function KashmirSrtDashboard() {
 
   // Sparklines datasets derived from real filtered data
   const siteSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => d.site_count || 0) : undefined;
+  const dispatchSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => d.material_dispatch || 0) : undefined;
   const completeSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => d.inst_complete || 0) : undefined;
   const pendingSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => d.inst_pending || 0) : undefined;
   const verifySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => d.verify_approved || 0) : undefined;
@@ -646,26 +700,41 @@ export function KashmirSrtDashboard() {
   const assignedSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => pctOf(d.total_assigned, d.site_count || 1)) : undefined;
   const claimSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d: any) => pctOf(d.inst_pay80_complete, d.inst_complete || 1)) : undefined;
 
-  // Export Columns definition for District Table
+  // Complete Export Columns definition for District Table (All 14 fields)
   const districtCols: ExportColumn<any>[] = useMemo(() => [
     { header: 'District', accessor: 'district' },
     { header: 'Allocated Sites', accessor: 'site_count' },
+    { header: 'Material Dispatched', accessor: 'material_dispatch' },
+    { header: 'Material Pending', accessor: 'material_pending' },
+    { header: 'Sites Assigned', accessor: 'total_assigned' },
     { header: 'Installed Sites', accessor: 'inst_complete' },
     { header: 'Pending Sites', accessor: 'inst_pending' },
     { header: 'Verify Approved', accessor: 'verify_approved' },
     { header: 'Verify Pending', accessor: 'verify_pending' },
-    { header: '80% Payment Settled', accessor: 'inst_pay80_complete' },
+    { header: 'Verify Rejected', accessor: 'verify_reject' },
+    { header: '80% Settled', accessor: 'inst_pay80_complete' },
+    { header: '80% Pending', accessor: 'inst_pay80_pending' },
+    { header: '20% Settled', accessor: 'inst_pay20_complete' },
+    { header: '20% Pending', accessor: 'inst_pay20_pending' },
   ], []);
 
-  // Export Columns definition for Vendor Table
+  // Complete Export Columns definition for Vendor Table (All 14 fields + today's install)
   const vendorCols: ExportColumn<any>[] = useMemo(() => [
-    { header: 'Vendor', accessor: (r: any) => getVendorName(r.inst_vendor) },
+    { header: 'Vendor Name', accessor: (r: any) => getVendorName(r.inst_vendor) },
     { header: 'Allocated Sites', accessor: 'site_count' },
+    { header: "Today's Install", accessor: (r: any) => todayInstallMap[String(r.inst_vendor)] || 0 },
+    { header: 'Material Dispatched', accessor: 'material_dispatch' },
+    { header: 'Material Pending', accessor: 'material_pending' },
     { header: 'Installed Sites', accessor: 'inst_complete' },
     { header: 'Pending Sites', accessor: 'inst_pending' },
     { header: 'Verify Approved', accessor: 'verify_approved' },
+    { header: 'Verify Pending', accessor: 'verify_pending' },
+    { header: 'Verify Rejected', accessor: 'verify_reject' },
     { header: '80% Paid', accessor: 'inst_pay80_complete' },
-  ], [getVendorName]);
+    { header: '80% Pending', accessor: 'inst_pay80_pending' },
+    { header: '20% Paid', accessor: 'inst_pay20_complete' },
+    { header: '20% Pending', accessor: 'inst_pay20_pending' },
+  ], [getVendorName, todayInstallMap]);
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileBase = 'Kashmir_SRT70MW_District_Overview';
@@ -839,11 +908,15 @@ export function KashmirSrtDashboard() {
                   <option value="All">All Operations</option>
                   <option value="Complete">Installed Sites</option>
                   <option value="Pending">Pending Installation</option>
+                  <option value="MaterialDispatch">Material Dispatched</option>
+                  <option value="MaterialPending">Material Pending</option>
                   <option value="VerifyApproved">Verify Approved</option>
                   <option value="VerifyPending">Verification Pending</option>
                   <option value="VerifyReject">Verification Rejected</option>
                   <option value="Pay80Complete">80% Payment Settled</option>
+                  <option value="Pay80Pending">80% Payment Pending</option>
                   <option value="Pay20Complete">20% Payment Settled</option>
+                  <option value="Pay20Pending">20% Payment Pending</option>
                 </select>
               </div>
 
@@ -873,10 +946,15 @@ export function KashmirSrtDashboard() {
               { key: 'All', label: 'All Operations' },
               { key: 'Complete', label: 'Installed' },
               { key: 'Pending', label: 'Pending' },
+              { key: 'MaterialDispatch', label: 'Material Dispatched' },
+              { key: 'MaterialPending', label: 'Material Pending' },
               { key: 'VerifyApproved', label: 'Verify Approved' },
               { key: 'VerifyPending', label: 'In Audit' },
-              { key: 'Pay80Complete', label: '80% Payment Settled' },
-              { key: 'Pay20Complete', label: '20% Final Settled' },
+              { key: 'VerifyReject', label: 'Rejected' },
+              { key: 'Pay80Complete', label: '80% Settled' },
+              { key: 'Pay80Pending', label: '80% Pending' },
+              { key: 'Pay20Complete', label: '20% Settled' },
+              { key: 'Pay20Pending', label: '20% Pending' },
             ].map((p) => {
               const isActive = selectedStatus === p.key;
               return (
@@ -910,12 +988,12 @@ export function KashmirSrtDashboard() {
                 {selectedDistrict !== 'All' ? (
                   <>
                     Kashmir Valley 70MW rooftop execution overview for <b>{selectedDistrict}</b>: <b>{num(srt.site_count)} rooftop sites</b> allocated.
-                    <b> {num(srt.complete)} ({pctComplete}%)</b> installed, with <b>{num(srt.verify_approved)}</b> verified approved, <b>{num(srt.claim_raised)}</b> claims processed, and <b>{num(srt.inst_pay80_complete)}</b> 80% payment settlements.
+                    <b> {num(srt.complete)} ({pctComplete}%)</b> installed, <b>{num(srt.material_dispatch)}</b> materials dispatched, <b>{num(srt.verify_approved)}</b> verified approved, <b>{num(srt.claim_raised)}</b> claims processed, and <b>{num(srt.inst_pay80_complete)}</b> 80% payments settled.
                   </>
                 ) : (
                   <>
                     Kashmir Valley 70MW rooftop execution overview: <b>{num(srt.site_count)} rooftop sites</b> allocated across <b>{districtOptions.length} districts</b>.
-                    <b> {num(srt.complete)} ({pctComplete}%)</b> installed, with <b>{num(srt.verify_approved)}</b> verified approved, <b>{num(srt.claim_raised)}</b> claims processed, and <b>{num(srt.inst_pay80_complete)}</b> 80% payment settlements.
+                    <b> {num(srt.complete)} ({pctComplete}%)</b> installed, <b>{num(srt.material_dispatch)}</b> materials dispatched, <b>{num(srt.verify_approved)}</b> verified approved, <b>{num(srt.claim_raised)}</b> claims processed, and <b>{num(srt.inst_pay80_complete)}</b> 80% payments settled.
                   </>
                 )}
               </p>
@@ -950,7 +1028,7 @@ export function KashmirSrtDashboard() {
           </div>
         </section>
 
-        {/* 4. Core KPI Cards (interactive with sparklines) */}
+        {/* 4. Core KPI Cards: Section 1 - Site Allocation & Logistics */}
         <KpiCard
           icon={I_PIN}
           tone="accent"
@@ -962,6 +1040,42 @@ export function KashmirSrtDashboard() {
           onClick={() => openDrillDown('total-site', 'Total Allocated Sites')}
         />
 
+        <KpiCard
+          icon={I_TRUCK}
+          tone="emerald"
+          label="Material Dispatched"
+          value={num(srt.material_dispatch)}
+          unit="Sites"
+          sub={`${num(srt.material_pending)} dispatch pending`}
+          badge={`${pctMaterialDispatch}%`}
+          spark={dispatchSpark}
+          onClick={() => openDrillDown('material-dispatch', 'Material Dispatched Sites')}
+        />
+
+        <KpiCard
+          icon={I_BOX}
+          tone="amber"
+          label="Material Pending"
+          value={num(srt.material_pending)}
+          unit="Sites"
+          sub="Awaiting warehouse dispatch"
+          badge={`${pctOf(srt.material_pending, srt.site_count)}%`}
+          onClick={() => openDrillDown('material-pending', 'Material Pending Sites')}
+        />
+
+        <KpiCard
+          icon={I_USER_CHECK}
+          tone="cyan"
+          label="Sites Assigned"
+          value={num(srt.site_assigned)}
+          unit="Sites"
+          sub={`${num(srt.site_not_assigned)} sites unassigned`}
+          badge={`${pctAssigned}%`}
+          spark={assignedSpark}
+          onClick={() => openDrillDown('site-assigned', 'Assigned Sites')}
+        />
+
+        {/* Core KPI Cards: Section 2 - Installation Execution */}
         <KpiCard
           icon={I_DONE}
           tone="emerald"
@@ -987,8 +1101,19 @@ export function KashmirSrtDashboard() {
         />
 
         <KpiCard
+          icon={I_CALENDAR}
+          tone="accent"
+          label="Today's Installation"
+          value={num(totalTodayInstall)}
+          unit="Sites"
+          sub="Submitted in last 24h"
+          badge="Live"
+          onClick={() => openDrillDown('complete', "Today's Installations")}
+        />
+
+        <KpiCard
           icon={I_SHIELD}
-          tone="cyan"
+          tone="emerald"
           label="Verify Approved"
           value={num(srt.verify_approved)}
           unit="Sites"
@@ -998,6 +1123,7 @@ export function KashmirSrtDashboard() {
           onClick={() => openDrillDown('verify-approved', 'Verified Approved Sites')}
         />
 
+        {/* Core KPI Cards: Section 3 - Audit, Claims & Documentation */}
         <KpiCard
           icon={I_CLOCK}
           tone="amber"
@@ -1029,14 +1155,57 @@ export function KashmirSrtDashboard() {
         />
 
         <KpiCard
+          icon={I_DONE}
+          tone="cyan"
+          label="Documents Completed"
+          value={num(srt.inst_doc_complete)}
+          unit="Sites"
+          sub={`${num(srt.inst_doc_pending || 0)} documentation pending`}
+          onClick={() => openDrillDown('inst-doc-complete', 'Documents Completed Sites')}
+        />
+
+        {/* Core KPI Cards: Section 4 - Milestone Financial Settlement */}
+        <KpiCard
           icon={I_CREDIT}
           tone="emerald"
           label="80% Payment Settled"
           value={num(srt.inst_pay80_complete)}
           unit="Sites"
-          sub={`${num(srt.inst_pay20_complete)} 20% payments completed`}
+          sub={`${num(srt.inst_pay80_pending)} 80% payments pending`}
           badge={`${pctPay80}%`}
+          spark={claimSpark}
           onClick={() => openDrillDown('pay80-complete', '80% Payment Settled Sites')}
+        />
+
+        <KpiCard
+          icon={I_CREDIT}
+          tone="amber"
+          label="80% Payment Pending"
+          value={num(srt.inst_pay80_pending)}
+          unit="Sites"
+          sub="Awaiting 80% disbursement"
+          onClick={() => openDrillDown('pay80-pending', '80% Payment Pending Sites')}
+        />
+
+        <KpiCard
+          icon={I_CREDIT}
+          tone="emerald"
+          label="20% Final Settled"
+          value={num(srt.inst_pay20_complete)}
+          unit="Sites"
+          sub={`${num(srt.inst_pay20_pending)} 20% payments pending`}
+          badge={`${pctOf(srt.inst_pay20_complete, srt.complete || 1)}%`}
+          onClick={() => openDrillDown('pay20-complete', '20% Final Settled Sites')}
+        />
+
+        <KpiCard
+          icon={I_CREDIT}
+          tone="amber"
+          label="20% Payment Pending"
+          value={num(srt.inst_pay20_pending)}
+          unit="Sites"
+          sub="Final retention release pending"
+          onClick={() => openDrillDown('pay20-pending', '20% Payment Pending Sites')}
         />
 
         {/* 5. Operational Highlights & Execution Tracker */}
@@ -1141,7 +1310,7 @@ export function KashmirSrtDashboard() {
             </div>
 
             <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-              <b>Verification & Compliance:</b> {num(srt.verify_approved)} sites approved by auditor ({pctVerified}%) · {num(srt.claim_raised)} claims raised · {num(srt.inst_pay80_complete)} 80% milestone settlements confirmed.
+              <b>Verification & Compliance:</b> {num(srt.verify_approved)} sites approved by auditor ({pctVerified}%) · {num(srt.claim_raised)} claims raised · {num(srt.inst_pay80_complete)} 80% milestone settlements confirmed · {num(srt.inst_pay20_complete)} 20% final settlements confirmed.
             </div>
           </div>
         </section>
@@ -1341,13 +1510,13 @@ export function KashmirSrtDashboard() {
               <p className="ax-card__subtitle">Progress across installation stages</p>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
+          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
             {milestones.map((m) => {
               const p = pctOf(m.v, m.of);
               return (
                 <div key={m.label}>
                   <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
-                    <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
+                    <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
                     <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%)</b>
                   </div>
                   <div className="ax-progress ax-progress--sm">
@@ -1361,13 +1530,13 @@ export function KashmirSrtDashboard() {
           </div>
         </section>
 
-        {/* 8. District Wise Detailed Table */}
-        <section className="ax-card ax-col--8" role="region" aria-label="District wise summary table">
+        {/* 8. District Wise Detailed Table (All 14 Fields from Backend) */}
+        <section className="ax-card ax-col--12" role="region" aria-label="District wise summary table">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
               <h2 className="ax-card__title">District Wise SRT Summary</h2>
-              <p className="ax-card__subtitle">Allocated, installed, verification & payment metrics per district</p>
+              <p className="ax-card__subtitle">Allocated, material dispatch, assigned, installed, verification & payment metrics per district</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
@@ -1388,16 +1557,23 @@ export function KashmirSrtDashboard() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 1250 }}>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Material Dispatched</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Material Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Assigned</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Rejected</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">80% Settled</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">80% Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">20% Settled</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">20% Pending</th>
                 </tr>
               </thead>
               <tbody>
@@ -1421,6 +1597,30 @@ export function KashmirSrtDashboard() {
                       onClick={(e) => { e.stopPropagation(); openDrillDown('total-site', 'Allocated Sites', d.district); }}
                     >
                       {num(d.site_count || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View material dispatched sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('material-dispatch', 'Material Dispatched', d.district); }}
+                    >
+                      {num(d.material_dispatch || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View material pending sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('material-pending', 'Material Pending', d.district); }}
+                    >
+                      {num(d.material_pending || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View assigned sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('site-assigned', 'Assigned Sites', d.district); }}
+                    >
+                      {num(d.total_assigned || 0)}
                     </td>
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
@@ -1456,17 +1656,49 @@ export function KashmirSrtDashboard() {
                     </td>
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-red, #dc2626)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View verify rejected sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Verify Rejected Sites', d.district); }}
+                    >
+                      {num(d.verify_reject || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
                       title={`View 80% payment settled sites in ${d.district}`}
                       onClick={(e) => { e.stopPropagation(); openDrillDown('pay80-complete', '80% Settled Sites', d.district); }}
                     >
                       {num(d.inst_pay80_complete || 0)}
                     </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View 80% payment pending sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pay80-pending', '80% Pending Sites', d.district); }}
+                    >
+                      {num(d.inst_pay80_pending || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View 20% payment settled sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pay20-complete', '20% Settled Sites', d.district); }}
+                    >
+                      {num(d.inst_pay20_complete || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View 20% payment pending sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pay20-pending', '20% Pending Sites', d.district); }}
+                    >
+                      {num(d.inst_pay20_pending || 0)}
+                    </td>
                   </tr>
                 ))}
                 {!loading && pagedDistricts.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={7} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                    <td className="ax-table__td" colSpan={14} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
                       No districts match the filter criteria.
                     </td>
                   </tr>
@@ -1475,11 +1707,18 @@ export function KashmirSrtDashboard() {
                   <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Districts)</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ cursor: 'pointer' }} title="View all allocated sites" onClick={() => openDrillDown('total-site', 'Total Allocated Sites')}>{num(srt.site_count)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View material dispatched sites" onClick={() => openDrillDown('material-dispatch', 'Total Material Dispatched')}>{num(srt.material_dispatch)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View material pending sites" onClick={() => openDrillDown('material-pending', 'Total Material Pending')}>{num(srt.material_pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View assigned sites" onClick={() => openDrillDown('site-assigned', 'Total Assigned Sites')}>{num(srt.site_assigned)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View completed sites" onClick={() => openDrillDown('complete', 'Total Installed Sites')}>{num(srt.complete)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View pending sites" onClick={() => openDrillDown('pending', 'Total Pending Sites')}>{num(srt.pending)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View verify approved sites" onClick={() => openDrillDown('verify-approved', 'Total Verify Approved Sites')}>{num(srt.verify_approved)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View verify pending sites" onClick={() => openDrillDown('verify-pending', 'Total Verify Pending Sites')}>{num(srt.verify_pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #dc2626)', cursor: 'pointer' }} title="View verify rejected sites" onClick={() => openDrillDown('verify-reject', 'Total Verify Rejected Sites')}>{num(srt.verify_reject)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View 80% payment settled sites" onClick={() => openDrillDown('pay80-complete', 'Total 80% Settled Sites')}>{num(srt.inst_pay80_complete)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View 80% payment pending sites" onClick={() => openDrillDown('pay80-pending', 'Total 80% Pending Sites')}>{num(srt.inst_pay80_pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View 20% payment settled sites" onClick={() => openDrillDown('pay20-complete', 'Total 20% Settled Sites')}>{num(srt.inst_pay20_complete)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View 20% payment pending sites" onClick={() => openDrillDown('pay20-pending', 'Total 20% Pending Sites')}>{num(srt.inst_pay20_pending)}</td>
                   </tr>
                 )}
               </tbody>
@@ -1500,72 +1739,13 @@ export function KashmirSrtDashboard() {
           </div>
         </section>
 
-        {/* 9. District Quick-Access & Quick Actions */}
-        <section className="ax-card ax-col--4" role="region" aria-label="District Status & Quick Navigation">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">District Operations</span>
-              <h2 className="ax-card__title">District Quick Access</h2>
-              <p className="ax-card__subtitle">Installation progress by district</p>
-            </div>
-          </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <div>
-              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
-                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                  Top Execution Districts
-                </span>
-                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(srt.complete)} Installed</span>
-              </div>
-              <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
-                {(filteredDistricts.length > 0 ? filteredDistricts : rawDistricts).slice(0, 8).map((d: any) => (
-                  <button
-                    key={d.district}
-                    type="button"
-                    className="ax-cluster"
-                    onClick={() => openDrillDown('complete', 'District Installations', d.district)}
-                    style={{ width: '100%', justifyContent: 'space-between', fontSize: 'var(--ax-text-xs)', border: 0, background: 'transparent', padding: '6px 0', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)' }}
-                  >
-                    <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
-                    <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
-                      {num(d.inst_complete || 0)} / {num(d.site_count || 0)} ({pctOf(d.inst_complete || 0, d.site_count || 1)}%)
-                    </b>
-                  </button>
-                ))}
-                {rawDistricts.length === 0 && <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data.'}</span>}
-              </div>
-            </div>
-
-            <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-4)' }} />
-
-            {/* Quick Actions Links */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Quick Module Actions
-              </span>
-              <Link to="/vendor-management/kashmir/srt70mw/installation/view-assign" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Accept Assigned Requests</span>
-                <span>→</span>
-              </Link>
-              <Link to="/vendor-management/kashmir/srt70mw/installation/verify" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Verify Field Installations</span>
-                <span>✓</span>
-              </Link>
-              <Link to="/vendor-management/kashmir/srt70mw/installation/view-claim" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Review Claim Invoices</span>
-                <span>₹</span>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* 10. Vendor-Wise Performance Table (Full 12 Columns) */}
+        {/* 9. Vendor-Wise Performance Table (Full 15 Columns including Material, Verification, Payments & Today's Install) */}
         <section className="ax-card ax-col--12" role="region" aria-label="Vendor wise performance table" style={{ marginTop: 'var(--ax-space-3)' }}>
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Contractors & Vendors</span>
               <h2 className="ax-card__title">Vendor-Wise Performance</h2>
-              <p className="ax-card__subtitle">Contractor throughput, field audit verification and milestone payment disbursements</p>
+              <p className="ax-card__subtitle">Contractor throughput, material logistics, field audit verification and milestone payment disbursements</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
@@ -1586,21 +1766,30 @@ export function KashmirSrtDashboard() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 1350 }}>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Vendor Name</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Allocated Sites</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Today's Install</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Material Dispatched</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Material Pending</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Installed Sites</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Pending Execution</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Rejected</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">80% Paid</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">80% Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">20% Paid</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">20% Pending</th>
                   <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedVendors.map((v: any) => {
                   const pct = pctOf(v.inst_complete || 0, v.site_count || 1);
+                  const todayCount = todayInstallMap[String(v.inst_vendor)] || 0;
                   return (
                     <tr
                       key={v.inst_vendor}
@@ -1613,21 +1802,106 @@ export function KashmirSrtDashboard() {
                     >
                       <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
                         <b>{getVendorName(v.inst_vendor)}</b>
+                        <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)' }}>ID: #{v.inst_vendor}</div>
                       </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ fontWeight: 600, cursor: 'pointer' }}
+                        title="View allocated sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('total-site', 'Allocated Sites', undefined, v.inst_vendor); }}
+                      >
                         {num(v.site_count || 0)}
                       </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: todayCount > 0 ? 'var(--asw-primary)' : 'var(--ax-text-muted)', fontWeight: 600 }}>
+                        {num(todayCount)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View material dispatched sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('material-dispatch', 'Material Dispatched', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.material_dispatch || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View material pending sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('material-pending', 'Material Pending', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.material_pending || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View completed sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Sites', undefined, v.inst_vendor); }}
+                      >
                         {num(v.inst_complete || 0)}
                       </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View pending sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Sites', undefined, v.inst_vendor); }}
+                      >
                         {num(v.inst_pending || 0)}
                       </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600 }}>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View verify approved sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Sites', undefined, v.inst_vendor); }}
+                      >
                         {num(v.verify_approved || 0)}
                       </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View verify pending sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-pending', 'Verify Pending Sites', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.verify_pending || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-red, #dc2626)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View verify rejected sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Verify Rejected Sites', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.verify_reject || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View 80% paid sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay80-complete', '80% Paid Sites', undefined, v.inst_vendor); }}
+                      >
                         {num(v.inst_pay80_complete || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View 80% pending sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay80-pending', '80% Pending Sites', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.inst_pay80_pending || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View 20% paid sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay20-complete', '20% Paid Sites', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.inst_pay20_complete || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title="View 20% pending sites for this vendor"
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay20-pending', '20% Pending Sites', undefined, v.inst_vendor); }}
+                      >
+                        {num(v.inst_pay20_pending || 0)}
                       </td>
                       <td className="ax-table__td">
                         <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
@@ -1644,7 +1918,7 @@ export function KashmirSrtDashboard() {
                 })}
                 {!loading && pagedVendors.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={7} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                    <td className="ax-table__td" colSpan={15} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
                       No vendor records match your query.
                     </td>
                   </tr>

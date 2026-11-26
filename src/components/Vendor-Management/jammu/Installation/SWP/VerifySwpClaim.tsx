@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -16,13 +16,20 @@ import {
   resolveJammuSwpMediaUrl,
 } from './jammuSwpAdminService';
 
-const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
-
-/* ───────── Responsive page CSS (Exact Solar ERP reference) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP / Jammu SRT 70MW reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
+  }
+  .solar-erp-page .ax-btn--primary {
+    background-color: #2559bf !important;
+    border-color: #2559bf !important;
+    color: #ffffff !important;
+  }
+  .solar-erp-page .ax-btn--primary:hover {
+    background-color: #1d4699 !important;
+    border-color: #1d4699 !important;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -105,96 +112,14 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  .solar-erp-page .ax-table-wrap,
-  .solar-erp-page .ax-table-wrapper {
-    width: 100%;
-    max-width: 100%;
+  .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-  }
-  .solar-erp-page .ax-table { min-width: 900px; }
-
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0;
-      gap: 0;
-      padding: 0 8px !important;
-      justify-content: center;
-    }
-    .solar-erp-page .ax-export-toolbar__button svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
-  }
-
-  @media (max-width: 760px) {
-    .solar-erp-page {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: hidden;
-      box-sizing: border-box;
-    }
-    .solar-erp-page .ax-card__header {
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .solar-erp-page .ax-card__titles {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 100%;
-      max-width: 100%;
-    }
-    .solar-erp-page .ax-card__actions {
-      flex: 0 0 auto;
-      width: 100%;
-      margin-left: 0;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-    .solar-erp-page .ax-card__actions .ax-cluster {
-      flex-wrap: wrap !important;
-      width: 100%;
-      justify-content: flex-start;
-      gap: 8px;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] {
-      flex: 1 1 100%;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar,
-    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-      flex: 1 1 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      gap: 6px;
-    }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 11px;
-      height: 28px;
-      padding: 0 6px !important;
-    }
-    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+    width: 100%;
   }
 `;
 
-/* ───────── Overlay CSS (modals & lightbox) ───────── */
+/* ───────── Overlay CSS (modals) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -234,15 +159,6 @@ const OVERLAY_CSS = `
     padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
     background: var(--ax-surface-subtle, #f8fafc);
   }
-
-  .asw-lightbox-overlay {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 10000; padding: 20px; cursor: zoom-out;
-  }
-  .asw-lightbox-img {
-    max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 8px;
-  }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -264,6 +180,64 @@ const X_ICON = (
   </svg>
 );
 
+/* ── Top KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'red';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#fff', border: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+/* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
   onClose,
@@ -271,7 +245,7 @@ function Modal({
   subtitle,
   children,
   footer,
-  maxWidth = 640,
+  maxWidth = 540,
 }: {
   open: boolean;
   onClose: () => void;
@@ -298,23 +272,17 @@ function Modal({
   return createPortal(
     <div className="ax-modal" role="dialog" aria-modal="true">
       <div className="ax-modal__backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-      >
+      <div ref={dialogRef} className="ax-modal__dialog" style={{ maxWidth }} tabIndex={-1}>
         <div className="ax-modal__header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#64748b' }}>{subtitle}</p>}
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
             {X_ICON}
           </button>
         </div>
-        <div className="ax-modal__body">
-          {children}
-        </div>
+        <div className="ax-modal__body">{children}</div>
         {footer && <div className="ax-modal__footer">{footer}</div>}
       </div>
     </div>,
@@ -322,440 +290,629 @@ function Modal({
   );
 }
 
-/* ───────── Top KPI Card Component ───────── */
-type KpiTone = 'accent' | 'emerald' | 'amber' | 'red';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
+/* ───────── Lightbox Modal ───────── */
+function LightboxModal({
+  open,
+  onClose,
+  url,
+  title,
 }: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: string;
+  open: boolean;
+  onClose: () => void;
+  url: string;
+  title: string;
 }) {
-  const t = TONE[tone];
-  return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#ffffff', border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {label}
-        </span>
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 10000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: isPdf ? 1000 : 800,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            <span style={{ fontSize: 11.5, color: '#64748b' }}>Invoice Inspection</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ fontSize: 12 }}
+            >
+              Open Original ↗
+            </a>
+            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+              {X_ICON}
+            </button>
+          </div>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', background: '#0b1120', minHeight: 460 }}>
+          {isPdf ? (
+            <iframe src={url} title={title} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8, background: '#fff' }} />
+          ) : (
+            <img src={url} alt={title} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 8 }} />
+          )}
+        </div>
       </div>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
+export interface JammuSwpClaimRecord {
+  id: number;
+  vendorId?: number;
+  vendorName: string;
+  date: string;
+  sites: Array<{ id: number; farmer_name?: string; f_farmer_name?: string }>;
+  invoice?: string;
+  amount: number | string;
+  remarks: string;
+  verifyRemarks: string;
+  claimStatus: number; // 1 = Pending, 2 = Approved, 3 = Rejected
+}
+
+const fmtCurrency = (val: number | string | undefined | null) =>
+  `₹${Number(val || 0).toLocaleString('en-IN')}`;
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 export function VerifySwpClaim() {
-  const [claims, setClaims] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [claims, setClaims] = useState<JammuSwpClaimRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  // Search & Filter
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  // Verify Claim Modal (#14: id, status: 2|3, remarks)
+  const [actionClaim, setActionClaim] = useState<JammuSwpClaimRecord | null>(null);
+  const [claimStatus, setClaimStatus] = useState<'2' | '3'>('2');
+  const [claimRemarks, setClaimRemarks] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Modals
-  const [sitesModalOpen, setSitesModalOpen] = useState<boolean>(false);
-  const [selectedSites, setSelectedSites] = useState<any[]>([]);
-  const [selectedClaimTitle, setSelectedClaimTitle] = useState<string>('');
+  // Sites modal & Lightbox
+  const [viewSitesClaim, setViewSitesClaim] = useState<JammuSwpClaimRecord | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
 
-  const [auditModalOpen, setAuditModalOpen] = useState<boolean>(false);
-  const [auditingClaim, setAuditingClaim] = useState<any | null>(null);
-  const [auditDecision, setAuditDecision] = useState<number>(1); // 1 = Approved, 2 = Rejected
-  const [auditRemarks, setAuditRemarks] = useState<string>('');
-  const [savingAudit, setSavingAudit] = useState<boolean>(false);
-
-  const [detailModalOpen, setDetailModalOpen] = useState<boolean>(false);
-  const [detailClaim, setDetailClaim] = useState<any | null>(null);
-
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
-
-  // Fetch claims
-  const loadData = useCallback(async () => {
+  const fetchClaims = useCallback(async () => {
     setLoading(true);
-    setApiError(null);
+    setErrorMsg('');
     try {
-      const res = await jammuAdminSwpService.getClaims();
-      setClaims(res.claims || []);
+      const res = await jammuAdminSwpService.getViewClaim();
+      const rawList = Array.isArray(res.claims) ? res.claims : [];
+      const mapped: JammuSwpClaimRecord[] = rawList.map((c: any) => ({
+        id: c.id,
+        vendorId: c.vendor_id || c.vendor?.id,
+        vendorName: c.vendor_name || c.vendor?.name || c.vendor || (c.vendor_id ? `Vendor #${c.vendor_id}` : '—'),
+        date: c.date || c.claim_date || c.created_at || '—',
+        sites: Array.isArray(c.sites) ? c.sites : [],
+        invoice: c.invoice || c.file || c.claim_invoice ? resolveJammuSwpMediaUrl(c.invoice || c.file || c.claim_invoice) : undefined,
+        amount: c.amount || c.claim_amount || 0,
+        remarks: c.remarks || c.claim_remarks || '—',
+        verifyRemarks: c.approved_remarks || c.verify_remarks || c.inst_verify_remarks || '—',
+        claimStatus: Number(c.claim_status ?? c.status ?? 1),
+      }));
+      setClaims(mapped);
     } catch (err: any) {
-      setApiError(err.message || 'Failed to load vendor payment claims.');
+      console.error('Failed to fetch Jammu SWP claim requests:', err);
+      setErrorMsg(err?.message || 'Failed to fetch Jammu SWP claim requests.');
+      setClaims([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchClaims();
+  }, [fetchClaims]);
 
-  // Open audit modal
-  const openAuditModal = (claim: any) => {
-    setAuditingClaim(claim);
-    setAuditDecision(claim.status === 2 ? 2 : 1);
-    setAuditRemarks(claim.remarks || '');
-    setAuditModalOpen(true);
-  };
-
-  // Save audit decision
-  const handleSaveAudit = async () => {
-    if (!auditingClaim) return;
-    setSavingAudit(true);
+  // Submit Claim Audit
+  const handleVerifyClaim = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!actionClaim) return;
+    setSubmitting(true);
     try {
-      await jammuAdminSwpService.approveClaim({
-        id: auditingClaim.id,
-        status: auditDecision,
-        remarks: auditRemarks,
+      const targetStatus = Number(claimStatus);
+      const res = await jammuAdminSwpService.updateClaimStatus({
+        id: actionClaim.id,
+        status: targetStatus,
+        remarks: claimRemarks.trim() || undefined,
       });
-      setClaims((prev) =>
-        prev.map((c) =>
-          c.id === auditingClaim.id
-            ? { ...c, status: auditDecision, remarks: auditRemarks }
-            : c
-        )
-      );
-      setAuditModalOpen(false);
+
+      if (res.success || res.status) {
+        setClaims((prev) =>
+          prev.map((c) =>
+            c.id === actionClaim.id
+              ? {
+                  ...c,
+                  claimStatus: targetStatus,
+                  verifyRemarks: claimRemarks || c.verifyRemarks,
+                }
+              : c
+          )
+        );
+        setActionClaim(null);
+        setClaimRemarks('');
+        alert(res.message || 'Claim status updated successfully.');
+      } else {
+        alert(res.message || 'Failed to update claim status.');
+      }
     } catch (err: any) {
-      alert(err.message || 'Claim audit action failed.');
+      alert(err?.message || 'Failed to update claim status.');
     } finally {
-      setSavingAudit(false);
+      setSubmitting(false);
     }
   };
 
-  // Open sites modal
-  const openSitesModal = (claim: any) => {
-    const list = claim.site_details && claim.site_details.length > 0
-      ? claim.site_details
-      : (claim.site_id || []).map((sid: any, idx: number) => ({
-          id: sid,
-          f_farmer_name: `Farmer Site #${sid}`,
-          f_farmer_id: `JK-CLM-${sid}`,
-          f_district: 'Jammu Region',
-          pump_capacity: '5.0 HP',
-        }));
-    setSelectedSites(list);
-    setSelectedClaimTitle(`${claim.claim_no || `Claim #${claim.id}`} · ${claim.vendor_name || 'Vendor'} (${list.length} Sites)`);
-    setSitesModalOpen(true);
-  };
-
-  // Filtered dataset
   const filteredClaims = useMemo(() => {
-    return claims.filter((claim) => {
-      const st = Number(claim.status ?? 0);
-      if (statusFilter === 'pending' && st !== 0) return false;
-      if (statusFilter === 'approved' && st !== 1) return false;
-      if (statusFilter === 'rejected' && st !== 2) return false;
-
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
-      return (
-        String(claim.id).includes(q) ||
-        (claim.vendor_name || '').toLowerCase().includes(q) ||
-        (claim.claim_no || '').toLowerCase().includes(q) ||
-        (claim.claim_date || '').includes(q) ||
-        String(claim.amount || '').includes(q)
-      );
+    let list = claims;
+    if (statusFilter !== 'all') {
+      list = list.filter((c) => String(c.claimStatus) === statusFilter);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((c) => {
+      const hay = [
+        c.id,
+        c.vendorName,
+        c.date,
+        c.amount,
+        c.remarks,
+        c.verifyRemarks,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
     });
-  }, [claims, statusFilter, searchQuery]);
+  }, [claims, searchQuery, statusFilter]);
 
-  // Pagination
-  const pagination = usePagination({
-    totalItems: filteredClaims.length,
-    initialPageSize: 10,
-  });
+  const pagination = usePagination(filteredClaims, { initialPageSize: 50 });
 
-  const pagedClaims = useMemo(() => {
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    return filteredClaims.slice(start, start + pagination.pageSize);
-  }, [filteredClaims, pagination.currentPage, pagination.pageSize]);
+  useEffect(() => {
+    pagination.setPage(1);
+  }, [searchQuery, statusFilter]);
 
-  // KPI calculations
-  const totalClaimsCount = claims.length;
-  const approvedClaimsCount = claims.filter((c) => Number(c.status) === 1).length;
-  const rejectedClaimsCount = claims.filter((c) => Number(c.status) === 2).length;
-  const pendingClaimsCount = claims.filter((c) => Number(c.status ?? 0) === 0).length;
+  // Summary counts
+  const summary = useMemo(() => {
+    return {
+      total: claims.length,
+      approved: claims.filter((c) => c.claimStatus === 2).length,
+      rejected: claims.filter((c) => c.claimStatus === 3).length,
+      pending: claims.filter((c) => c.claimStatus === 1).length,
+    };
+  }, [claims]);
 
   // Export Columns
-  const exportColumns: ExportColumn[] = useMemo(
-    () => [
-      { key: 'id', header: 'Claim ID' },
-      { key: 'vendor_name', header: 'Vendor Name' },
-      { key: 'claim_no', header: 'Invoice Reference' },
-      { key: 'claim_date', header: 'Claim Date' },
-      { key: 'amount', header: 'Claim Amount (₹)' },
-      { key: 'status', header: 'Audit Status' },
-      { key: 'remarks', header: 'Audit Remarks' },
-    ],
-    []
-  );
+  const exportCols: ExportColumn[] = [
+    { header: 'S.No.', accessor: 'id' },
+    { header: 'Vendor Name', accessor: 'vendorName' },
+    { header: 'Date', accessor: 'date' },
+    { header: 'Sites Count', accessor: 'sitesCount' },
+    { header: 'Invoice', accessor: 'invoice' },
+    { header: 'Amount (₹)', accessor: 'amount' },
+    { header: 'Remarks', accessor: 'remarks' },
+    { header: 'Verify Remarks', accessor: 'verifyRemarks' },
+    { header: 'Status', accessor: 'status' },
+  ];
+
+  const exportDataFormatted = useMemo(() => {
+    return filteredClaims.map((c, idx) => ({
+      id: idx + 1,
+      vendorName: c.vendorName,
+      date: c.date,
+      sitesCount: c.sites.length,
+      invoice: c.invoice || '—',
+      amount: c.amount,
+      remarks: c.remarks,
+      verifyRemarks: c.verifyRemarks,
+      status: c.claimStatus === 2 ? 'Approved' : c.claimStatus === 3 ? 'Rejected' : 'Pending',
+    }));
+  }, [filteredClaims]);
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = async () => {
+    if (!exportDataFormatted.length) return;
+    const t = [
+      exportCols.map((c) => c.header).join('\t'),
+      ...exportDataFormatted.map((row) =>
+        exportCols.map((c) => String((row as any)[c.accessor as string] || '')).join('\t')
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert('Data copied to clipboard!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Data copied to clipboard!');
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!exportDataFormatted.length) return;
+    const out = [
+      exportCols.map((c) => c.header),
+      ...exportDataFormatted.map((row) =>
+        exportCols.map((c) => `"${String((row as any)[c.accessor as string] || '').replace(/"/g, '""')}"`)
+      ),
+    ];
+    downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `Jammu_SWP_Claims.csv`, 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!exportDataFormatted.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((row) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_SWP_Claims.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = () => {
+    if (!exportDataFormatted.length) return;
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8"/><title>Jammu SWP Installation Claims</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Jammu SWP Installation Claim Request Data</h1><table><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((r) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
 
   return (
     <div className="solar-erp-page ax-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <PageHead
-        eyebrow="Super Admin · Vendor Management"
-        title="Jammu SWP Claim Verification"
-        subtitle="Verification and audit desk for vendor installation claims, milestone invoices, and tax vouchers in Jammu & Kashmir."
+        title="Jammu SWP Installation - View Claim"
+        subtitle="Verification and audit desk for solar water pump milestone claims, vendor submission invoices, and settlement requests across Jammu"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Jammu', href: '/vendor-management/jammu' },
+          { label: 'SWP', href: '/vendor-management/jammu/installation/swp/dashboard' },
+          { label: 'View Claim' },
+        ]}
       />
 
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" style={{ marginBottom: 16 }}>
-        <ol className="ax-breadcrumb" style={{ display: 'flex', gap: 6, listStyle: 'none', padding: 0, margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-          <li><Link to="/vendor-management" style={{ color: '#2563eb' }}>Home</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management" style={{ color: '#2563eb' }}>Vendor Management</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu" style={{ color: '#2563eb' }}>Jammu</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu/installation/swp/dashboard" style={{ color: '#2563eb' }}>SWP Installation</Link></li>
-          <li>/</li>
-          <li style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>Verify Claim</li>
-        </ol>
-      </nav>
-
-      {/* Error Alert */}
-      {apiError && (
+      {errorMsg && (
         <div className="ax-card" style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, marginBottom: 16, color: '#dc2626', fontSize: 13 }}>
-          {apiError}
+          {errorMsg}
         </div>
       )}
 
-      {/* 4 KPI Cards */}
+      {/* ── 4 KPI Cards matching user specification ── */}
       <div className="asw-cards-row">
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            </svg>
+          }
           tone="accent"
           label="Total Request"
-          value={totalClaimsCount}
-          sub="Submitted payment claims"
+          value={summary.total}
+          sub="All SWP milestone claims"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
           tone="emerald"
-          label="Approved Claims"
-          value={approvedClaimsCount}
-          sub="Cleared for disbursement"
+          label="Claim Approved"
+          value={summary.approved}
+          sub="Passed & ready for payment"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
           tone="red"
-          label="Rejected Claims"
-          value={rejectedClaimsCount}
-          sub="Flagged for revision"
+          label="Claim Rejected"
+          value={summary.rejected}
+          sub="Disallowed claims"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
           tone="amber"
-          label="Pending Claims"
-          value={pendingClaimsCount}
-          sub="In audit verification queue"
+          label="Claim Pending"
+          value={summary.pending}
+          sub="Awaiting admin verification"
         />
       </div>
 
-      {/* Table Card */}
-      <div className="ax-card" style={{ borderRadius: 12, background: '#ffffff', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div className="ax-card__header" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+      {/* ── Main Data Card ── */}
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h3 className="ax-card__title" style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-              Vendor Installation Milestone Claims
-            </h3>
-            <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
-              Showing {filteredClaims.length} payment claims across contractor vendors
-            </p>
+            <h2 className="ax-card__title">View Jammu SWP Claim Request Data</h2>
+            <p className="ax-card__subtitle">Showing {filteredClaims.length} claim record(s)</p>
           </div>
-
           <div className="ax-card__actions">
-            <div className="ax-cluster">
+            <div className="ax-cluster" style={actionsRowStyle}>
               <select
+                className="ax-form-control"
+                style={{ width: 140, height: 32, fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="ax-form-control"
-                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
               >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending ({pendingClaimsCount})</option>
-                <option value="approved">Approved ({approvedClaimsCount})</option>
-                <option value="rejected">Rejected ({rejectedClaimsCount})</option>
+                <option value="all">All Status</option>
+                <option value="1">Pending (1)</option>
+                <option value="2">Approved (2)</option>
+                <option value="3">Rejected (3)</option>
               </select>
 
+              {searchQuery.trim() !== '' && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={() => setSearchQuery('')}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
               <SearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search vendor, invoice..."
+                placeholder="Search vendor, amount, remarks..."
+                size="sm"
               />
-
               <TableExportToolbar
-                data={filteredClaims}
-                columns={exportColumns}
-                filename="Jammu_SWP_Claim_Verification"
+                onCopy={copyToClipboard}
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
               />
             </div>
           </div>
         </div>
 
+        {/* ── Horizontally Scrollable Table with Exact Columns ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontWeight: 700, textAlign: 'left' }}>
-                <th style={{ padding: '12px 16px' }}>Sr. No.</th>
-                <th style={{ padding: '12px 14px' }}>Vendor Name</th>
-                <th style={{ padding: '12px 14px' }}>Claim / Invoice No</th>
-                <th style={{ padding: '12px 14px' }}>Claim Date</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Sites Covered</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Amount (₹)</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Invoice Doc</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Verify Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Actions</th>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1200 }}>
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th" style={{ width: 60, textAlign: 'center' }}>S.No.</th>
+                <th className="ax-table__th">vendor Name</th>
+                <th className="ax-table__th">Date</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Sites</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Invoice</th>
+                <th className="ax-table__th" style={{ textAlign: 'right' }}>Amount</th>
+                <th className="ax-table__th">Remarks</th>
+                <th className="ax-table__th">Verify Remarks</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Status</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={centerCell}>Loading claims data...</td>
+                  <td colSpan={10} style={centerCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading Jammu SWP claim requests...</span>
+                    </div>
+                  </td>
                 </tr>
-              ) : pagedClaims.length === 0 ? (
+              ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={centerCell}>
-                    <TableEmptyState message="No payment claims found matching criteria." />
+                  <td colSpan={10} style={centerCell}>
+                    <TableEmptyState title="No Claims Found" description="No Jammu SWP claim requests found matching criteria." />
                   </td>
                 </tr>
               ) : (
-                pagedClaims.map((claim, idx) => {
-                  const st = Number(claim.status ?? 0);
-                  const isApproved = st === 1;
-                  const isRejected = st === 2;
-                  const siteCount = claim.site_id ? claim.site_id.length : (claim.site_details ? claim.site_details.length : 1);
+                pagination.paged.map((row, idx) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  const st = row.claimStatus;
 
                   return (
-                    <tr key={claim.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#64748b' }}>
-                        {(pagination.currentPage - 1) * pagination.pageSize + idx + 1}
+                    <tr key={row.id}>
+                      {/* 1. S.No. */}
+                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
+                        {globalIdx}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0f172a' }}>
-                        {claim.vendor_name || 'Vendor'}
+
+                      {/* 2. vendor Name */}
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#0f172a' }}>
+                        {row.vendorName}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: '#2563eb' }}>
-                        {claim.claim_no || `CLM-${claim.id}`}
+
+                      {/* 3. Date */}
+                      <td className="ax-table__td">{row.date}</td>
+
+                      {/* 4. Sites */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.sites.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setViewSitesClaim(row)}
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{
+                              color: '#2559bf',
+                              fontWeight: 700,
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: 9999,
+                              padding: '2px 10px',
+                            }}
+                            title="Click to view associated sites"
+                          >
+                            {row.sites.length} Site{row.sites.length === 1 ? '' : 's'} ↗
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
                       </td>
-                      <td style={{ padding: '12px 14px', color: '#475569', fontSize: 12 }}>
-                        {claim.claim_date || claim.created_at || '—'}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--sm"
-                          onClick={() => openSitesModal(claim)}
-                          style={{
-                            padding: '3px 10px',
-                            borderRadius: 12,
-                            background: '#eff6ff',
-                            color: '#2563eb',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            border: '1px solid #bfdbfe',
-                          }}
-                        >
-                          {siteCount} Sites
-                        </button>
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
-                        ₹{num(claim.amount)}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        {claim.invoice_doc ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            {claim.invoice_doc.endsWith('.pdf') ? (
+
+                      {/* 5. Invoice */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.invoice ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/\.(jpe?g|png|webp|gif|svg)$/i.test(row.invoice) ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightbox({ url: row.invoice!, title: `Claim #${row.id} Invoice` })}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: 6,
+                                  padding: 2,
+                                  background: '#fff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                }}
+                                title="Click to preview Invoice image"
+                              >
+                                <img
+                                  src={row.invoice}
+                                  alt="Invoice"
+                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                />
+                              </button>
+                            ) : (
                               <a
-                                href={resolveJammuSwpMediaUrl(claim.invoice_doc)}
+                                href={row.invoice}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#2563eb', fontSize: 11, fontWeight: 600, textDecoration: 'none' }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '5px 10px',
+                                  borderRadius: 6,
+                                  background: '#eff4fc',
+                                  color: '#2559bf',
+                                  textDecoration: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  border: '1px solid #bfd3f8',
+                                }}
+                                title="Open / Download Invoice"
                               >
-                                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                                Invoice PDF
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>Invoice</span>
                               </a>
-                            ) : (
-                              <img
-                                src={resolveJammuSwpMediaUrl(claim.invoice_doc)}
-                                alt="Invoice Voucher"
-                                onClick={() => setLightboxImg(resolveJammuSwpMediaUrl(claim.invoice_doc))}
-                                style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
-                                title="Click to enlarge Invoice"
-                              />
                             )}
                           </div>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: 11 }}>No invoice</span>
+                          <span style={{ color: '#94a3b8' }}>—</span>
                         )}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+
+                      {/* 6. Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>
+                        {fmtCurrency(row.amount)}
+                      </td>
+
+                      {/* 7. Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.remarks}>
+                          {row.remarks}
+                        </div>
+                      </td>
+
+                      {/* 8. Verify Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
+                          {row.verifyRemarks}
+                        </div>
+                      </td>
+
+                      {/* 9. Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <span
-                          className={`ax-badge ax-badge--soft ax-badge--${isApproved ? 'success' : isRejected ? 'danger' : 'warning'}`}
                           style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
                             padding: '3px 10px',
                             borderRadius: 9999,
-                            fontSize: 11,
+                            fontSize: 11.5,
                             fontWeight: 700,
-                            background: isApproved ? '#ecfdf5' : isRejected ? '#fef2f2' : '#fef3c7',
-                            color: isApproved ? '#059669' : isRejected ? '#dc2626' : '#d97706',
+                            background:
+                              st === 2 ? '#ecfdf5' : st === 3 ? '#fef2f2' : '#fffbeb',
+                            color:
+                              st === 2 ? '#059669' : st === 3 ? '#dc2626' : '#d97706',
+                            border: `1px solid ${
+                              st === 2 ? '#a7f3d0' : st === 3 ? '#fecaca' : '#fde68a'
+                            }`,
                           }}
                         >
-                          {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending Review'}
+                          {st === 2 ? 'Approved' : st === 3 ? 'Rejected' : 'Pending'}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: 6 }}>
+
+                      {/* 10. Action */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {st === 1 ? (
                           <button
                             type="button"
-                            className="ax-btn ax-btn--primary ax-btn--sm"
-                            onClick={() => openAuditModal(claim)}
-                            style={{ background: '#2563eb', borderColor: '#2563eb', padding: '4px 10px', fontSize: 11 }}
+                            onClick={() => {
+                              setActionClaim(row);
+                              setClaimStatus('2');
+                              setClaimRemarks(row.verifyRemarks !== '—' ? row.verifyRemarks : '');
+                            }}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: '#2559bf',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
                           >
                             Verify Claim
                           </button>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            onClick={() => { setDetailClaim(claim); setDetailModalOpen(true); }}
-                            style={{ padding: '4px 8px', fontSize: 11, color: '#2563eb' }}
-                          >
-                            Details
-                          </button>
-                        </div>
+                        ) : (
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Processed</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -765,201 +922,153 @@ export function VerifySwpClaim() {
           </table>
         </div>
 
+        {/* ── Table Footer with Pagination ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={pagination.setCurrentPage}
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Claim Audit Action Modal */}
+      {/* ── Verify Claim Modal (#14) ── */}
       <Modal
-        open={auditModalOpen}
-        onClose={() => setAuditModalOpen(false)}
-        title="Payment Claim Verification Decision"
-        subtitle={auditingClaim ? `${auditingClaim.claim_no || `Claim #${auditingClaim.id}`} · ${auditingClaim.vendor_name}` : ''}
-        maxWidth={580}
-        footer={
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setAuditModalOpen(false)}>
+        open={Boolean(actionClaim)}
+        onClose={() => {
+          if (!submitting) {
+            setActionClaim(null);
+            setClaimStatus('2');
+            setClaimRemarks('');
+          }
+        }}
+        title="Verify Claim Status"
+        subtitle={actionClaim ? `Claim #${actionClaim.id} · ${actionClaim.vendorName} · ${fmtCurrency(actionClaim.amount)}` : undefined}
+      >
+        <form onSubmit={handleVerifyClaim} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Status <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <select
+              value={claimStatus}
+              onChange={(e) => setClaimStatus(e.target.value as '2' | '3')}
+              required
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            >
+              <option value="2">Approved (2)</option>
+              <option value="3">Rejected (3)</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Remark
+            </label>
+            <textarea
+              rows={3}
+              value={claimRemarks}
+              onChange={(e) => setClaimRemarks(e.target.value)}
+              placeholder="Enter audit approval or rejection rationale..."
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setActionClaim(null);
+                setClaimStatus('2');
+                setClaimRemarks('');
+              }}
+              className="ax-btn ax-btn--secondary"
+              style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8 }}
+            >
               Cancel
             </button>
             <button
-              type="button"
+              type="submit"
+              disabled={submitting}
               className="ax-btn ax-btn--primary"
-              disabled={savingAudit}
-              onClick={handleSaveAudit}
-              style={{ background: auditDecision === 1 ? '#10b981' : '#dc2626', borderColor: auditDecision === 1 ? '#10b981' : '#dc2626' }}
+              style={{
+                padding: '8px 20px',
+                fontSize: 13,
+                borderRadius: 8,
+                background: '#2559bf',
+                color: '#fff',
+                fontWeight: 600,
+                border: 'none',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+              }}
             >
-              {savingAudit ? 'Saving Decision...' : auditDecision === 1 ? 'Approve Claim' : 'Reject Claim'}
+              {submitting ? 'Submitting...' : 'Submit'}
             </button>
           </div>
-        }
-      >
-        {auditingClaim && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Claimed Amount</span>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>₹{num(auditingClaim.amount)}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Farmer Sites Covered</span>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#2563eb' }}>
-                  {auditingClaim.site_id ? auditingClaim.site_id.length : 1} Sites
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 8 }}>
-                Claim Audit Verdict:
-              </label>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#16a34a' }}>
-                  <input
-                    type="radio"
-                    name="claimDecision"
-                    checked={auditDecision === 1}
-                    onChange={() => setAuditDecision(1)}
-                  />
-                  Approve Claim for Disbursement
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#dc2626' }}>
-                  <input
-                    type="radio"
-                    name="claimDecision"
-                    checked={auditDecision === 2}
-                    onChange={() => setAuditDecision(2)}
-                  />
-                  Reject Claim
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="claimRemarks" style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
-                Audit Verification Remarks:
-              </label>
-              <textarea
-                id="claimRemarks"
-                rows={3}
-                value={auditRemarks}
-                onChange={(e) => setAuditRemarks(e.target.value)}
-                placeholder="Tax invoice match, GST verification, work milestone criteria met..."
-                className="ax-form-control"
-                style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 8, border: '1px solid #cbd5e1' }}
-              />
-            </div>
-          </div>
-        )}
+        </form>
       </Modal>
 
-      {/* Sites List Modal */}
+      {/* ── Associated Sites Modal ── */}
       <Modal
-        open={sitesModalOpen}
-        onClose={() => setSitesModalOpen(false)}
-        title="Covered Farmer Installation Sites"
-        subtitle={selectedClaimTitle}
-        maxWidth={680}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {selectedSites.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>No covered sites found.</div>
-          ) : (
-            selectedSites.map((s, idx) => (
-              <div
-                key={s.id || idx}
-                style={{
-                  padding: '12px 16px',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
-                    {idx + 1}. {s.f_farmer_name}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                    Farmer ID: <strong style={{ color: '#2563eb' }}>{s.f_farmer_id || `JK-SITE-${s.id}`}</strong> · District: {s.f_district || 'Jammu'}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '3px 8px', borderRadius: 6 }}>
-                    {s.pump_capacity || '5.0 HP'}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Modal>
-
-      {/* Details Modal */}
-      <Modal
-        open={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
-        title="Payment Claim Voucher Details"
-        subtitle={detailClaim ? `${detailClaim.claim_no || `Claim #${detailClaim.id}`} · ${detailClaim.vendor_name}` : ''}
+        open={Boolean(viewSitesClaim)}
+        onClose={() => setViewSitesClaim(null)}
+        title={`Claim #${viewSitesClaim?.id} Associated Sites`}
+        subtitle={`Vendor: ${viewSitesClaim?.vendorName} · ${viewSitesClaim?.sites.length || 0} Sites`}
         maxWidth={620}
       >
-        {detailClaim && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Contractor Vendor</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailClaim.vendor_name}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Claim Reference No</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>{detailClaim.claim_no || `CLM-${detailClaim.id}`}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Submission Date</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailClaim.claim_date || detailClaim.created_at || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Claimed Amount</span>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#10b981' }}>₹{num(detailClaim.amount)}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Covered Sites Count</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailClaim.site_id ? detailClaim.site_id.length : 1} Sites</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Invoice Document</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>
-                {detailClaim.invoice_doc ? (
-                  <a href={resolveJammuSwpMediaUrl(detailClaim.invoice_doc)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
-                    View Invoice ↗
-                  </a>
-                ) : 'No file attached'}
-              </div>
-            </div>
-            {detailClaim.remarks && (
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Claim / Audit Remarks</span>
-                <div style={{ fontSize: 12, color: '#334155', background: '#eff6ff', padding: '8px 12px', borderRadius: 6, border: '1px solid #bfdbfe', marginTop: 2 }}>
-                  {detailClaim.remarks}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <div style={{ maxHeight: 350, overflowY: 'auto' }}>
+          <table className="ax-table" style={{ width: '100%', fontSize: 12.5, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '8px 12px' }}>#</th>
+                <th style={{ padding: '8px 12px' }}>Site ID</th>
+                <th style={{ padding: '8px 12px' }}>Farmer / Applicant Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(viewSitesClaim?.sites || []).map((s, i) => (
+                <tr key={s.id || i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>{i + 1}</td>
+                  <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>#{s.id}</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>{s.farmer_name || s.f_farmer_name || `Farmer #${s.id}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Modal>
 
-      {/* Lightbox Zoom */}
-      {lightboxImg && (
-        <div className="asw-lightbox-overlay" onClick={() => setLightboxImg(null)}>
-          <img src={lightboxImg} alt="Enlarged view" className="asw-lightbox-img" />
-        </div>
+      {/* ── Lightbox Modal ── */}
+      {lightbox && (
+        <LightboxModal
+          open={Boolean(lightbox)}
+          onClose={() => setLightbox(null)}
+          url={lightbox.url}
+          title={lightbox.title}
+        />
       )}
     </div>
   );

@@ -159,9 +159,9 @@ export interface UpAmcPendingFormProps {
   viewLink: string;
   viewLabel: string;
   mode?: 'resco' | 'ssl' | 'ssl18w' | 'schedule';
-  onFetchYears: () => Promise<number[]>;
+  onFetchYears?: () => Promise<number[]>;
   onFetchMonths?: (year: number) => Promise<(number | string)[]>;
-  onFetchSites: (year: number, month?: number | string) => Promise<{ id: number | string; label: string; [key: string]: any }[]>;
+  onFetchSites: (year?: number, month?: number | string) => Promise<{ id: number | string; label: string; [key: string]: any }[]>;
   onFetchSiteDetails: (id: number | string, year?: number, month?: number | string) => Promise<any>;
   onSubmit: (formData: FormData) => Promise<{ status: boolean; message?: string; errors?: Record<string, string[]> }>;
   defaultAmcType?: string;
@@ -183,7 +183,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     onFetchSites,
     onFetchSiteDetails,
     onSubmit,
-    defaultAmcType = 'Monthly',
+    defaultAmcType = '',
   } = props;
 
   const navigate = useNavigate();
@@ -290,22 +290,34 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     );
   };
 
-  // Load Years on mount
+  // Load Years on mount (only when module has a years API)
   useEffect(() => {
+    if (!onFetchYears) {
+      setYears([]);
+      setSelectedYear('');
+      return;
+    }
     let active = true;
     setLoadingYears(true);
     onFetchYears()
       .then((resYears) => {
         if (!active) return;
-        setYears(resYears);
-        if (resYears.length > 0) {
+        const safeYears = Array.isArray(resYears) ? resYears.map(Number).filter((y) => !Number.isNaN(y) && y > 0) : [];
+        setYears(safeYears);
+        if (safeYears.length > 0) {
           const currentY = new Date().getFullYear();
-          const match = resYears.find((y) => y === currentY) || resYears[0];
+          const match = safeYears.find((y) => y === currentY) || safeYears[0];
           setSelectedYear(match);
+        } else {
+          setSelectedYear('');
         }
       })
       .catch((err) => {
         console.error('Error fetching years:', err);
+        if (active) {
+          setYears([]);
+          setSelectedYear('');
+        }
       })
       .finally(() => {
         if (active) setLoadingYears(false);
@@ -317,19 +329,33 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
   // Load Months (site filter) if callback provided
   useEffect(() => {
-    if (!onFetchMonths || !selectedYear) return;
+    if (!onFetchMonths || !selectedYear) {
+      setMonths([]);
+      setFilterMonth('');
+      return;
+    }
     let active = true;
     onFetchMonths(Number(selectedYear))
       .then((mList) => {
         if (active) {
-          setMonths(mList || []);
-          if (mList && mList.length > 0 && !filterMonth) {
-            setFilterMonth(String(mList[0]));
-            setSelectedMonth(String(mList[0]));
+          const safe = Array.isArray(mList) ? mList : [];
+          setMonths(safe);
+          if (safe.length > 0) {
+            setFilterMonth(String(safe[0]));
+            setSelectedMonth(String(safe[0]));
+          } else {
+            setFilterMonth('');
+            setSelectedMonth('');
           }
         }
       })
-      .catch((e) => console.error('Error fetching months:', e));
+      .catch((e) => {
+        console.error('Error fetching months:', e);
+        if (active) {
+          setMonths([]);
+          setFilterMonth('');
+        }
+      });
     return () => {
       active = false;
     };
@@ -339,7 +365,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   // NOTE: selectedMonth yahan dependency nahi hai, warna site select hote hi month set hota
   // aur site list reload hoke selection clear ho jata tha.
   useEffect(() => {
-    if (!selectedYear) return;
+    if (onFetchYears && !selectedYear) {
+      setSites([]);
+      return;
+    }
     let active = true;
     setSites([]);
     if (!preSelectedId) {
@@ -348,7 +377,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     }
 
     setLoadingSites(true);
-    onFetchSites(Number(selectedYear), filterMonth || undefined)
+    onFetchSites(selectedYear ? Number(selectedYear) : undefined, filterMonth || undefined)
       .then((res: any) => {
         if (!active) return;
         let sList: any[] = [];
@@ -451,7 +480,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
     const bName = d.beneficiary_name || d.beneficiary || d.farmer_name || d.f_farmer_name || d.applicant_name || d.site_name || d.name || d.contact_person || '';
     const bContact = d.contact || d.mobile || d.f_mobile || d.beneficiary_contact || d.f_contact || d.contact_number || d.contact_no || d.contractor_number || d.contact_person_number || '';
-    const st = d.state || 'UP';
+    const st = d.state || '';
     const dist = d.district || d.f_district || d.installation_dsitrict || '';
     const vill = d.village || d.f_village || d.installation_village || d.block || d.location || '';
     const gdr = d.gender || d.f_gender || d.farmer_gender || '';
@@ -578,33 +607,11 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     if (sitePendingMonths.length > 0) {
       return sitePendingMonths.map((p) => toPeriodOption(p, selectedYear || undefined));
     }
-
-    if (amcType === 'Quarterly') {
-      return [
-        { value: '1', label: 'Q1 (January – March)' },
-        { value: '2', label: 'Q2 (April – June)' },
-        { value: '3', label: 'Q3 (July – September)' },
-        { value: '4', label: 'Q4 (October – December)' },
-      ];
+    if (months.length > 0) {
+      return months.map((m) => toPeriodOption(m, selectedYear || undefined));
     }
-
-    if (amcType === 'Half-Yearly') {
-      return [
-        { value: '1', label: 'H1 (First Half: April – September)' },
-        { value: '2', label: 'H2 (Second Half: October – March)' },
-      ];
-    }
-
-    if (amcType === 'Yearly') {
-      const currentY = selectedYear ? Number(selectedYear) : new Date().getFullYear();
-      return [
-        { value: String(currentY), label: `Annual / Full Year ${currentY}` },
-        { value: String(currentY - 1), label: `Annual / Full Year ${currentY - 1}` },
-      ];
-    }
-
-    return MONTH_OPTIONS;
-  }, [amcType, sitePendingMonths, selectedYear]);
+    return [];
+  }, [sitePendingMonths, months, selectedYear]);
 
   const handleReset = () => {
     setSelectedSiteId('');
@@ -746,7 +753,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       }
 
       // Append 11 Information fields
-      fd.append('state', siteInfo.state || 'UP');
+      fd.append('state', siteInfo.state || '');
       fd.append('district', siteInfo.district || '');
       fd.append('village', siteInfo.village || '');
       fd.append('gender', siteInfo.gender || '');
@@ -901,13 +908,14 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 desc="Choose the assigned site ready for periodic maintenance report."
               />
               <div className="up-form-grid up-form-grid--3col">
-                {years.length > 0 && (
+                {onFetchYears && (
                   <FloatingSelect
                     id="up-amc-year"
                     label="AMC Year"
+                    placeholder={loadingYears ? 'Loading years...' : years.length === 0 ? '-- No Pending AMC Years --' : '-- Select Year --'}
                     value={selectedYear ? String(selectedYear) : ''}
                     options={years.map((y) => ({ value: String(y), label: String(y) }))}
-                    disabled={loadingYears}
+                    disabled={loadingYears || years.length === 0}
                     onChange={(v) => {
                       const nextY = v ? Number(v) : '';
                       setSelectedYear(nextY);
@@ -940,16 +948,18 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   />
                 )}
 
-                <div className={years.length > 0 || months.length > 0 ? (years.length > 0 && months.length > 0 ? '' : 'up-form-col-span-2') : 'up-form-col-span-full'}>
+                <div className={onFetchYears || months.length > 0 ? (onFetchYears && months.length > 0 ? '' : 'up-form-col-span-2') : 'up-form-col-span-full'}>
                   <FloatingSelect
                     id="up-amc-site-name"
                     label="Select Site"
                     required
                     placeholder={
-                      !selectedYear && years.length > 0
+                      onFetchYears && !selectedYear
                         ? '-- Select Year First --'
                         : loadingSites
                         ? 'Loading sites...'
+                        : sites.length === 0
+                        ? '-- No Pending Sites --'
                         : '-- Select Site --'
                     }
                     value={selectedSiteId}
@@ -957,7 +967,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                       value: String(s.id),
                       label: s.label || s.site_name || s.farmer_name || s.beneficiary_name || `Site #${s.id}`,
                     }))}
-                    disabled={loadingSites || (years.length > 0 && !selectedYear)}
+                    disabled={loadingSites || (Boolean(onFetchYears) && !selectedYear)}
                     onChange={(v) => {
                       setSelectedSiteId(v);
                       if (errors.site) clearError('site');
@@ -992,7 +1002,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 </div>
               ) : (
                 <div className="up-form-grid up-form-grid--3col">
-                  <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || 'UP'} />
+                  <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || ''} />
                   <FloatingInput id="up-info-district" label="District" readOnly value={siteInfo.district || ''} />
                   <FloatingInput id="up-info-village" label="Village" readOnly value={siteInfo.village || ''} />
                   <FloatingInput id="up-info-beneficiary" label="Beneficiary Name" readOnly value={siteInfo.beneficiaryName || ''} />
@@ -1036,10 +1046,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   id="up-amc-month"
                   label={monthOrPeriodLabel}
                   required
-                  placeholder={monthOrPeriodPlaceholder}
+                  placeholder={periodOptions.length === 0 && selectedSiteId && !loadingSiteDetails ? '-- No Pending Period Available --' : monthOrPeriodPlaceholder}
                   value={selectedMonth}
                   options={periodOptions}
-                  disabled={!selectedSiteId || loadingSiteDetails}
+                  disabled={!selectedSiteId || loadingSiteDetails || periodOptions.length === 0}
                   onChange={(v) => {
                     setSelectedMonth(v);
                     if (errors.month) clearError('month');
