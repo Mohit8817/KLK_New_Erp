@@ -29,15 +29,38 @@ interface JammuRescoSummary {
   site_count: number;
   complete: number;
   pending: number;
-  material_dispatch: number;
-  material_pending: number;
   verify_approved: number;
   verify_pending: number;
   verify_reject: number;
-  claim_applicable: number;
-  claim_raised: number;
-  inst_pay80_done: number;
-  inst_pay20_done: number;
+  doc_approved: number;
+  doc_pending: number;
+  doc_reject: number;
+  inst_claim1_applicable: number;
+  inst_claim1_raised: number;
+  inst_claim1_approved: number;
+  inst_claim1_pending: number;
+  inst_claim1_reject: number;
+  inst_claim2_applicable: number;
+  inst_claim2_raised: number;
+  inst_claim2_approved: number;
+  inst_claim2_pending: number;
+  inst_claim2_reject: number;
+  inst_claim3_applicable: number;
+  inst_claim3_raised: number;
+  inst_claim3_approved: number;
+  inst_claim3_pending: number;
+  inst_claim3_reject: number;
+  inst_pay1_complete: number;
+  inst_pay1_partially: number;
+  inst_pay1_pending: number;
+  inst_pay2_complete: number;
+  inst_pay2_partially: number;
+  inst_pay2_pending: number;
+  inst_pay3_complete: number;
+  inst_pay3_partially: number;
+  inst_pay3_pending: number;
+  material_dispatch?: number;
+  material_pending?: number;
 }
 
 interface DistrictRow extends JammuRescoSummary {
@@ -82,35 +105,46 @@ const useIsMobile = (breakpoint = 640) => {
 // API ke raw object ko number-safe summary me convert karta hai (null => 0)
 const toSummary = (o: any): JammuRescoSummary => {
   const src = o?.resco || o?.data?.resco || o?.data || o || {};
-  const total = n(src?.total ?? src?.site_count);
+  const total = n(src?.site_count ?? src?.total);
   const complete = n(src?.complete ?? src?.inst_complete);
-  const pending = n(src?.pending ?? (total ? Math.max(0, total - complete) : 0));
-  const matDisp = n(src?.material_dispatch);
-  const matPend = n(src?.material_pending ?? (total && matDisp ? Math.max(0, total - matDisp) : 0));
-  const vApp = n(src?.verify_approved);
-  const vPend = n(src?.verify_pending);
-  const vRej = n(src?.verify_reject);
-  const cApp = n(src?.claim_applicable ?? complete);
-  const c1 = n(src?.inst_claim1_approved);
-  const c2 = n(src?.inst_claim2_approved);
-  const c3 = n(src?.inst_claim3_approved);
-  const cRaised = n(src?.claim_raised ?? (c1 + c2 + c3));
-  const pay80 = n(src?.inst_pay80_done ?? c1);
-  const pay20 = n(src?.inst_pay20_done ?? c2);
+  const pending = n(src?.pending);
 
   return {
     site_count: total,
     complete,
     pending,
-    material_dispatch: matDisp,
-    material_pending: matPend,
-    verify_approved: vApp,
-    verify_pending: vPend,
-    verify_reject: vRej,
-    claim_applicable: cApp,
-    claim_raised: cRaised,
-    inst_pay80_done: pay80,
-    inst_pay20_done: pay20,
+    verify_approved: n(src?.verify_approved),
+    verify_pending: n(src?.verify_pending),
+    verify_reject: n(src?.verify_reject),
+    doc_approved: n(src?.doc_approved),
+    doc_pending: n(src?.doc_pending),
+    doc_reject: n(src?.doc_reject),
+    inst_claim1_applicable: n(src?.inst_claim1_applicable),
+    inst_claim1_raised: n(src?.inst_claim1_raised),
+    inst_claim1_approved: n(src?.inst_claim1_approved),
+    inst_claim1_pending: n(src?.inst_claim1_pending),
+    inst_claim1_reject: n(src?.inst_claim1_reject),
+    inst_claim2_applicable: n(src?.inst_claim2_applicable),
+    inst_claim2_raised: n(src?.inst_claim2_raised),
+    inst_claim2_approved: n(src?.inst_claim2_approved),
+    inst_claim2_pending: n(src?.inst_claim2_pending),
+    inst_claim2_reject: n(src?.inst_claim2_reject),
+    inst_claim3_applicable: n(src?.inst_claim3_applicable),
+    inst_claim3_raised: n(src?.inst_claim3_raised),
+    inst_claim3_approved: n(src?.inst_claim3_approved),
+    inst_claim3_pending: n(src?.inst_claim3_pending),
+    inst_claim3_reject: n(src?.inst_claim3_reject),
+    inst_pay1_complete: n(src?.inst_pay1_complete),
+    inst_pay1_partially: n(src?.inst_pay1_partially),
+    inst_pay1_pending: n(src?.inst_pay1_pending),
+    inst_pay2_complete: n(src?.inst_pay2_complete),
+    inst_pay2_partially: n(src?.inst_pay2_partially),
+    inst_pay2_pending: n(src?.inst_pay2_pending),
+    inst_pay3_complete: n(src?.inst_pay3_complete),
+    inst_pay3_partially: n(src?.inst_pay3_partially),
+    inst_pay3_pending: n(src?.inst_pay3_pending),
+    material_dispatch: n(src?.material_dispatch),
+    material_pending: n(src?.material_pending),
   };
 };
 
@@ -475,15 +509,13 @@ export function RescoDashboard() {
   const matPct = pctOf(s.material_dispatch, s.site_count);
   const monthTotal = monthly.reduce((a, m) => a + n(m.monthly_installations), 0);
   const todayLabel = fmtDate(new Date());
-  const pay80Pending = Math.max(0, s.complete - s.inst_pay80_done);
-  const pay20Pending = Math.max(0, s.complete - s.inst_pay20_done);
 
   // Status drill-down navigation (consistent pattern across dashboards)
   const goStatus = (st: string, dist?: string) => {
     const norm = normalizeRescoStatus(st);
     const d = dist || (filtersActive ? selectedDistrict : '');
-    const distParam = d ? `&district=${encodeURIComponent(d)}` : '';
-    navigate(`/v/jammu/installation/resco/status-view?status=${encodeURIComponent(norm)}${distParam}`);
+    const distParam = d && d.toLowerCase() !== 'all' ? `?district=${encodeURIComponent(d)}` : '';
+    navigate(`/v/jk/resco-installation-view-data/${encodeURIComponent(norm)}${distParam}`);
   };
 
   const spk = (pickFn: (d: DistrictRow) => number) => {
@@ -502,20 +534,41 @@ export function RescoDashboard() {
 
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(
     () => [
+      { header: 'Sr. No.', accessor: (_r: DistrictRow, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
       { header: 'District', accessor: (r) => r.district || '' },
-      { header: 'Total Sites', accessor: (r) => n(r.site_count) },
-      { header: 'Install Done', accessor: (r) => n(r.complete) },
-      { header: 'Install Pending', accessor: (r) => n(r.pending) },
-      { header: 'Material Dispatched', accessor: (r) => n(r.material_dispatch) },
-      { header: 'Material Pending', accessor: (r) => n(r.material_pending) },
-      { header: 'Approved', accessor: (r) => n(r.verify_approved) },
+      { header: 'Total allocation', accessor: (r) => n(r.site_count) },
+      { header: 'Total Installed', accessor: (r) => n(r.complete) },
+      { header: 'Pending Installation', accessor: (r) => n(r.pending) },
+      { header: 'Verify Approved', accessor: (r) => n(r.verify_approved) },
       { header: 'Verify Pending', accessor: (r) => n(r.verify_pending) },
-      { header: 'Verify Rejected', accessor: (r) => n(r.verify_reject) },
-      { header: 'Claim Applicable', accessor: (r) => n(r.claim_applicable) },
-      { header: 'Claim Raised', accessor: (r) => n(r.claim_raised) },
-      { header: '80% Paid Sites', accessor: (r) => n(r.inst_pay80_done) },
-      { header: '20% Paid Sites', accessor: (r) => n(r.inst_pay20_done) },
-      { header: 'Completion %', accessor: (r) => `${pctOf(n(r.complete), n(r.site_count))}%` },
+      { header: 'Verify Reject', accessor: (r) => n(r.verify_reject) },
+      { header: 'Document Approved', accessor: (r) => n(r.doc_approved) },
+      { header: 'Document Pending', accessor: (r) => n(r.doc_pending) },
+      { header: 'Document Reject', accessor: (r) => n(r.doc_reject) },
+      { header: 'Claim 1 Applicable', accessor: (r) => n(r.inst_claim1_applicable) },
+      { header: 'Claim 1 Submitted', accessor: (r) => n(r.inst_claim1_raised) },
+      { header: 'Claim 1 Approved', accessor: (r) => n(r.inst_claim1_approved) },
+      { header: 'Claim 1 Pending', accessor: (r) => n(r.inst_claim1_pending) },
+      { header: 'Claim 1 Reject', accessor: (r) => n(r.inst_claim1_reject) },
+      { header: 'Claim 2 Applicable', accessor: (r) => n(r.inst_claim2_applicable) },
+      { header: 'Claim 2 Submitted', accessor: (r) => n(r.inst_claim2_raised) },
+      { header: 'Claim 2 Approved', accessor: (r) => n(r.inst_claim2_approved) },
+      { header: 'Claim 2 Pending', accessor: (r) => n(r.inst_claim2_pending) },
+      { header: 'Claim 2 Reject', accessor: (r) => n(r.inst_claim2_reject) },
+      { header: 'Claim 3 Applicable', accessor: (r) => n(r.inst_claim3_applicable) },
+      { header: 'Claim 3 Submitted', accessor: (r) => n(r.inst_claim3_raised) },
+      { header: 'Claim 3 Approved', accessor: (r) => n(r.inst_claim3_approved) },
+      { header: 'Claim 3 Pending', accessor: (r) => n(r.inst_claim3_pending) },
+      { header: 'Claim 3 Reject', accessor: (r) => n(r.inst_claim3_reject) },
+      { header: 'Pay1 Complete', accessor: (r) => n(r.inst_pay1_complete) },
+      { header: 'Pay1 Partially', accessor: (r) => n(r.inst_pay1_partially) },
+      { header: 'Pay1 Pending', accessor: (r) => n(r.inst_pay1_pending) },
+      { header: 'Pay2 Complete', accessor: (r) => n(r.inst_pay2_complete) },
+      { header: 'Pay2 Partially', accessor: (r) => n(r.inst_pay2_partially) },
+      { header: 'Pay2 Pending', accessor: (r) => n(r.inst_pay2_pending) },
+      { header: 'Pay3 Complete', accessor: (r) => n(r.inst_pay3_complete) },
+      { header: 'Pay3 Partially', accessor: (r) => n(r.inst_pay3_partially) },
+      { header: 'Pay3 Pending', accessor: (r) => n(r.inst_pay3_pending) },
     ],
     []
   );
@@ -755,127 +808,184 @@ export function RescoDashboard() {
                 <dd className="ax-num">{dash(s.complete)}</dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('material_dispatch')} onKeyDown={onActivate(() => goStatus('material_dispatch'))} title="Click to view dispatched sites">
-                <dt>Material Dispatched</dt>
-                <dd className="ax-num">{dash(s.material_dispatch)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{matPct}% Dispatched ↗</small>
-              </div>
-              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('verify_approved')} onKeyDown={onActivate(() => goStatus('verify_approved'))} title="Click to view approved sites">
-                <dt>Approved</dt>
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('verify-approved')} onKeyDown={onActivate(() => goStatus('verify-approved'))} title="Click to view approved sites">
+                <dt>Verify Approved</dt>
                 <dd className="ax-num">{dash(s.verify_approved)}</dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved ↗</small>
+              </div>
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('doc-approved')} onKeyDown={onActivate(() => goStatus('doc-approved'))} title="Click to view doc approved sites">
+                <dt>Document Approved</dt>
+                <dd className="ax-num">{dash(s.doc_approved)}</dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(s.doc_approved)} Sites ↗</small>
               </div>
             </dl>
           </div>
         </section>
 
-        {/* 4. 8 KPI Cards — click card or any number */}
+        {/* 4. 11 KPI Cards — click card or any individual status link */}
+        {/* 1. Total Sites */}
         <KpiCard
           icon={I_PIN}
           tone="accent"
-          label="Total Sites"
+          label="Total"
           value={dash(s.site_count)}
           unit="Sites"
-          sub="Total allocated rooftop sites"
-          badge={s.site_count ? `${instPct}% installed` : undefined}
+          sub="Total Sites"
           spark={spk((d) => n(d.site_count))}
           onClick={() => goStatus('total')}
         />
 
+        {/* 2. Installation Status */}
         <KpiCard
           icon={I_DONE}
           tone="emerald"
           label="Installation Status"
-          sub="Installed / Pending"
+          sub="Complete / Pending"
           badge={`${instPct}%`}
           spark={spk((d) => n(d.complete))}
           onClick={() => goStatus('complete')}
           pills={[
-            { label: 'Installed', count: dash(s.complete), onClick: () => goStatus('complete') },
+            { label: 'Complete', count: dash(s.complete), onClick: () => goStatus('complete') },
             { label: 'Pending', count: dash(s.pending), onClick: () => goStatus('pending') },
           ]}
         />
 
-        <KpiCard
-          icon={I_TRUCK}
-          tone="cyan"
-          label="Material Dispatch"
-          sub="Dispatched / Pending"
-          badge={s.material_dispatch > 0 ? `${matPct}%` : undefined}
-          spark={spk((d) => n(d.material_dispatch))}
-          onClick={() => goStatus('material_dispatch')}
-          pills={[
-            { label: 'Dispatched', count: dash(s.material_dispatch), onClick: () => goStatus('material_dispatch') },
-            { label: 'Pending', count: dash(s.material_pending), onClick: () => goStatus('material_pending') },
-          ]}
-        />
-
+        {/* 3. Verification Status */}
         <KpiCard
           icon={I_SHIELD}
-          tone="amber"
+          tone="cyan"
           label="Verification Status"
           sub="Approved / Pending / Rejected"
           badge={s.verify_approved > 0 ? `${approvedPct}%` : undefined}
           spark={spk((d) => n(d.verify_approved))}
-          onClick={() => goStatus('verify_approved')}
+          onClick={() => goStatus('verify-approved')}
           pills={[
-            { label: 'Approved', count: dash(s.verify_approved), onClick: () => goStatus('verify_approved') },
-            { label: 'Verify Pending', count: dash(s.verify_pending), onClick: () => goStatus('verify_pending') },
-            { label: 'Rejected', count: dash(s.verify_reject), onClick: () => goStatus('verify_reject') },
+            { label: 'Approved', count: dash(s.verify_approved), onClick: () => goStatus('verify-approved') },
+            { label: 'Pending', count: dash(s.verify_pending), onClick: () => goStatus('verify-pending') },
+            { label: 'Rejected', count: dash(s.verify_reject), onClick: () => goStatus('verify-reject') },
           ]}
         />
 
+        {/* 4. Document Status */}
         <KpiCard
           icon={I_EYE}
-          tone="violet"
-          label="Verification Pending"
-          value={dash(s.verify_pending)}
-          unit="Sites"
-          sub="Awaiting verification"
-          badge={s.verify_pending > 0 ? `${num(s.verify_pending)} Sites` : undefined}
-          spark={spk((d) => n(d.verify_pending))}
-          onClick={() => goStatus('verify_pending')}
-        />
-
-        <KpiCard
-          icon={I_LIST}
-          tone="pink"
-          label="Claim Status"
-          sub="Applicable / Raised"
-          badge={s.claim_raised > 0 ? `${num(s.claim_raised)} Raised` : undefined}
-          spark={spk((d) => n(d.claim_raised))}
-          onClick={() => goStatus('claim_raised')}
+          tone="amber"
+          label="Document Status"
+          sub="Approved / Pending / Rejected"
+          spark={spk((d) => n(d.doc_approved))}
+          onClick={() => goStatus('doc-approved')}
           pills={[
-            { label: 'Applicable', count: dash(s.claim_applicable), onClick: () => goStatus('claim_applicable') },
-            { label: 'Raised', count: dash(s.claim_raised), onClick: () => goStatus('claim_raised') },
+            { label: 'Approved', count: dash(s.doc_approved), onClick: () => goStatus('doc-approved') },
+            { label: 'Pending', count: dash(s.doc_pending), onClick: () => goStatus('doc-pending') },
+            { label: 'Rejected', count: dash(s.doc_reject), onClick: () => goStatus('doc-reject') },
           ]}
         />
 
+        {/* 5. Claim Applicable Status */}
+        <KpiCard
+          icon={I_LIST}
+          tone="violet"
+          label="Claim Applicable Status"
+          sub="Claim1 / Claim2 / Claim3"
+          spark={spk((d) => n(d.inst_claim1_applicable))}
+          onClick={() => goStatus('inst-claim1-applicable')}
+          pills={[
+            { label: 'Claim1', count: dash(s.inst_claim1_applicable), onClick: () => goStatus('inst-claim1-applicable') },
+            { label: 'Claim2', count: dash(s.inst_claim2_applicable), onClick: () => goStatus('inst-claim2-applicable') },
+            { label: 'Claim3', count: dash(s.inst_claim3_applicable), onClick: () => goStatus('inst-claim3-applicable') },
+          ]}
+        />
+
+        {/* 6. Claim 1st */}
+        <KpiCard
+          icon={I_COIN}
+          tone="pink"
+          label="Claim 1st"
+          sub="Submitted / Approved / Pending / Reject"
+          spark={spk((d) => n(d.inst_claim1_raised))}
+          onClick={() => goStatus('inst-claim1-raised')}
+          pills={[
+            { label: 'Submitted', count: dash(s.inst_claim1_raised), onClick: () => goStatus('inst-claim1-raised') },
+            { label: 'Approved', count: dash(s.inst_claim1_approved), onClick: () => goStatus('inst-claim1-approved') },
+            { label: 'Pending', count: dash(s.inst_claim1_pending), onClick: () => goStatus('inst-claim1-pending') },
+            { label: 'Reject', count: dash(s.inst_claim1_reject), onClick: () => goStatus('inst-claim1-reject') },
+          ]}
+        />
+
+        {/* 7. Claim 2nd */}
+        <KpiCard
+          icon={I_COIN}
+          tone="pink"
+          label="Claim 2nd"
+          sub="Submitted / Approved / Pending / Reject"
+          spark={spk((d) => n(d.inst_claim2_raised))}
+          onClick={() => goStatus('inst-claim2-raised')}
+          pills={[
+            { label: 'Submitted', count: dash(s.inst_claim2_raised), onClick: () => goStatus('inst-claim2-raised') },
+            { label: 'Approved', count: dash(s.inst_claim2_approved), onClick: () => goStatus('inst-claim2-approved') },
+            { label: 'Pending', count: dash(s.inst_claim2_pending), onClick: () => goStatus('inst-claim2-pending') },
+            { label: 'Reject', count: dash(s.inst_claim2_reject), onClick: () => goStatus('inst-claim2-reject') },
+          ]}
+        />
+
+        {/* 8. Claim 3rd */}
+        <KpiCard
+          icon={I_COIN}
+          tone="pink"
+          label="Claim 3rd"
+          sub="Submitted / Approved / Pending / Reject"
+          spark={spk((d) => n(d.inst_claim3_raised))}
+          onClick={() => goStatus('inst-claim3-raised')}
+          pills={[
+            { label: 'Submitted', count: dash(s.inst_claim3_raised), onClick: () => goStatus('inst-claim3-raised') },
+            { label: 'Approved', count: dash(s.inst_claim3_approved), onClick: () => goStatus('inst-claim3-approved') },
+            { label: 'Pending', count: dash(s.inst_claim3_pending), onClick: () => goStatus('inst-claim3-pending') },
+            { label: 'Reject', count: dash(s.inst_claim3_reject), onClick: () => goStatus('inst-claim3-reject') },
+          ]}
+        />
+
+        {/* 9. Payment 1st */}
         <KpiCard
           icon={I_COIN}
           tone="emerald"
-          label="80% Payment Status"
-          sub="Paid / Pending (of installed)"
-          badge={s.inst_pay80_done > 0 ? 'Disbursed' : undefined}
-          spark={spk((d) => n(d.inst_pay80_done))}
-          onClick={() => goStatus('inst-pay80-done')}
+          label="Payment 1st"
+          sub="Complete / Partially / Pending"
+          spark={spk((d) => n(d.inst_pay1_complete))}
+          onClick={() => goStatus('inst-pay1-complete')}
           pills={[
-            { label: 'Paid', count: dash(s.inst_pay80_done), onClick: () => goStatus('inst-pay80-done') },
-            { label: 'Pending', count: dash(pay80Pending) },
+            { label: 'Complete', count: dash(s.inst_pay1_complete), onClick: () => goStatus('inst-pay1-complete') },
+            { label: 'Partially', count: dash(s.inst_pay1_partially), onClick: () => goStatus('inst-pay1-partially') },
+            { label: 'Pending', count: dash(s.inst_pay1_pending), onClick: () => goStatus('inst-pay1-pending') },
           ]}
         />
 
+        {/* 10. Payment 2nd */}
         <KpiCard
           icon={I_COIN}
-          tone="amber"
-          label="20% Final Payment Status"
-          sub="Paid / Pending (of installed)"
-          badge={s.inst_pay20_done > 0 ? 'Disbursed' : undefined}
-          spark={spk((d) => n(d.inst_pay20_done))}
-          onClick={() => goStatus('inst-pay20-done')}
+          tone="emerald"
+          label="Payment 2nd"
+          sub="Complete / Partially / Pending"
+          spark={spk((d) => n(d.inst_pay2_complete))}
+          onClick={() => goStatus('inst-pay2-complete')}
           pills={[
-            { label: 'Paid', count: dash(s.inst_pay20_done), onClick: () => goStatus('inst-pay20-done') },
-            { label: 'Pending', count: dash(pay20Pending) },
+            { label: 'Complete', count: dash(s.inst_pay2_complete), onClick: () => goStatus('inst-pay2-complete') },
+            { label: 'Partially', count: dash(s.inst_pay2_partially), onClick: () => goStatus('inst-pay2-partially') },
+            { label: 'Pending', count: dash(s.inst_pay2_pending), onClick: () => goStatus('inst-pay2-pending') },
+          ]}
+        />
+
+        {/* 11. Payment 3rd */}
+        <KpiCard
+          icon={I_COIN}
+          tone="emerald"
+          label="Payment 3rd"
+          sub="Complete / Partially / Pending"
+          spark={spk((d) => n(d.inst_pay3_complete))}
+          onClick={() => goStatus('inst-pay3-complete')}
+          pills={[
+            { label: 'Complete', count: dash(s.inst_pay3_complete), onClick: () => goStatus('inst-pay3-complete') },
+            { label: 'Partially', count: dash(s.inst_pay3_partially), onClick: () => goStatus('inst-pay3-partially') },
+            { label: 'Pending', count: dash(s.inst_pay3_pending), onClick: () => goStatus('inst-pay3-pending') },
           ]}
         />
 
@@ -1104,45 +1214,67 @@ export function RescoDashboard() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--md" style={{ whiteSpace: 'nowrap' }}>
+            <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 3200 }}>
               <caption className="ax-visually-hidden">District-wise Installation Breakdown</caption>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Total Sites</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Install Done</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Install Pending</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Material Dispatched</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Material Pending</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Approved</th>
+                  <th className="ax-table__th" scope="col" style={{ width: 60 }}>Sr. No.</th>
+                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>District</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Total allocation</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Total Installed</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pending Installation</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Verify Approved</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Verify Pending</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Verify Rejected</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim Applicable</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim Raised</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>80% Paid</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>20% Paid</th>
-                  <th className="ax-table__th" scope="col">Completion %</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Verify Reject</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Document Approved</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Document Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Document Reject</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 1 Applicable</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 1 Submitted</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 1 Approved</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 1 Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 1 Reject</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 2 Applicable</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 2 Submitted</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 2 Approved</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 2 Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 2 Reject</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 3 Applicable</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 3 Submitted</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 3 Approved</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 3 Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim 3 Reject</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay1 Complete</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay1 Partially</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay1 Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay2 Complete</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay2 Partially</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay2 Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay3 Complete</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay3 Partially</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Pay3 Pending</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && !data ? (
                   <tr>
-                    <td className="ax-table__td" colSpan={15} style={emptyCellStyle}>
+                    <td className="ax-table__td" colSpan={36} style={emptyCellStyle}>
                       <span className="ax-spinner" /> Loading district installation metrics…
                     </td>
                   </tr>
                 ) : pD.paginatedData.length === 0 ? (
                   <tr>
-                    <td className="ax-table__td" colSpan={15} style={emptyCellStyle}>
+                    <td className="ax-table__td" colSpan={36} style={emptyCellStyle}>
                       <TableEmptyState title="No district records" message="Try clearing your search query" />
                     </td>
                   </tr>
                 ) : (
-                  pD.paginatedData.map((row) => {
-                    const rowInstPct = pctOf(row.complete, row.site_count);
+                  pD.paginatedData.map((row, idx) => {
+                    const srNo = (pD.currentPage - 1) * pD.pageSize + idx + 1;
                     return (
-                      <tr key={row.district}>
+                      <tr key={row.district || idx}>
+                        <td className="ax-table__td ax-num">{srNo}</td>
                         <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
                           {row.district}
                         </td>
@@ -1155,35 +1287,95 @@ export function RescoDashboard() {
                         <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('pending', row.district)} title="Click to view pending sites">
                           {num(row.pending)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_dispatch', row.district)}>
-                          {num(row.material_dispatch)}
-                        </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_pending', row.district)}>
-                          {num(row.material_pending)}
-                        </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)', fontWeight: 600 }} onClick={() => goStatus('verify_approved', row.district)}>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)', fontWeight: 600 }} onClick={() => goStatus('verify-approved', row.district)}>
                           {num(row.verify_approved)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('verify_pending', row.district)}>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('verify-pending', row.district)}>
                           {num(row.verify_pending)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('verify_reject', row.district)}>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('verify-reject', row.district)}>
                           {num(row.verify_reject)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_applicable', row.district)}>
-                          {num(row.claim_applicable)}
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)', fontWeight: 600 }} onClick={() => goStatus('doc-approved', row.district)}>
+                          {num(row.doc_approved)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_raised', row.district)}>
-                          {num(row.claim_raised)}
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('doc-pending', row.district)}>
+                          {num(row.doc_pending)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay80-done', row.district)}>
-                          {num(row.inst_pay80_done)}
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('doc-reject', row.district)}>
+                          {num(row.doc_reject)}
                         </td>
-                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay20-done', row.district)}>
-                          {num(row.inst_pay20_done)}
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim1-applicable', row.district)}>
+                          {num(row.inst_claim1_applicable)}
                         </td>
-                        <td className="ax-table__td">
-                          <Bar pct={rowInstPct} />
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim1-raised', row.district)}>
+                          {num(row.inst_claim1_raised)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-claim1-approved', row.district)}>
+                          {num(row.inst_claim1_approved)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-claim1-pending', row.district)}>
+                          {num(row.inst_claim1_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-claim1-reject', row.district)}>
+                          {num(row.inst_claim1_reject)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim2-applicable', row.district)}>
+                          {num(row.inst_claim2_applicable)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim2-raised', row.district)}>
+                          {num(row.inst_claim2_raised)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-claim2-approved', row.district)}>
+                          {num(row.inst_claim2_approved)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-claim2-pending', row.district)}>
+                          {num(row.inst_claim2_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-claim2-reject', row.district)}>
+                          {num(row.inst_claim2_reject)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim3-applicable', row.district)}>
+                          {num(row.inst_claim3_applicable)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim3-raised', row.district)}>
+                          {num(row.inst_claim3_raised)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-claim3-approved', row.district)}>
+                          {num(row.inst_claim3_approved)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-claim3-pending', row.district)}>
+                          {num(row.inst_claim3_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-claim3-reject', row.district)}>
+                          {num(row.inst_claim3_reject)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-pay1-complete', row.district)}>
+                          {num(row.inst_pay1_complete)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-pay1-partially', row.district)}>
+                          {num(row.inst_pay1_partially)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-pay1-pending', row.district)}>
+                          {num(row.inst_pay1_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-pay2-complete', row.district)}>
+                          {num(row.inst_pay2_complete)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-pay2-partially', row.district)}>
+                          {num(row.inst_pay2_partially)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-pay2-pending', row.district)}>
+                          {num(row.inst_pay2_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-pay3-complete', row.district)}>
+                          {num(row.inst_pay3_complete)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-pay3-partially', row.district)}>
+                          {num(row.inst_pay3_partially)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-pay3-pending', row.district)}>
+                          {num(row.inst_pay3_pending)}
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
@@ -1203,7 +1395,7 @@ export function RescoDashboard() {
               {tableDistricts.length > 0 && (
                 <tfoot className="ax-table__foot" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 700 }}>
                   <tr>
-                    <td className="ax-table__td">Total ({tableDistricts.length} Districts)</td>
+                    <td className="ax-table__td" colSpan={2}>Total ({tableDistricts.length} Districts)</td>
                     <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('total')}>
                       {num(districtTotals.site_count)}
                     </td>
@@ -1213,35 +1405,95 @@ export function RescoDashboard() {
                     <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('pending')}>
                       {num(districtTotals.pending)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_dispatch')}>
-                      {num(districtTotals.material_dispatch)}
-                    </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_pending')}>
-                      {num(districtTotals.material_pending)}
-                    </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('verify_approved')}>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('verify-approved')}>
                       {num(districtTotals.verify_approved)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('verify_pending')}>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('verify-pending')}>
                       {num(districtTotals.verify_pending)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('verify_reject')}>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('verify-reject')}>
                       {num(districtTotals.verify_reject)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_applicable')}>
-                      {num(districtTotals.claim_applicable)}
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('doc-approved')}>
+                      {num(districtTotals.doc_approved)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_raised')}>
-                      {num(districtTotals.claim_raised)}
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('doc-pending')}>
+                      {num(districtTotals.doc_pending)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay80-done')}>
-                      {num(districtTotals.inst_pay80_done)}
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('doc-reject')}>
+                      {num(districtTotals.doc_reject)}
                     </td>
-                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay20-done')}>
-                      {num(districtTotals.inst_pay20_done)}
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim1-applicable')}>
+                      {num(districtTotals.inst_claim1_applicable)}
                     </td>
-                    <td className="ax-table__td">
-                      <Bar pct={pctOf(districtTotals.complete, districtTotals.site_count)} />
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim1-raised')}>
+                      {num(districtTotals.inst_claim1_raised)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-claim1-approved')}>
+                      {num(districtTotals.inst_claim1_approved)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-claim1-pending')}>
+                      {num(districtTotals.inst_claim1_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-claim1-reject')}>
+                      {num(districtTotals.inst_claim1_reject)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim2-applicable')}>
+                      {num(districtTotals.inst_claim2_applicable)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim2-raised')}>
+                      {num(districtTotals.inst_claim2_raised)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-claim2-approved')}>
+                      {num(districtTotals.inst_claim2_approved)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-claim2-pending')}>
+                      {num(districtTotals.inst_claim2_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-claim2-reject')}>
+                      {num(districtTotals.inst_claim2_reject)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim3-applicable')}>
+                      {num(districtTotals.inst_claim3_applicable)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-claim3-raised')}>
+                      {num(districtTotals.inst_claim3_raised)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-claim3-approved')}>
+                      {num(districtTotals.inst_claim3_approved)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-claim3-pending')}>
+                      {num(districtTotals.inst_claim3_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-claim3-reject')}>
+                      {num(districtTotals.inst_claim3_reject)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-pay1-complete')}>
+                      {num(districtTotals.inst_pay1_complete)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-pay1-partially')}>
+                      {num(districtTotals.inst_pay1_partially)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-pay1-pending')}>
+                      {num(districtTotals.inst_pay1_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-pay2-complete')}>
+                      {num(districtTotals.inst_pay2_complete)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-pay2-partially')}>
+                      {num(districtTotals.inst_pay2_partially)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-pay2-pending')}>
+                      {num(districtTotals.inst_pay2_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('inst-pay3-complete')}>
+                      {num(districtTotals.inst_pay3_complete)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('inst-pay3-partially')}>
+                      {num(districtTotals.inst_pay3_partially)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('inst-pay3-pending')}>
+                      {num(districtTotals.inst_pay3_pending)}
                     </td>
                     <td className="ax-table__td" style={{ textAlign: 'center' }}>
                       <button

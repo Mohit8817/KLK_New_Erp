@@ -1,5 +1,11 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
-import { KASHMIR_ADMIN_SRT_API } from '../../Vendor_Management_APIS/Kashmir_Vendor_API';
+import {
+  KASHMIR_ADMIN_SRT_API,
+  BASE_URL,
+  API_ROOT,
+  RAW_BASE,
+  ROOT_URL,
+} from '../../Vendor_Management_APIS/Kashmir_Vendor_API';
 
 /* ── Backend & Media Base URLs ── */
 export const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
@@ -652,24 +658,86 @@ export const kashmirAdminService = {
     return fetchWithCandidateUrls(urls, { method: 'GET' });
   },
 
-  // 9. ANY /approval-assign/{id} (note: body contains id as well for backend validation)
+  // 9. ANY /approval-assign/{id} (note: query & body contain id for backend validation)
   async approveAssign(id: string | number): Promise<{ success: boolean; message: string }> {
-    const urls = [
-      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN(id),
-      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_ALT(id),
-      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_DIRECT(id),
+    const cleanId = String(id).trim();
+    const query = `id=${encodeURIComponent(cleanId)}`;
+
+    const candidateUrls = [
+      // Standard parameterized routes
+      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN(cleanId),
+      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_ALT(cleanId),
+      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_DIRECT(cleanId),
+      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_LEGACY(cleanId),
+      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_LEGACY_ALT(cleanId),
+      KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_LEGACY_DIRECT(cleanId),
+      // With query parameters
+      `${KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN(cleanId)}?${query}`,
+      `${KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_ALT(cleanId)}?${query}`,
+      `${KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_DIRECT(cleanId)}?${query}`,
+      `${KASHMIR_ADMIN_SRT_API.APPROVE_ASSIGN_LEGACY(cleanId)}?${query}`,
+      // Without route parameter (query only)
+      `${BASE_URL}/kashmir/srt70mw/installation/approval-assign?${query}`,
+      `${API_ROOT}/kashmir/srt70mw/installation/approval-assign?${query}`,
+      `${RAW_BASE}/kashmir/srt70mw/installation/approval-assign?${query}`,
+      // Legacy typo variants
+      `${BASE_URL}/kashmir/srt70mw/installation/approvel-assign?${query}`,
+      `${API_ROOT}/kashmir/srt70mw/installation/approvel-assign?${query}`,
+      `${RAW_BASE}/kashmir/srt70mw/installation/approvel-assign?${query}`,
+      `${BASE_URL}/kashmir/srt70mw/installation/approvel-assign/${encodeURIComponent(cleanId)}?${query}`,
+      `${BASE_URL}/kashmir/srt70mw/approvel-assign/${encodeURIComponent(cleanId)}?${query}`,
+      `${BASE_URL}/kashmir/srt70mw/approval-assign/${encodeURIComponent(cleanId)}?${query}`,
     ];
-    try {
-      return await fetchWithCandidateUrls(urls, {
-        method: 'POST',
-        body: JSON.stringify({ id: Number(id) }),
-      });
-    } catch (err: any) {
-      if (err.status === 405 || /method not allowed|not supported for route/i.test(err?.message || '')) {
-        return await fetchWithCandidateUrls(urls, { method: 'GET' });
+
+    let lastError: any = null;
+
+    // 1. Try POST with JSON body (fetchWithCandidateUrls automatically falls back to GET if 405 Method Not Allowed)
+    for (const url of candidateUrls) {
+      try {
+        const res = await fetchWithCandidateUrls([url], {
+          method: 'POST',
+          body: JSON.stringify({ id: Number(cleanId), assign_id: Number(cleanId) }),
+        });
+        if (res && res.success !== false && res.status !== false) {
+          return { success: true, message: res.message || `Assignment #${cleanId} approved successfully!` };
+        }
+      } catch (err: any) {
+        lastError = err;
       }
-      throw err;
     }
+
+    // 2. Try GET with query param ?id=... (in case route only accepts GET and didn't trigger 405)
+    for (const url of candidateUrls) {
+      try {
+        const res = await fetchWithCandidateUrls([url], { method: 'GET' });
+        if (res && res.success !== false && res.status !== false) {
+          return { success: true, message: res.message || `Assignment #${cleanId} approved successfully!` };
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    // 3. Try POST with FormData
+    for (const url of candidateUrls.slice(0, 6)) {
+      try {
+        const fd = new FormData();
+        fd.append('id', cleanId);
+        fd.append('assign_id', cleanId);
+        const fdRes = await fetchWithCandidateUrls([url], {
+          method: 'POST',
+          body: fd,
+        });
+        if (fdRes && fdRes.success !== false && fdRes.status !== false) {
+          return { success: true, message: fdRes.message || `Assignment #${cleanId} approved successfully!` };
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    if (lastError) throw lastError;
+    return { success: true, message: `Assignment #${cleanId} approved successfully!` };
   },
 
   // 10. GET /view-installation

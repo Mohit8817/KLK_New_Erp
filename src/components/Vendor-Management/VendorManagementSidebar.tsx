@@ -198,7 +198,7 @@ const VENDOR_SECTIONS: NavSection[] = [
   },
 
 
-  
+
   {
     section: 'Assam',
     state: 'assam',
@@ -1129,9 +1129,8 @@ const ROUTE_ALIASES: Record<string, string[]> = {
     '/vendor-management/up/resco-survey-assign-vendor',
   ],
 
-
   // ── Bihar Survey: SRT 200MW ──
-  '/vendor-management/bihar/srt200mw/survey/dashboard': [
+  '/vendor-management/bihar/srt200mw/survey/dashboard': [ 
     '/bihar/srt200mw-survey-dashbboard',
     '/vendor-management/bihar/srt200mw-survey-dashbboard',
   ],
@@ -1142,16 +1141,11 @@ const ROUTE_ALIASES: Record<string, string[]> = {
   '/vendor-management/bihar/srt200mw/survey/assign-view': [
     '/bihar/srt200mw-survey-assign-view',
     '/vendor-management/bihar/srt200mw-survey-assign-view',
-    '/vendor-management/bihar/srt200mw/survey/view-survey',
-    '/bihar/srt200mw/survey/view-survey',
-    '/vendor-management/bihar/srt200mw-view-survey',
-    '/bihar/srt200mw-view-survey',
   ],
   '/vendor-management/bihar/srt200mw/survey/verify': [
     '/bihar/srt200mw-survey-verify',
     '/vendor-management/bihar/srt200mw-survey-verify',
   ],
-
 
   // ── Bihar Survey: ULA ──
   '/vendor-management/bihar/ula/survey/view': [

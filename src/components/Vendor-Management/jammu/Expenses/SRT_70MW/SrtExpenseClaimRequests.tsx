@@ -923,7 +923,7 @@ export function SrtExpenseClaimRequests() {
     );
   }, [claimsList, searchQuery]);
 
-  const pagination = usePagination(filteredList, { initialPageSize: 10 });
+  const pagination = usePagination(filteredList, { initialPageSize: 100 });
 
   // Filtered payments inside Popup
   const popupFilteredPayments = useMemo(() => {

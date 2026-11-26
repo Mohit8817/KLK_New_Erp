@@ -6,7 +6,9 @@ import {
   ComplaintViewPage,
   DASH,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -62,7 +64,7 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   dateCol('Assigned Date', ['assigned_date']),
   statusCol<Row>(),
   dateCol('Close Date', ['close_complaint_date', 'manual_close_date', 'close_date']),
-  T('Created By', ['created_by']),
+  createdByCol<Row>('Created By'),
 ];
 
 export function UPComplaintOngridView() {
@@ -144,9 +146,7 @@ export function UPComplaintOngridView() {
         if (pick(c, ['sms']) !== DASH) {
           fields.push({ label: 'SMS Notification', value: pick(c, ['sms']) });
         }
-        if (pick(c, ['created_by']) !== DASH) {
-          fields.push({ label: 'Created By', value: pick(c, ['created_by']) });
-        }
+        fields.push({ label: 'Created By', value: getLoggedInUserName() || pick(c, ['created_by_name', 'created_by']) });
         if (pick(c, ['remarks']) !== DASH) {
           fields.push({ label: 'Remarks', value: pick(c, ['remarks']) });
         }

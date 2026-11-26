@@ -5,7 +5,9 @@ import {
 import {
   ComplaintViewPage,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -38,7 +40,7 @@ const COLUMNS: ComplaintColumn<UpKusumBComplaintItem>[] = [
   documentCol<UpKusumBComplaintItem>(),
   T('Assigned Date', ['assigned_date']),
   statusCol<UpKusumBComplaintItem>(),
-  T('Created_by', ['created_by']),
+  createdByCol<UpKusumBComplaintItem>('Created By'),
 ];
 
 export function UPComplaintKBView() {
@@ -89,7 +91,7 @@ export function UPComplaintKBView() {
         { label: 'Installation Date', value: pick(c, ['sys_installed', 'installation_date', 'sys_installed_date', 'inst_date']) },
         { label: 'Complaint Date', value: pick(c, ['complaint_date', 'created_date']) },
         { label: 'Assigned Date', value: pick(c, ['assigned_date']) },
-        { label: 'Created By', value: pick(c, ['created_by']) },
+        { label: 'Created By', value: getLoggedInUserName() || pick(c, ['created_by_name', 'created_by']) },
       ]}
       exportName="UP_KusumB_Complaints"
       exportTitle="UP Kusum B Complaints"

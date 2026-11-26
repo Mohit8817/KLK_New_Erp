@@ -459,7 +459,7 @@ const PAGE_CSS = `
 
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
   }
@@ -468,7 +468,7 @@ const PAGE_CSS = `
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (max-width: 520px) {
+  @media (max-width: 600px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: 1fr;
     }
@@ -644,16 +644,27 @@ function KpiCard({
   label,
   value,
   sub,
+  onClick,
 }: {
   icon: ReactNode;
   tone: KpiTone;
   label: string;
   value: ReactNode;
   sub: string;
+  onClick?: () => void;
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+    <div
+      className="ax-card"
+      style={{
+        padding: '14px 18px',
+        borderRadius: 12,
+        minWidth: 0,
+        cursor: onClick ? 'pointer' : undefined,
+      }}
+      onClick={onClick}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span
           style={{
@@ -701,6 +712,8 @@ export function Punjab_Installation_SSL_InstallationDetail() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('all');
+  const [claimFilter, setClaimFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
   const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'payment'>('all');
 
   // Photo preview modal (interactive lightbox)
@@ -782,6 +795,32 @@ export function Punjab_Installation_SSL_InstallationDetail() {
       list = list.filter((s) => s.district?.trim().toLowerCase() === districtFilter.toLowerCase());
     }
 
+    if (claimFilter !== 'all') {
+      if (claimFilter === 'applicable') {
+        const applicableIds = new Set(Array.isArray(data?.claimedapplicable1) ? data!.claimedapplicable1.map(Number) : []);
+        list = list.filter((s) => applicableIds.has(Number(s.id)) || Number(s.inst_claim_status ?? s.claim_status) === 0);
+      } else if (claimFilter === 'raised') {
+        list = list.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 1);
+      } else if (claimFilter === 'approved') {
+        list = list.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 2);
+      } else if (claimFilter === 'reject' || claimFilter === 'rejected') {
+        list = list.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 3);
+      } else if (claimFilter === 'pending') {
+        list = list.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 1);
+      } else if (claimFilter === 'not_applicable') {
+        const applicableIds = new Set(Array.isArray(data?.claimedapplicable1) ? data!.claimedapplicable1.map(Number) : []);
+        list = list.filter((s) => !applicableIds.has(Number(s.id)) && Number(s.inst_claim_status ?? s.claim_status) !== 1);
+      }
+    }
+
+    if (paymentFilter !== 'all') {
+      if (paymentFilter === 'complete' || paymentFilter === 'paid') {
+        list = list.filter((s) => Number(s.inst_pay_status ?? s.pay_status) === 1);
+      } else if (paymentFilter === 'pending') {
+        list = list.filter((s) => !s.inst_pay_status || Number(s.inst_pay_status ?? s.pay_status) === 0);
+      }
+    }
+
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((s) => {
@@ -810,25 +849,34 @@ export function Punjab_Installation_SSL_InstallationDetail() {
       });
     }
     return list;
-  }, [allLights, search, statusFilter, districtFilter]);
+  }, [allLights, search, statusFilter, districtFilter, claimFilter, paymentFilter, data]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filteredLights, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, districtFilter, activeTab, setPage]);
+  }, [search, statusFilter, districtFilter, activeTab, claimFilter, paymentFilter, setPage]);
 
-  const hasFilters = search.trim() !== '' || statusFilter !== 'all' || districtFilter !== 'all' || activeTab !== 'all';
+  const hasFilters =
+    search.trim() !== '' ||
+    statusFilter !== 'all' ||
+    districtFilter !== 'all' ||
+    activeTab !== 'all' ||
+    claimFilter !== 'all' ||
+    paymentFilter !== 'all';
+
   const resetFilters = () => {
     setSearch('');
     setStatusFilter('all');
     setDistrictFilter('all');
     setActiveTab('all');
+    setClaimFilter('all');
+    setPaymentFilter('all');
     setPage(1);
   };
 
-  // Summary counts from install_detail
+  // Summary counts from install_detail with robust fallback calculations
   const installDetail: PunjabInstallDetailSummary = data?.install_detail || {
     total: 0,
     complete: 0,
@@ -842,9 +890,62 @@ export function Punjab_Installation_SSL_InstallationDetail() {
     payment_pending: 0,
   };
 
-  const approvedCount = installDetail.verify_approved ?? allLights.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1).length;
-  const pendingCount = installDetail.verify_pending ?? allLights.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0).length;
-  const rejectedCount = installDetail.verify_reject ?? allLights.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2).length;
+  // 1. Total Light: Total / Installed / Pending
+  const totalLightsCount = Number(installDetail.total ?? (installDetail as any).light_count ?? 0);
+  const installedLightsCount = Number(installDetail.complete ?? (installDetail as any).installed ?? allLights.length);
+  const pendingLightsCount = Number(
+    installDetail.pending ?? Math.max(0, totalLightsCount - installedLightsCount)
+  );
+
+  // 2. Verification: Approved / Pending / Rejected
+  const verifyApprovedCount = Number(
+    installDetail.verify_approved ?? (installDetail as any).approved ?? allLights.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1).length
+  );
+  const verifyPendingCount = Number(
+    installDetail.verify_pending ?? (installDetail as any).pending_verify ?? allLights.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0).length
+  );
+  const verifyRejectedCount = Number(
+    installDetail.verify_reject ?? (installDetail as any).rejected ?? allLights.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2).length
+  );
+
+  // Backward-compatible aliases for existing references
+  const approvedCount = verifyApprovedCount;
+  const pendingCount = verifyPendingCount;
+  const rejectedCount = verifyRejectedCount;
+
+  // 3. Claim Status: Applicable / Submit / Not Applicable
+  const claimApplicableCount = Number(
+    installDetail.claim_applicable ?? (Array.isArray(data?.claimedapplicable1) ? data!.claimedapplicable1.length : 0)
+  );
+  const claimSubmitCount = Number(
+    installDetail.claim_raised ?? (installDetail as any).claim_submit ?? (installDetail as any).claim_submitted ?? allLights.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 1).length
+  );
+  const claimNotApplicableCount = Number(
+    installDetail.claim_not_applicable !== undefined && installDetail.claim_not_applicable !== null
+      ? installDetail.claim_not_applicable
+      : (installDetail as any).not_applicable !== undefined
+      ? (installDetail as any).not_applicable
+      : Math.max(0, installedLightsCount - claimApplicableCount - claimSubmitCount)
+  );
+
+  // 4. Claim Verify Status: Approved / Pending / Reject
+  const claimVerifyApprovedCount = Number(
+    installDetail.claim_verify_approved ?? (installDetail as any).claim_approved ?? allLights.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 2).length
+  );
+  const claimVerifyPendingCount = Number(
+    installDetail.claim_verify_pending ?? (installDetail as any).claim_pending ?? allLights.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 1).length
+  );
+  const claimVerifyRejectCount = Number(
+    installDetail.claim_verify_reject ?? (installDetail as any).claim_rejected ?? (installDetail as any).claim_reject ?? allLights.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 3).length
+  );
+
+  // 5. Payment Status: Complete / Pending
+  const paymentCompleteCount = Number(
+    installDetail.payment_complete ?? (installDetail as any).payment_done ?? (installDetail as any).inst_pay_done ?? allLights.filter((s) => Number(s.inst_pay_status ?? s.pay_status) === 1).length
+  );
+  const paymentPendingCount = Number(
+    installDetail.payment_pending ?? (installDetail as any).inst_pay_pending ?? allLights.filter((s) => Number(s.inst_pay_status ?? s.pay_status) === 0 || !s.inst_pay_status).length
+  );
 
   // Export columns
   const exportCols: ExportColumn<PunjabInstalledLightItem>[] = useMemo(() => [
@@ -1000,56 +1101,246 @@ export function Punjab_Installation_SSL_InstallationDetail() {
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards (4 cards in 1 row) ── */}
+      {/* ── Top Metric KPI Cards (6 cards in 3-column grid) ── */}
       <div className="asw-cards-row">
+        {/* 1. Total Light */}
         <KpiCard
           tone="accent"
-          label="Total Allocated"
-          value={(installDetail.total || 0).toLocaleString('en-IN')}
-          sub="Assigned for installation"
+          label="Total Light"
+          value={
+            loading ? (
+              '…'
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{ color: '#2563eb', cursor: 'pointer' }}
+                  title="Total Lights: Click to view all lights"
+                  onClick={(e) => { e.stopPropagation(); resetFilters(); }}
+                >
+                  {totalLightsCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#16a34a', cursor: 'pointer' }}
+                  title="Installed Lights: Click to view installed lights"
+                  onClick={(e) => { e.stopPropagation(); setActiveTab('completed'); }}
+                >
+                  {installedLightsCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#d97706', cursor: 'pointer' }}
+                  title="Pending Lights: Click to view pending lights"
+                  onClick={(e) => { e.stopPropagation(); setActiveTab('all'); setStatusFilter('pending'); }}
+                >
+                  {pendingLightsCount.toLocaleString('en-IN')}
+                </span>
+              </span>
+            )
+          }
+          sub="Total / Installed / Pending"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="2" />
-              <path d="M8 9h8M8 13h8M8 17h5" />
+              <line x1="9" y1="18" x2="15" y2="18" />
+              <line x1="10" y1="22" x2="14" y2="22" />
+              <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
             </svg>
           }
         />
 
-        <KpiCard
-          tone="emerald"
-          label="Installed Lights"
-          value={(installDetail.complete || allLights.length).toLocaleString('en-IN')}
-          sub="Equipment & photos uploaded"
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-          }
-        />
-
+        {/* 2. Verification */}
         <KpiCard
           tone="cyan"
-          label="Verify Approved"
-          value={approvedCount.toLocaleString('en-IN')}
-          sub={`${pendingCount} audit pending`}
+          label="Verification"
+          value={
+            loading ? (
+              '…'
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{ color: '#16a34a', cursor: 'pointer' }}
+                  title="Approved: Click to filter approved verification"
+                  onClick={(e) => { e.stopPropagation(); setStatusFilter('approved'); }}
+                >
+                  {verifyApprovedCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#d97706', cursor: 'pointer' }}
+                  title="Pending: Click to filter pending verification"
+                  onClick={(e) => { e.stopPropagation(); setStatusFilter('pending'); }}
+                >
+                  {verifyPendingCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#dc2626', cursor: 'pointer' }}
+                  title="Rejected: Click to filter rejected verification"
+                  onClick={(e) => { e.stopPropagation(); setStatusFilter('rejected'); }}
+                >
+                  {verifyRejectedCount.toLocaleString('en-IN')}
+                </span>
+              </span>
+            )
+          }
+          sub="Approved / Pending / Rejected"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 15" />
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
             </svg>
           }
         />
 
+        {/* 3. Claim Status */}
         <KpiCard
           tone="violet"
-          label="Payment Settled"
-          value={(installDetail.payment_complete || 0).toLocaleString('en-IN')}
-          sub={`${installDetail.claim_applicable || 0} claims applicable`}
+          label="Claim Status"
+          value={
+            loading ? (
+              '…'
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{ color: '#0891b2', cursor: 'pointer' }}
+                  title="Applicable: Click to filter claim applicable"
+                  onClick={(e) => { e.stopPropagation(); setClaimFilter('applicable'); }}
+                >
+                  {claimApplicableCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#7c3aed', cursor: 'pointer' }}
+                  title="Submit: Click to filter claim submitted"
+                  onClick={(e) => { e.stopPropagation(); setClaimFilter('raised'); }}
+                >
+                  {claimSubmitCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#64748b', cursor: 'pointer' }}
+                  title="Not Applicable: Click to filter claim not applicable"
+                  onClick={(e) => { e.stopPropagation(); setClaimFilter('not_applicable'); }}
+                >
+                  {claimNotApplicableCount.toLocaleString('en-IN')}
+                </span>
+              </span>
+            )
+          }
+          sub="Applicable / Submit / Not Applicable"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          }
+        />
+
+        {/* 4. Claim Verify Status */}
+        <KpiCard
+          tone="emerald"
+          label="Claim Verify Status"
+          value={
+            loading ? (
+              '…'
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{ color: '#16a34a', cursor: 'pointer' }}
+                  title="Approved: Click to filter claim approved"
+                  onClick={(e) => { e.stopPropagation(); setClaimFilter('approved'); }}
+                >
+                  {claimVerifyApprovedCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#d97706', cursor: 'pointer' }}
+                  title="Pending: Click to filter claim pending"
+                  onClick={(e) => { e.stopPropagation(); setClaimFilter('pending'); }}
+                >
+                  {claimVerifyPendingCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#dc2626', cursor: 'pointer' }}
+                  title="Reject: Click to filter claim rejected"
+                  onClick={(e) => { e.stopPropagation(); setClaimFilter('reject'); }}
+                >
+                  {claimVerifyRejectCount.toLocaleString('en-IN')}
+                </span>
+              </span>
+            )
+          }
+          sub="Approved / Pending / Reject"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          }
+        />
+
+        {/* 5. Payment Status */}
+        <KpiCard
+          tone="amber"
+          label="Payment Status"
+          value={
+            loading ? (
+              '…'
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{ color: '#16a34a', cursor: 'pointer' }}
+                  title="Complete: Click to filter payment complete"
+                  onClick={(e) => { e.stopPropagation(); setPaymentFilter('complete'); }}
+                >
+                  {paymentCompleteCount.toLocaleString('en-IN')}
+                </span>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400 }}>/</span>
+                <span
+                  style={{ color: '#d97706', cursor: 'pointer' }}
+                  title="Pending: Click to filter payment pending"
+                  onClick={(e) => { e.stopPropagation(); setPaymentFilter('pending'); }}
+                >
+                  {paymentPendingCount.toLocaleString('en-IN')}
+                </span>
+              </span>
+            )
+          }
+          sub="Complete / Pending"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 6v2m0 8v2" />
+            </svg>
+          }
+        />
+
+        {/* 6. Claim Applicable */}
+        <KpiCard
+          tone="accent"
+          label="Claim Applicable"
+          value={
+            loading ? (
+              '…'
+            ) : (
+              <span
+                style={{ color: '#2563eb', cursor: 'pointer' }}
+                title="Claim Applicable: Click to filter claim applicable lights"
+                onClick={(e) => { e.stopPropagation(); setClaimFilter('applicable'); }}
+              >
+                {claimApplicableCount.toLocaleString('en-IN')}
+              </span>
+            )
+          }
+          sub={claimSubmitCount > 0 ? `${claimSubmitCount} Claim Raised` : 'Claim Raised'}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
             </svg>
           }
         />
@@ -1111,6 +1402,37 @@ export function Punjab_Installation_SSL_InstallationDetail() {
                 <option value="approved">Approved</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
+              </select>
+
+              {/* Claim Status Filter */}
+              <select
+                id="punjab_claim_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={claimFilter}
+                onChange={(e) => setClaimFilter(e.target.value)}
+                aria-label="Filter by claim status"
+              >
+                <option value="all">All Claims</option>
+                <option value="applicable">Applicable</option>
+                <option value="raised">Submitted / Raised</option>
+                <option value="approved">Approved</option>
+                <option value="reject">Rejected</option>
+                <option value="not_applicable">Not Applicable</option>
+              </select>
+
+              {/* Payment Status Filter */}
+              <select
+                id="punjab_payment_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                aria-label="Filter by payment status"
+              >
+                <option value="all">All Payments</option>
+                <option value="complete">Paid / Complete</option>
+                <option value="pending">Pending</option>
               </select>
 
               {hasFilters && (

@@ -110,6 +110,10 @@ export const KASHMIR_API = {
 
       // 28. Approved claims and payment status: GET kashmir/srt70mw/installation-expenses-view-payment
       VIEW_PAYMENT: `${BASE_URL}/kashmir/srt70mw/installation-expenses-view-payment`,
+
+      // 29. Download expense claim PDF: GET kashmir/srt70mw/installation-expenses-claim-pdf/{id}
+      CLAIM_PDF: (id: number | string) =>
+        `${BASE_URL}/kashmir/srt70mw/installation-expenses-claim-pdf/${encodeURIComponent(id)}`,
     },
   },
 };

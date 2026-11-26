@@ -5,26 +5,53 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   upInstallationService,
   resolveUpMediaUrl,
+  getUpMediaCandidates,
   type UpRescoClaimItem,
-  type UpRescoVerifiedSite,
+  type UpRescoClaimData,
 } from '../../up-services';
 import {
   Pagination,
+  usePagination,
   SearchInput,
   TableExportToolbar,
   TableEmptyState,
-  KpiSkeleton,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
   type ExportColumn,
 } from '../../../../../common';
 
-/* ───────── Constants ───────── */
 const DASH = '—';
-const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+);
+
+const ClaimStatusBadge = ({ status }: { status?: number }) => {
+  const s = Number(status ?? 0);
+  if (s === 2) return <Badge tone="success">Approved</Badge>;
+  if (s === 3) return <Badge tone="danger">Rejected</Badge>;
+  if (s === 1) return <Badge tone="info">Raised (Pending Audit)</Badge>;
+  return <Badge tone="neutral">Not Raised</Badge>;
+};
+
+const PaymentStatusBadge = ({ status, isClaimRaised }: { status?: number; isClaimRaised?: boolean }) => {
+  if (isClaimRaised === false) return <Badge tone="neutral">Not Raised</Badge>;
+  const s = Number(status ?? 0);
+  if (s === 1 || s === 2) return <Badge tone="success">Disbursed</Badge>;
+  if (s === 3) return <Badge tone="danger">Rejected</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
+};
+
+const txt = (row: any, key: string): string => {
+  const v = row?.[key];
+  if (v === null || v === undefined || v === '') return '';
+  return String(v);
+};
+
+/* ───────── Modal Component ───────── */
 const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M18 6l-12 12" />
@@ -32,27 +59,183 @@ const X_ICON = (
   </svg>
 );
 
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
-const footerStyle = {
-  borderTop: '1px solid var(--ax-border, #e2e8f0)',
-  padding: 'var(--ax-space-3) var(--ax-space-4)',
-  display: 'flex',
-  justifyContent: 'flex-start',
-  alignItems: 'center',
-  width: '100%',
-  boxSizing: 'border-box',
-} as const;
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
 
-type Row = UpRescoClaimItem;
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  dialogClass = '',
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  dialogClass?: string;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
 
-/* ───────── KPI Card (Jammu pattern) ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return createPortal(
+    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Image Preview Modal (Interactive Lightbox Zoom) ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  return (
+    <Modal open onClose={onClose} labelledBy="claim-preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="claim-preview-title" style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+          {title || 'Invoice Preview'}
+        </h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+      </div>
+
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        {isPdf ? (
+          <div style={{ height: '70vh', width: '100%' }}>
+            <iframe src={url} title={title} style={{ width: '100%', height: '100%', border: 'none' }} />
+          </div>
+        ) : (
+          <div className="ula-m-stage">
+            {status === 'loading' && (
+              <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading invoice…</div>
+            )}
+            {status === 'error' && (
+              <div className="ula-m-stage__msg">Invoice document could not be previewed. Try opening it in a new tab.</div>
+            )}
+            <img
+              key={url}
+              src={url}
+              alt={title || 'Invoice'}
+              onLoad={() => setStatus('ready')}
+              onError={() => setStatus('error')}
+              style={{
+                display: status === 'ready' ? 'block' : 'none',
+                margin: 'auto',
+                borderRadius: 0,
+                ...(zoom === 1
+                  ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                  : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div className="ula-m-zoom" role="group" aria-label="Zoom">
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+        </div>
+        <div className="ula-m-zoom">
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── Interactive Image Thumbnail ── */
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 32,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getUpMediaCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 0,
+        objectFit: 'cover',
+        cursor: 'zoom-in',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'block',
+        flexShrink: 0,
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl, alt)}
+      title="Click to preview invoice"
+    />
+  );
+}
+
+/* ───────── Top KPI Card ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
   violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
 };
 
@@ -92,153 +275,17 @@ function KpiCard({
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
     </div>
   );
 }
 
-/* ───────── Reusable Modal (Jammu pattern) ───────── */
-function Modal({
-  open,
-  onClose,
-  labelledBy,
-  describedBy,
-  role = 'dialog',
-  centered = true,
-  dialogClass = '',
-  dialogStyle,
-  closeOnBackdrop = true,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  labelledBy: string;
-  describedBy?: string;
-  role?: 'dialog' | 'alertdialog';
-  centered?: boolean;
-  dialogClass?: string;
-  dialogStyle?: CSSProperties;
-  closeOnBackdrop?: boolean;
-  children: ReactNode;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-  return createPortal(
-    <div
-      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
-      role={role}
-      aria-modal="true"
-      aria-labelledby={labelledBy}
-      aria-describedby={describedBy}
-    >
-      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`} style={dialogStyle}>
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-/* ───────── Overlay CSS (Jammu pattern) ───────── */
-const OVERLAY_CSS = `
-  .ax-modal {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(6px);
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-  }
-  .ax-modal__backdrop {
-    position: fixed; inset: 0; background: transparent;
-  }
-  .ax-modal__dialog {
-    position: relative; z-index: 1; background: #ffffff;
-    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    overflow: hidden; width: 100%;
-  }
-  .ax-modal__dialog--md { max-width: 580px; }
-  .ax-modal__dialog--lg { max-width: 900px; }
-  .ax-modal__header {
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .ax-modal__close {
-    width: 32px; height: 32px; padding: 0; border-radius: 50%;
-    border: none; background: transparent; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
-    transition: all 0.15s ease;
-  }
-  .ax-modal__close:hover {
-    background: var(--ax-surface-hover, #e2e8f0);
-    color: var(--ax-text-strong, #0f172a);
-  }
-  .ax-modal__close svg { width: 16px; height: 16px; }
-  .ax-modal__body {
-    padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px);
-  }
-  .ax-modal__footer {
-    padding: 16px 24px;
-    border-top: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
-    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  }
-
-  /* Modern form fields inside modals */
-  .ax-modern-field {
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .ax-modern-label {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b);
-    letter-spacing: 0.02em; margin: 0;
-  }
-  .ax-modern-req {
-    color: #ef4444; font-weight: 700; margin-left: 3px;
-  }
-  .ax-modern-dropzone {
-    border: 1.5px dashed var(--ax-border, #cbd5e1);
-    border-radius: 10px; padding: 18px 16px;
-    background: var(--ax-surface-subtle, #f8fafc);
-    text-align: center; cursor: pointer; transition: all 0.2s ease;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  }
-  .ax-modern-dropzone:hover {
-    border-color: var(--ax-accent, #2563eb);
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
-  }
-  .ax-modern-dropzone__icon {
-    width: 42px; height: 42px; border-radius: 50%;
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .ax-modern-file-chip {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 9px;
-  }
-  .ax-modern-file-chip__icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: #dcfce7; display: flex; align-items: center; justify-content: center;
-  }
-`;
-
-/* ───────── Responsive Page CSS (Jammu pattern) ───────── */
+/* ───────── Styles ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -252,6 +299,7 @@ const PAGE_CSS = `
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
   .solar-erp-page img,
+  .solar-erp-page .ula-table--wide img,
   .solar-erp-page .ax-card img {
     border-radius: 0 !important;
   }
@@ -286,7 +334,6 @@ const PAGE_CSS = `
     max-width: 100%;
   }
   .solar-erp-page .ax-card__title,
-  .solar-erp-page .ax-card__eyebrow,
   .solar-erp-page .ax-card__subtitle {
     max-width: none;
     word-break: normal;
@@ -313,777 +360,1656 @@ const PAGE_CSS = `
   .solar-erp-page .ax-card__actions .ax-search,
   .solar-erp-page .ax-card__actions [class*="search"] {
     flex: 1 1 140px;
-    min-width: 200px;
-    max-width: 240px;
+    min-width: 180px;
+    max-width: 220px;
   }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-  .solar-erp-page .ax-export-toolbar__button {
-    padding-inline: 8px !important;
-    min-width: 0;
-  }
 
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    width: 100%;
   }
 
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0;
-      gap: 0;
-      padding: 0 8px !important;
-      justify-content: center;
-    }
-    .solar-erp-page .ax-export-toolbar__button svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  /* Modals */
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: transparent;
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__dialog--md { max-width: 580px; }
+  .ax-modal__dialog--lg { max-width: 900px; }
+  .ax-modal__header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body {
+    padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px);
+  }
+  .ax-modal__footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
   }
 
-  @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header {
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .solar-erp-page .ax-card__titles {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 100%;
-      max-width: 100%;
-    }
-    .solar-erp-page .ax-card__actions {
-      width: 100%;
-      justify-content: stretch;
-      margin-left: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-cluster {
-      width: 100%;
-      flex-wrap: wrap !important;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] {
-      flex: 1 1 100%;
-      max-width: 100%;
-    }
+  .ula-m-stage {
+    position: relative; display: flex; overflow: auto;
+    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
+  }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  .ax-modern-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ax-modern-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em; margin: 0;
+  }
+  .ax-modern-req {
+    color: #ef4444; font-weight: 700; margin-left: 3px;
   }
 `;
 
-/* ───────── View Detail Modal ───────── */
-function ViewDetailModal({
-  open,
-  item,
-  onClose,
-}: {
-  open: boolean;
-  item: Row | null;
-  onClose: () => void;
-}) {
-  if (!open || !item) return null;
+const actionsRowStyle: CSSProperties = { gap: 'var(--ax-space-2, 8px)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' };
+const footerStyle: CSSProperties = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3, 12px) var(--ax-space-4, 16px)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+};
+const centerCell: CSSProperties = { textAlign: 'center', padding: 24 };
 
-  const invoiceUrl = item.invoice ? resolveUpMediaUrl(item.invoice) : '';
-
-  return (
-    <Modal open={open} onClose={onClose} labelledBy="resco-view-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 620 }}>
-      <div className="ax-modal__header">
-        <div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Resco Installation
-          </span>
-          <h3 id="resco-view-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text, #0f172a)' }}>
-            Claim Details <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(#{item.id})</span>
-          </h3>
-        </div>
-        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
-      </div>
-
-      <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Claim Info */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Claim Information</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Claim Type: </span><strong>{txt(item.claim)}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Date: </span><strong>{txt(item.date)}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Sites: </span><strong>{txt(item.sites)}</strong></div>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Amount: </span>
-              <strong style={{ color: 'var(--ax-accent, #2563eb)' }}>{item.amount ? `₹${Number(item.amount).toLocaleString('en-IN')}` : DASH}</strong>
-            </div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{txt(item.remarks)}</strong></div>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
-              <span className={`ax-badge ax-badge--soft ${item.status === 2 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                {item.status === 2 ? 'Approved' : 'Pending'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Info */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Payment Details</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Payment Amount: </span><strong>{item.payment_amount ? `₹${Number(item.payment_amount).toLocaleString('en-IN')}` : DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Payment Balance: </span><strong>{item.payment_balance ? `₹${Number(item.payment_balance).toLocaleString('en-IN')}` : DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Payment Date: </span><strong>{txt(item.payment_date)}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Payment Remarks: </span><strong>{txt(item.payment_remarks)}</strong></div>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Payment Status: </span>
-              <span className={`ax-badge ax-badge--soft ${item.payment_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                {item.payment_status === 1 ? 'Complete' : 'Pending'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {invoiceUrl && (
-          <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm" style={{ alignSelf: 'flex-start' }}>
-            View Invoice ↗
-          </a>
-        )}
-      </div>
-
-      <div className="ax-modal__footer">
-        <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
-      </div>
-    </Modal>
-  );
-}
-
-/* ───────── Claim Submission Modal ───────── */
-function ClaimModal({
-  open,
-  title,
-  claimType,
-  milestone,
-  onClose,
-  onSubmit,
-  submitting,
-  verifiedSites,
-  loadingSites,
-}: {
-  open: boolean;
-  title: string;
-  claimType: string;
-  milestone: number;
-  onClose: () => void;
-  onSubmit: (
-    e: FormEvent,
-    data: { siteId: string; siteName: string; amount: string; invoice: File | null; remarks: string }
-  ) => void;
-  submitting: boolean;
-  verifiedSites: UpRescoVerifiedSite[];
-  loadingSites: boolean;
-}) {
-  const [selectedSiteId, setSelectedSiteId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [invoice, setInvoice] = useState<File | null>(null);
-  const [remarks, setRemarks] = useState('');
-
-  useEffect(() => {
-    if (open) {
-      setSelectedSiteId('');
-      setAmount('');
-      setInvoice(null);
-      setRemarks('');
-    }
-  }, [open]);
-
-  if (!open) return null;
-
-  const selectedSite = verifiedSites.find((s) => String(s.id) === selectedSiteId);
-  const siteName = selectedSite ? selectedSite.site_name : '';
-
-  return (
-    <Modal open={open} onClose={onClose} labelledBy="resco-claim-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 540 }}>
-      <form onSubmit={(e) => onSubmit(e, { siteId: selectedSiteId, siteName, amount, invoice, remarks })}>
-        <div className="ax-modal__header">
-          <div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Resco Installation Claim
-            </span>
-            <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="resco-claim-title">
-              {title}
-            </h4>
-          </div>
-          <button type="button" className="ax-modal__close" onClick={onClose} disabled={submitting} aria-label="Close dialog">{X_ICON}</button>
-        </div>
-
-        <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Select Site */}
-          <div className="ax-modern-field">
-            <label className="ax-modern-label" htmlFor="claim_site_select">
-              <span>Select Site</span>
-              <span className="ax-modern-req">*</span>
-            </label>
-            <select
-              id="claim_site_select"
-              required
-              className="ax-input"
-              value={selectedSiteId}
-              onChange={(e) => setSelectedSiteId(e.target.value)}
-              disabled={submitting}
-              style={{ width: '100%', height: 42 }}
-            >
-              <option value="">-- Select Site --</option>
-              {verifiedSites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.site_name || `Site #${s.id}`} {s.district ? `(${s.district})` : ''} {s.sanction_load ? `[${s.sanction_load} kW]` : ''}
-                </option>
-              ))}
-            </select>
-            {loadingSites ? (
-              <span style={{ fontSize: 11, color: 'var(--ax-accent, #2563eb)' }}>
-                Loading verified sites…
-              </span>
-            ) : verifiedSites.length === 0 ? (
-              <span style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
-                No verified sites available from server.
-              </span>
-            ) : null}
-          </div>
-
-          {/* Invoice */}
-          <div className="ax-modern-field">
-            <label className="ax-modern-label" htmlFor="claim_invoice_file">
-              <span>Invoice</span>
-              <span className="ax-modern-req">*</span>
-            </label>
-            <input
-              id="claim_invoice_file"
-              type="file"
-              required
-              accept=".pdf,image/*"
-              className="ax-input"
-              style={{ padding: '8px 12px', height: 'auto', width: '100%' }}
-              onChange={(e) => setInvoice(e.target.files?.[0] || null)}
-              disabled={submitting}
-            />
-            {invoice && (
-              <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 4 }}>
-                Selected: {invoice.name} ({(invoice.size / 1024).toFixed(1)} KB)
-              </div>
-            )}
-          </div>
-
-          {/* Amount */}
-          <div className="ax-modern-field">
-            <label className="ax-modern-label" htmlFor="claim_amount">
-              <span>Amount</span>
-              <span className="ax-modern-req">*</span>
-            </label>
-            <input
-              id="claim_amount"
-              type="number"
-              required
-              min="1"
-              step="any"
-              className="ax-input"
-              placeholder="Enter Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={submitting}
-              style={{ width: '100%', height: 42 }}
-            />
-          </div>
-
-          {/* Remarks */}
-          <div className="ax-modern-field">
-            <label className="ax-modern-label" htmlFor="claim_remarks">
-              <span>Remarks</span>
-            </label>
-            <textarea
-              id="claim_remarks"
-              className="ax-input"
-              placeholder="Enter Remarks..."
-              rows={3}
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              disabled={submitting}
-              style={{ width: '100%', padding: '10px 12px' }}
-            />
-          </div>
-        </div>
-
-        <div className="ax-modal__footer">
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting || !selectedSiteId || !amount.trim() || !invoice}>
-            {submitting ? 'Submitting…' : 'Submit Claim'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-/* ───────── Export Columns ───────── */
-const EXPORT_COLS: ExportColumn<Row>[] = [
-  { header: 'S.No.', accessor: (_: any, idx?: number) => (idx !== undefined ? idx + 1 : 1) },
-  { header: 'Date', accessor: (r: any) => r.date || DASH },
-  { header: 'Claim', accessor: (r: any) => r.claim || DASH },
-  { header: 'Sites', accessor: (r: any) => String(r.sites ?? DASH) },
-  { header: 'Amount', accessor: (r: any) => (r.amount ? `₹${Number(r.amount).toLocaleString('en-IN')}` : DASH) },
-  { header: 'Remarks', accessor: (r: any) => r.remarks || DASH },
-  { header: 'Status', accessor: (r: any) => (r.status === 2 ? 'Approved' : 'Pending') },
-  { header: 'Payment Amount', accessor: (r: any) => (r.payment_amount ? `₹${Number(r.payment_amount).toLocaleString('en-IN')}` : DASH) },
-  { header: 'Payment Balance', accessor: (r: any) => (r.payment_balance ? `₹${Number(r.payment_balance).toLocaleString('en-IN')}` : DASH) },
-  { header: 'Payment Date', accessor: (r: any) => r.payment_date || DASH },
-  { header: 'Payment Remarks', accessor: (r: any) => r.payment_remarks || DASH },
-  { header: 'Payment Status', accessor: (r: any) => (r.payment_status === 1 ? 'Complete' : 'Pending') },
+// Table Column Headers matching EXACT format
+const RESCO_PAYMENT_HEADERS = [
+  'S.No.',
+  'Date',
+  'Claim',
+  'Sites',
+  'Invoice',
+  'Amount',
+  'Remarks',
+  'Status',
+  'Payment Amount',
+  'Payment Balance',
+  'Payment Date',
+  'Payment Remarks',
+  'Payment Status',
+  'Action',
 ];
 
-/* ═══════════════════════════════════════════════════════════════════════════ */
-/* ───────── Main Component ───────── */
-/* ═══════════════════════════════════════════════════════════════════════════ */
+type TabKey = 'all' | 'pay40' | 'pay30_1' | 'pay30_2';
+
+export interface UpRescoTableItem {
+  id: number;
+  site_id: number;
+  site_ids: number[];
+  site_name: string;
+  district: string;
+  state: string;
+  date?: string | null;
+  created_at?: string | null;
+  amount: string | number;
+  file?: string | null;
+  invoice?: string | null;
+  remarks?: string;
+  status: number;
+  pay_type: 1 | 2 | 3;
+  purpose: number;
+  payment_amount?: string | number;
+  payment_balance?: string | number;
+  payment_date?: string | null;
+  payment_remarks?: string;
+  payment_status: number;
+  is_site_record: boolean;
+  has_claim: boolean;
+  rawRecord?: any;
+}
 
 export function UP_Installation_Resco_ClaimRequest() {
-  const [loading, setLoading] = useState(false);
-  const [claims, setClaims] = useState<Row[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Toast / feedback (Jammu pattern)
-  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
-
-  // Claim Modal — opens with pre-filled claim type and milestone from button
-  const [claimModalOpen, setClaimModalOpen] = useState(false);
-  const [claimModalInfo, setClaimModalInfo] = useState<{
-    milestone: number;
-    percentage: string;
-    claimType: string;
-    title: string;
-  }>({
-    milestone: 1,
-    percentage: '40%',
-    claimType: 'Payment 40 %',
-    title: 'Add 1st Payment 40%',
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
+  const [claimData, setClaimData] = useState<UpRescoClaimData>({
+    payments: [],
+    pay1: [],
+    pay2: [],
+    pay3: [],
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [verifiedSites, setVerifiedSites] = useState<UpRescoVerifiedSite[]>([]);
-  const [loadingSites, setLoadingSites] = useState(false);
+  const [payments, setPayments] = useState<UpRescoClaimItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Open claim modal with specific type and milestone
-  const handleOpenClaimModal = (milestone: number, percentage: string) => {
-    const ordinal = milestone === 1 ? '1st' : milestone === 2 ? '2nd' : '3rd';
-    setClaimModalInfo({
-      milestone,
-      percentage,
-      claimType: `Payment ${percentage.replace('%', ' %')}`,
-      title: `Add ${ordinal} Payment ${percentage}`,
-    });
-    setClaimModalOpen(true);
-  };
+  // Filters
+  const [search, setSearch] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // View Detail Modal
-  const [viewItem, setViewItem] = useState<Row | null>(null);
+  // Preview Modal
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
+  const closePreview = useCallback(() => setPreview(null), []);
 
-  // ── Load Verified Sites for Dropdown ──
-  const loadVerifiedSites = useCallback(async () => {
-    setLoadingSites(true);
-    try {
-      const sites = await upInstallationService.getRescoVerifiedSites();
-      setVerifiedSites(Array.isArray(sites) ? sites : []);
-    } catch (e) {
-      console.warn('[ClaimRequest] Failed to load verified sites:', e);
-    } finally {
-      setLoadingSites(false);
-    }
-  }, []);
-
-  // ── Load Data ──
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await upInstallationService.getRescoClaims();
-      setClaims(res || []);
-    } catch (err: any) {
-      console.error(err);
-      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load Resco claims.' });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    loadVerifiedSites();
-  }, [loadData, loadVerifiedSites]);
-
-  // Toast auto-dismiss
+  // Toast
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
   useEffect(() => {
     if (!toastMsg) return;
     const t = window.setTimeout(() => setToastMsg(null), 4000);
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
-  // ── Submit Claim ──
-  const handleSubmitClaim = async (
-    e: FormEvent,
-    data: { siteId: string; siteName: string; amount: string; invoice: File | null; remarks: string }
-  ) => {
-    e.preventDefault();
-    if (!data.siteId || !data.amount.trim() || !data.invoice) return;
+  // Raise Claim Modal State (API 2: POST /up/resco/installation/add-claim)
+  const [raiseModalOpen, setRaiseModalOpen] = useState<boolean>(false);
+  const [submittingClaim, setSubmittingClaim] = useState<boolean>(false);
+  const [sitesDropdown, setSitesDropdown] = useState<any[]>([]);
 
-    setSubmitting(true);
-    const fd = new FormData();
-    fd.append('site_id', data.siteId);
-    fd.append('resco_id', data.siteId);
-    if (data.siteName) fd.append('site_name', data.siteName);
-    fd.append('claim', claimModalInfo.claimType);
-    fd.append('claim_type', claimModalInfo.claimType);
-    fd.append('pay_type', String(claimModalInfo.milestone));
-    fd.append('amount', data.amount);
-    fd.append('claim_amount', data.amount);
-    fd.append('invoice', data.invoice);
-    fd.append('file', data.invoice);
-    fd.append('claim_invoice', data.invoice);
-    if (data.remarks) fd.append('remarks', data.remarks);
+  const [claimPayType, setClaimPayType] = useState<number>(1);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
+  const [claimAmount, setClaimAmount] = useState<string>('');
+  const [claimPurpose, setClaimPurpose] = useState<number>(40);
+  const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
+  const [claimRemarks, setClaimRemarks] = useState<string>('');
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const claimFileRef = useRef<HTMLInputElement>(null);
+
+  const closeRaiseModal = () => {
+    setRaiseModalOpen(false);
+    setSelectedSiteId('');
+    setClaimAmount('');
+    setClaimPurpose(40);
+    setClaimInvoiceFile(null);
+    setClaimRemarks('');
+    setClaimError(null);
+    setClaimPayType(1);
+    if (claimFileRef.current) claimFileRef.current.value = '';
+  };
+
+  // Edit/Update Claim Modal State (API 3 & 4)
+  const [editClaimModalOpen, setEditClaimModalOpen] = useState<boolean>(false);
+  const [editingClaimId, setEditingClaimId] = useState<number | null>(null);
+  const [editAmount, setEditAmount] = useState<string>('');
+  const [editPayType, setEditPayType] = useState<number>(1);
+  const [editPurpose, setEditPurpose] = useState<number>(40);
+  const [editSiteId, setEditSiteId] = useState<string>('');
+  const [editRemarks, setEditRemarks] = useState<string>('');
+  const [editInvoiceFile, setEditInvoiceFile] = useState<File | null>(null);
+  const [editClaimLoading, setEditClaimLoading] = useState<boolean>(false);
+  const [submittingEditClaim, setSubmittingEditClaim] = useState<boolean>(false);
+  const [editClaimError, setEditClaimError] = useState<string | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
+
+  // Helper to extract numeric site IDs from a claim record
+  const getClaimSiteIds = useCallback((c: any): number[] => {
+    const ids: number[] = [];
+    const raw = c?.site_id ?? c?.site_ids ?? c?.sites;
+    if (Array.isArray(raw)) {
+      raw.forEach((id: any) => {
+        const num = Number(id);
+        if (!isNaN(num) && num > 0 && !ids.includes(num)) ids.push(num);
+      });
+    } else if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((id: any) => {
+            const num = Number(id);
+            if (!isNaN(num) && num > 0 && !ids.includes(num)) ids.push(num);
+          });
+        } else {
+          const num = Number(parsed);
+          if (!isNaN(num) && num > 0 && !ids.includes(num)) ids.push(num);
+        }
+      } catch {
+        const matches = raw.match(/\d+/g);
+        if (matches) {
+          matches.forEach((m) => {
+            const num = Number(m);
+            if (!isNaN(num) && num > 0 && !ids.includes(num)) ids.push(num);
+          });
+        }
+      }
+    } else if (typeof raw === 'number' && raw > 0) {
+      ids.push(raw);
+    }
+
+    if (Array.isArray(c?.site_details)) {
+      c.site_details.forEach((sd: any) => {
+        const num = Number(sd?.id ?? sd?.site_id);
+        if (!isNaN(num) && num > 0 && !ids.includes(num)) ids.push(num);
+      });
+    }
+    return ids;
+  }, []);
+
+  // Master map of all known sites from pay1, pay2, pay3, plus any site_details
+  const sitesMap = useMemo(() => {
+    const map = new Map<number, any>();
+    [...(claimData.pay1 || []), ...(claimData.pay2 || []), ...(claimData.pay3 || [])].forEach((s: any) => {
+      const sid = Number(s?.id ?? s?.site_id);
+      if (!isNaN(sid) && sid > 0) {
+        map.set(sid, s);
+      }
+    });
+    (claimData.payments || []).forEach((c: any) => {
+      if (Array.isArray(c?.site_details)) {
+        c.site_details.forEach((sd: any) => {
+          const sid = Number(sd?.id ?? sd?.site_id);
+          if (!isNaN(sid) && sid > 0) {
+            map.set(sid, { ...map.get(sid), ...sd });
+          }
+        });
+      }
+    });
+    return map;
+  }, [claimData]);
+
+  // Load Data from API 1: GET /up/resco/installation/view-claim
+  const loadClaims = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await upInstallationService.getRescoClaimData();
+      setClaimData(data);
+      setPayments(Array.isArray(data.payments) ? data.payments : []);
+    } catch (err: any) {
+      console.error('[UP Resco Claims] load error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load UP RESCO payment claims.' });
+      setPayments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadClaims();
+  }, [loadClaims]);
+
+  // Check if a site's 40% (Milestone 1) claim is approved (status === 2)
+  const isMilestone1Approved = useCallback((siteId: number | string, paymentList: any[], siteRecord?: any): boolean => {
+    const numId = Number(siteId);
+    const m1Claim = paymentList.find((c: any) => {
+      const pt = Number(c.payment_type || c.pay_type || 0);
+      const purpose = Number(c.purpose || 0);
+      const isM1 = pt === 1 || purpose === 40;
+      if (!isM1) return false;
+      const ids = getClaimSiteIds(c);
+      return ids.includes(numId);
+    });
+
+    if (m1Claim) {
+      return Number(m1Claim.claim_status ?? m1Claim.status) === 2;
+    }
+    return Number(siteRecord?.inst_claim1_status ?? 0) === 2;
+  }, [getClaimSiteIds]);
+
+  // Check if a site's 30% (Milestone 2) claim is approved (status === 2)
+  const isMilestone2Approved = useCallback((siteId: number | string, paymentList: any[], siteRecord?: any): boolean => {
+    const numId = Number(siteId);
+    const m2Claim = paymentList.find((c: any) => {
+      const pt = Number(c.payment_type || c.pay_type || 0);
+      const isM2 = pt === 2;
+      if (!isM2) return false;
+      const ids = getClaimSiteIds(c);
+      return ids.includes(numId);
+    });
+
+    if (m2Claim) {
+      return Number(m2Claim.claim_status ?? m2Claim.status) === 2;
+    }
+    return Number(siteRecord?.inst_claim2_status ?? 0) === 2;
+  }, [getClaimSiteIds]);
+
+  // Eligible sites for 2nd Payment 30% (strictly requires 40% claim approved!)
+  const eligiblePay2Sites = useMemo(() => {
+    const rawPay2 = Array.isArray(claimData.pay2) ? claimData.pay2 : [];
+    return rawPay2.filter((s: any) => {
+      const sid = s.id ?? s.site_id;
+      return isMilestone1Approved(sid, payments, s);
+    });
+  }, [claimData.pay2, payments, isMilestone1Approved]);
+
+  // Eligible sites for 3rd Payment 30% (strictly requires 40% AND 30% M2 claims approved!)
+  const eligiblePay3Sites = useMemo(() => {
+    const rawPay3 = Array.isArray(claimData.pay3) ? claimData.pay3 : [];
+    return rawPay3.filter((s: any) => {
+      const sid = s.id ?? s.site_id;
+      return isMilestone1Approved(sid, payments, s) && isMilestone2Approved(sid, payments, s);
+    });
+  }, [claimData.pay3, payments, isMilestone1Approved, isMilestone2Approved]);
+
+  // Helper to get sites directly from live API claimData for selected milestone
+  const getEligibleSitesForPayType = useCallback(
+    (payType: number) => {
+      if (payType === 2) return eligiblePay2Sites;
+      if (payType === 3) return eligiblePay3Sites;
+      return Array.isArray(claimData.pay1) ? claimData.pay1 : [];
+    },
+    [claimData.pay1, eligiblePay2Sites, eligiblePay3Sites]
+  );
+
+  // Open Raise Claim Modal directly using live API response data
+  const handleOpenRaiseModal = (initialPayType?: number, initialSiteId?: string) => {
+    const targetPayType =
+      initialPayType ||
+      (activeTab === 'pay40' ? 1 : activeTab === 'pay30_1' ? 2 : activeTab === 'pay30_2' ? 3 : 1);
+    setClaimPayType(targetPayType);
+    setClaimPurpose(targetPayType === 1 ? 40 : 30);
+
+    const eligible = getEligibleSitesForPayType(targetPayType);
+    setSitesDropdown(eligible);
+
+    if (initialSiteId) {
+      setSelectedSiteId(String(initialSiteId));
+    } else {
+      setSelectedSiteId('');
+    }
+    setClaimAmount('');
+    setClaimInvoiceFile(null);
+    setClaimRemarks('');
+    setClaimError(null);
+    if (claimFileRef.current) {
+      claimFileRef.current.value = '';
+    }
+
+    setRaiseModalOpen(true);
+  };
+
+  // Submit Claim Request (API 2: POST /up/resco/installation/add-claim)
+  const handleRaiseClaimSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedSiteId) {
+      setClaimError('Please select an approved site to raise a milestone claim.');
+      return;
+    }
+    const numAmt = Number(claimAmount);
+    if (!claimAmount || isNaN(numAmt) || numAmt <= 0) {
+      setClaimError('Please enter a valid claim amount in INR.');
+      return;
+    }
+    if (!claimInvoiceFile) {
+      setClaimError('Please upload the milestone invoice file (PDF, JPG, PNG).');
+      return;
+    }
+
+    setSubmittingClaim(true);
+    setClaimError(null);
 
     try {
+      const finalPurpose = Number(claimPurpose) === 40 || Number(claimPurpose) === 30
+        ? Number(claimPurpose)
+        : (claimPayType === 1 ? 40 : 30);
+
+      const fd = new FormData();
+      fd.append('amount', String(numAmt));
+      fd.append('site_id[]', String(selectedSiteId));
+      fd.append('payment_type', String(claimPayType));
+      fd.append('pay_type', String(claimPayType));
+      fd.append('purpose', String(finalPurpose));
+      fd.append('file', claimInvoiceFile);
+      fd.append('invoice', claimInvoiceFile);
+      if (claimRemarks.trim()) fd.append('remarks', claimRemarks.trim());
+
       const res = await upInstallationService.storeRescoClaim(fd);
-      if (res.status) {
-        setToastMsg({ type: 'success', text: res.message || 'Payment claim submitted successfully!' });
-        setClaimModalOpen(false);
-        loadData();
-      } else {
-        setToastMsg({ type: 'danger', text: res.message || 'Failed to submit claim.' });
-      }
+      setToastMsg({
+        type: 'success',
+        text: res.message || 'Claim raised successfully',
+      });
+
+      closeRaiseModal();
+      await loadClaims();
     } catch (err: any) {
-      setToastMsg({ type: 'danger', text: err?.message || 'Server error occurred.' });
+      console.error('[UP Resco RaiseClaim] error:', err);
+      setClaimError(err?.message || 'Failed to raise claim.');
     } finally {
-      setSubmitting(false);
+      setSubmittingClaim(false);
     }
   };
 
-  // ── Search filter ──
-  const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return claims;
-    const q = searchQuery.toLowerCase();
-    return claims.filter((c) =>
-      Object.values(c).some((v) => v !== null && v !== undefined && String(v).toLowerCase().includes(q))
-    );
-  }, [claims, searchQuery]);
-
-  // ── KPI Computed ──
-  const approvedCount = useMemo(() => claims.filter((c) => c.status === 2).length, [claims]);
-  const pendingCount = useMemo(() => claims.filter((c) => c.status !== 2).length, [claims]);
-  const totalAmount = useMemo(() => claims.reduce((sum, c) => sum + (Number(c.amount) || 0), 0), [claims]);
-
-  // ── Manual Pagination ──
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const pagedItems = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, safePage, pageSize]);
-
-  const hasFilters = !!searchQuery;
-  const clearFilters = () => { setSearchQuery(''); setCurrentPage(1); };
-
-  // ── Export Handlers ──
-  const handleCopy = () => {
-    copyTableDataToClipboard(filtered, EXPORT_COLS);
-    setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+  // Open Edit Claim Modal (API 4: GET /up/resco/installation/fetch-site-claim?id=)
+  const handleOpenEditClaim = async (claimId: number) => {
+    setEditingClaimId(claimId);
+    setEditClaimModalOpen(true);
+    setEditClaimLoading(true);
+    setEditClaimError(null);
+    try {
+      const res = await upInstallationService.fetchRescoClaimDetails(claimId);
+      if (res?.claims) {
+        setEditAmount(String(res.claims.amount || ''));
+        const pt = Number((res.claims as any).payment_type || res.claims.pay_type || 1);
+        setEditPayType(pt);
+        const parsedIds = getClaimSiteIds(res.claims);
+        setEditSiteId(parsedIds.length > 0 ? String(parsedIds[0]) : String(res.claims.site_id || ''));
+        setEditRemarks(res.claims.remarks || '');
+        const rawP = Number((res.claims as any).purpose);
+        setEditPurpose(rawP === 40 || rawP === 30 ? rawP : (pt === 1 ? 40 : 30));
+      }
+    } catch (err: any) {
+      console.warn('Fetch claim details warning:', err);
+      const target = payments.find((p) => p.id === claimId);
+      setEditAmount(String(target?.amount || ''));
+      const pt = Number((target as any)?.payment_type || target?.pay_type || 1);
+      setEditPayType(pt);
+      const parsedIds = target ? getClaimSiteIds(target) : [];
+      setEditSiteId(parsedIds.length > 0 ? String(parsedIds[0]) : String(target?.site_id || ''));
+      setEditRemarks(target?.remarks || '');
+      const rawP = Number((target as any)?.purpose);
+      setEditPurpose(rawP === 40 || rawP === 30 ? rawP : (pt === 1 ? 40 : 30));
+    } finally {
+      setEditClaimLoading(false);
+    }
   };
-  const handleCsv = () => exportDataToCSV('UP_Resco_Claims', filtered, EXPORT_COLS);
-  const handleExcel = () => exportDataToExcel('UP_Resco_Claims', filtered, EXPORT_COLS);
-  const handlePdf = () => printTableData('UP Resco Installation Claims', filtered, EXPORT_COLS);
+
+  // Save Edit Claim (API 3: POST /up/resco/installation/update-claim)
+  const handleSaveEditClaim = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingClaimId) return;
+
+    setSubmittingEditClaim(true);
+    setEditClaimError(null);
+    try {
+      const finalEditPurpose = Number(editPurpose) === 40 || Number(editPurpose) === 30
+        ? Number(editPurpose)
+        : (editPayType === 1 ? 40 : 30);
+
+      const fd = new FormData();
+      fd.append('id', String(editingClaimId));
+      fd.append('update_id', String(editingClaimId));
+      fd.append('amount', editAmount.trim());
+      fd.append('payment_type', String(editPayType));
+      fd.append('pay_type', String(editPayType));
+      fd.append('purpose', String(finalEditPurpose));
+      if (editSiteId) {
+        const cleanSiteId = editSiteId.replace(/[^0-9]/g, '');
+        if (cleanSiteId) fd.append('site_id[]', cleanSiteId);
+      }
+      if (editRemarks.trim()) fd.append('remarks', editRemarks.trim());
+      if (editInvoiceFile) {
+        fd.append('invoice', editInvoiceFile);
+        fd.append('file', editInvoiceFile);
+      }
+
+      const res = await upInstallationService.updateRescoClaim(fd);
+      setToastMsg({
+        type: 'success',
+        text: res.message || 'Claim updated successfully',
+      });
+      setEditClaimModalOpen(false);
+      await loadClaims();
+    } catch (err: any) {
+      console.error('[UP Resco UpdateClaim] error:', err);
+      setEditClaimError(err?.message || 'Failed to update claim.');
+    } finally {
+      setSubmittingEditClaim(false);
+    }
+  };
+
+  // Helper to normalize a real claim record from payments into table item
+  const normalizeClaimToItem = useCallback((c: any): UpRescoTableItem => {
+    const pType = Number(c.payment_type || c.pay_type || 1) as 1 | 2 | 3;
+    const siteIds = getClaimSiteIds(c);
+
+    // Look up site details from sitesMap
+    let matchedSite: any = null;
+    for (const sid of siteIds) {
+      if (sitesMap.has(sid)) {
+        matchedSite = sitesMap.get(sid);
+        break;
+      }
+    }
+
+    let siteName = '';
+    if (Array.isArray(c.site_details) && c.site_details.length > 0) {
+      siteName = c.site_details.map((sd: any) => sd.site_name || sd.name || `Site ${sd.id}`).join(', ');
+    } else if (matchedSite?.site_name || matchedSite?.name) {
+      siteName = matchedSite.site_name || matchedSite.name;
+    } else if (c.site_name || c.name) {
+      siteName = c.site_name || c.name;
+    } else if (siteIds.length > 0) {
+      siteName = siteIds.map((id) => sitesMap.get(id)?.site_name || `Site ${id}`).join(', ');
+    } else {
+      siteName = `Claim ${c.id}`;
+    }
+
+    const district =
+      (Array.isArray(c.site_details) && c.site_details.length > 0 && c.site_details[0]?.district) ||
+      matchedSite?.district ||
+      c.district ||
+      DASH;
+
+    const invoice = c.file || c.invoice || c.invoice_file || (c as any).inst_doc_file || null;
+    const claimStatus = Number(c.claim_status ?? c.status ?? 1);
+    const disbursement = Array.isArray(c.allpayment) && c.allpayment.length > 0 ? c.allpayment[0] : null;
+
+    return {
+      id: Number(c.id),
+      site_id: siteIds.length > 0 ? siteIds[0] : Number(c.id),
+      site_ids: siteIds,
+      site_name: siteName,
+      district: district,
+      state: c.state || 'up',
+      date: c.date || c.created_at || null,
+      created_at: c.created_at || null,
+      amount: c.amount || '',
+      file: invoice,
+      invoice: invoice,
+      remarks: c.remarks || '',
+      status: claimStatus,
+      pay_type: pType,
+      purpose: Number(c.purpose) || (pType === 1 ? 40 : 30),
+      payment_amount: disbursement?.amount || '',
+      payment_balance: disbursement?.balance || '',
+      payment_date: disbursement?.payment_date || disbursement?.date || null,
+      payment_remarks: disbursement?.payment_remarks || disbursement?.remarks || disbursement?.pay_remarks || '',
+      payment_status: Number(disbursement?.pay_status ?? c.pay_status ?? 0),
+      is_site_record: false,
+      has_claim: true,
+      rawRecord: c,
+    };
+  }, [getClaimSiteIds, sitesMap]);
+
+  // Helper to normalize an unraised eligible site into table item
+  const normalizeUnraisedSiteToItem = useCallback((s: any, payType: 1 | 2 | 3): UpRescoTableItem => {
+    const siteId = Number(s.id ?? s.site_id);
+    const siteName = s.site_name || s.name || `site${siteId}`;
+    return {
+      id: siteId,
+      site_id: siteId,
+      site_ids: [siteId],
+      site_name: siteName,
+      district: s.district || DASH,
+      state: s.state || 'up',
+      date: s.inst_date || s.created_at || null,
+      created_at: s.created_at || null,
+      amount: '',
+      file: null,
+      invoice: null,
+      remarks: s.inst_remarks || s.remarks || '',
+      status: 0, // 0 = Not Raised
+      pay_type: payType,
+      purpose: payType === 1 ? 40 : 30,
+      payment_amount: '',
+      payment_balance: '',
+      payment_date: null,
+      payment_remarks: '',
+      payment_status: 0,
+      is_site_record: true,
+      has_claim: false,
+      rawRecord: s,
+    };
+  }, []);
+
+  // 1. Payment 40 % (Milestone 1)
+  const pay40List = useMemo(() => {
+    const m1Claims = payments
+      .filter((c) => Number(c.payment_type || c.pay_type || 0) === 1 || Number(c.purpose || 0) === 40)
+      .map(normalizeClaimToItem);
+
+    const claimedM1SiteIds = new Set<number>();
+    payments.forEach((c) => {
+      if (Number(c.payment_type || c.pay_type || 0) === 1 || Number(c.purpose || 0) === 40) {
+        getClaimSiteIds(c).forEach((id) => claimedM1SiteIds.add(id));
+      }
+    });
+
+    const rawPay1 = Array.isArray(claimData.pay1) ? claimData.pay1 : [];
+    const unraised = rawPay1
+      .filter((s: any) => !claimedM1SiteIds.has(Number(s.id ?? s.site_id)))
+      .map((s) => normalizeUnraisedSiteToItem(s, 1));
+
+    return [...m1Claims, ...unraised];
+  }, [payments, claimData.pay1, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
+
+  // 2. Payment 30 % (Milestone 2) - Only available if 40% claim is APPROVED!
+  const pay30_1List = useMemo(() => {
+    const m2Claims = payments
+      .filter((c) => Number(c.payment_type || c.pay_type || 0) === 2)
+      .map(normalizeClaimToItem);
+
+    const claimedM2SiteIds = new Set<number>();
+    payments.forEach((c) => {
+      if (Number(c.payment_type || c.pay_type || 0) === 2) {
+        getClaimSiteIds(c).forEach((id) => claimedM2SiteIds.add(id));
+      }
+    });
+
+    const unraised = eligiblePay2Sites
+      .filter((s: any) => !claimedM2SiteIds.has(Number(s.id ?? s.site_id)))
+      .map((s) => normalizeUnraisedSiteToItem(s, 2));
+
+    return [...m2Claims, ...unraised];
+  }, [payments, eligiblePay2Sites, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
+
+  // 3. Payment 30 % (Milestone 3) - Only available if Milestone 2 claim is APPROVED!
+  const pay30_2List = useMemo(() => {
+    const m3Claims = payments
+      .filter((c) => Number(c.payment_type || c.pay_type || 0) === 3)
+      .map(normalizeClaimToItem);
+
+    const claimedM3SiteIds = new Set<number>();
+    payments.forEach((c) => {
+      if (Number(c.payment_type || c.pay_type || 0) === 3) {
+        getClaimSiteIds(c).forEach((id) => claimedM3SiteIds.add(id));
+      }
+    });
+
+    const unraised = eligiblePay3Sites
+      .filter((s: any) => !claimedM3SiteIds.has(Number(s.id ?? s.site_id)))
+      .map((s) => normalizeUnraisedSiteToItem(s, 3));
+
+    return [...m3Claims, ...unraised];
+  }, [payments, eligiblePay3Sites, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
+
+  // 4. Combined List for 'all' (Resco Installation Payment)
+  const allList = useMemo(() => {
+    const standardCombined = [...pay40List, ...pay30_1List, ...pay30_2List];
+    const standardIds = new Set(standardCombined.map((i) => i.id));
+    const extraClaims = payments
+      .filter((c) => !standardIds.has(Number(c.id)))
+      .map(normalizeClaimToItem);
+    return [...standardCombined, ...extraClaims];
+  }, [pay40List, pay30_1List, pay30_2List, payments, normalizeClaimToItem]);
+
+  const tabFilteredPayments = useMemo(() => {
+    if (activeTab === 'pay40') return pay40List;
+    if (activeTab === 'pay30_1') return pay30_1List;
+    if (activeTab === 'pay30_2') return pay30_2List;
+    return allList;
+  }, [activeTab, allList, pay40List, pay30_1List, pay30_2List]);
+
+  const activeTabTitle = useMemo(() => {
+    if (activeTab === 'pay40') return 'Payment 40 %';
+    if (activeTab === 'pay30_1') return 'Payment 30 %';
+    if (activeTab === 'pay30_2') return 'Payment 30 %';
+    return 'Resco Installation Payment';
+  }, [activeTab]);
+
+  const activePayType = useMemo(() => {
+    if (activeTab === 'pay40') return 1;
+    if (activeTab === 'pay30_1') return 2;
+    if (activeTab === 'pay30_2') return 3;
+    return 1;
+  }, [activeTab]);
+
+  // KPI Calculations dynamically reflecting active view
+  const kpis = useMemo(() => {
+    const totalCount = tabFilteredPayments.length;
+    let totalAmount = 0;
+    let approvedCount = 0;
+    let approvedAmount = 0;
+    let pendingCount = 0;
+    let pendingAmount = 0;
+
+    tabFilteredPayments.forEach((c) => {
+      const amt = Number(c.amount) || 0;
+      totalAmount += amt;
+      if (Number(c.status) === 2) {
+        approvedCount++;
+        approvedAmount += amt;
+      } else if (Number(c.status) === 1) {
+        pendingCount++;
+        pendingAmount += amt;
+      }
+    });
+
+    return {
+      totalCount,
+      totalAmount,
+      approvedCount,
+      approvedAmount,
+      pendingCount,
+      pendingAmount,
+    };
+  }, [tabFilteredPayments]);
+
+  // Filtered List
+  const filteredPayments = useMemo(() => {
+    let list = tabFilteredPayments;
+
+    if (statusFilter === 'approved') {
+      list = list.filter((c) => Number(c.status) === 2);
+    } else if (statusFilter === 'pending') {
+      list = list.filter((c) => Number(c.status) === 1 || Number(c.status) === 0);
+    } else if (statusFilter === 'rejected') {
+      list = list.filter((c) => Number(c.status) === 3);
+    }
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((item) => {
+        return (
+          String(item.id).includes(q) ||
+          txt(item, 'site_name').toLowerCase().includes(q) ||
+          txt(item, 'district').toLowerCase().includes(q) ||
+          String(item.amount || '').includes(q) ||
+          txt(item, 'remarks').toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return list;
+  }, [tabFilteredPayments, statusFilter, search]);
+
+  const hasFilters = search.trim() !== '' || statusFilter !== 'all';
+  const resetFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+  };
+
+  // Pagination hook
+  const {
+    paginatedData,
+    currentPage,
+    pageSize,
+    setPage,
+    setPageSize,
+    totalItems,
+  } = usePagination({ data: filteredPayments, initialPageSize: 100 });
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, search, statusFilter, setPage]);
+
+  // Table Export Columns
+  const exportCols: ExportColumn<UpRescoTableItem>[] = useMemo(
+    () => [
+      { header: 'S.No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : 1) },
+      { header: 'Date', accessor: (r) => txt(r, 'date') || DASH },
+      {
+        header: 'Claim',
+        accessor: (r) =>
+          r.is_site_record && !r.has_claim
+            ? `Site ${r.site_id || r.id}`
+            : `Claim ${r.id} (${r.pay_type === 1 ? '40% M1' : r.pay_type === 2 ? '30% M2' : '30% M3'})`,
+      },
+      { header: 'Sites', accessor: (r) => r.site_name },
+      { header: 'District', accessor: (r) => r.district || DASH },
+      { header: 'Amount', accessor: (r) => (r.amount ? `₹${Number(r.amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
+      {
+        header: 'Status',
+        accessor: (r) =>
+          r.status === 2 ? 'Approved' : r.status === 3 ? 'Rejected' : r.status === 1 ? 'Pending Audit' : 'Not Raised',
+      },
+      { header: 'Payment Amount', accessor: (r) => (r.payment_amount ? `₹${Number(r.payment_amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment Balance', accessor: (r) => (r.payment_balance ? `₹${Number(r.payment_balance).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment Date', accessor: (r) => txt(r, 'payment_date') || DASH },
+      { header: 'Payment Remarks', accessor: (r) => r.payment_remarks || DASH },
+      {
+        header: 'Payment Status',
+        accessor: (r) =>
+          r.has_claim === false ? 'Not Raised' : r.payment_status === 1 || r.payment_status === 2 ? 'Disbursed' : r.payment_status === 3 ? 'Rejected' : 'Pending',
+      },
+    ],
+    []
+  );
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
-      <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head (Jammu pattern — buttons only here, NOT duplicated in table) ── */}
+      {/* ── Page Head (Exact Match: Resco Installation Payment) ── */}
       <PageHead
-        title="UP Resco Installation Claim"
-        subtitle="Manage stage-wise payment claims (40% / 30%) and track disbursement for Resco installations"
+        title="Resco Installation Payment"
+        subtitle="Manage and track RESCO rooftop solar installation milestone claims, tax invoices, and disbursement records"
         breadcrumbs={[
-          { label: 'Home', href: '/v-dashboard' },
-          { label: 'Uttar Pradesh' },
-          { label: 'Installation' },
-          { label: 'Resco Claim Request' },
+          { label: 'Installation', href: '/portal/up/installation' },
+          { label: 'RESCO' },
+          { label: 'Claim Request' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-              </svg>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadClaims}
+              disabled={loading}
+              title="Refresh payment records"
+            >
+              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal(1, '40%')}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => handleOpenRaiseModal(1)}
+              style={{ fontWeight: 600 }}
+            >
               <span className="ax-btn__label">+ Payment 40%</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal(2, '30%')}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => handleOpenRaiseModal(2)}
+              style={{ fontWeight: 600 }}
+            >
               <span className="ax-btn__label">+ Payment 30%</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal(3, '30%')}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => handleOpenRaiseModal(3)}
+              style={{ fontWeight: 600 }}
+            >
               <span className="ax-btn__label">+ Payment 30%</span>
             </button>
           </div>
         }
       />
 
-      {/* Toast notification (Jammu pattern) */}
       {toastMsg && (
-        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4, 16px)' }} role="status">
           <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
           <div className="ax-alert__text">{toastMsg.text}</div>
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards (4 cards in 1 row — Jammu asw-cards-row pattern) ── */}
-      {loading ? (
-        <div className="asw-cards-row"><KpiSkeleton count={4} /></div>
-      ) : (
-        <div className="asw-cards-row">
-          <KpiCard
-            tone="accent"
-            label="Total Claims"
-            value={claims.length.toLocaleString('en-IN')}
-            sub="All claims raised"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-                <path d="M8 9h8M8 13h8M8 17h5" />
-              </svg>
-            }
-          />
+      {/* ── Top Metric KPI Cards (Exact Match) ── */}
+      <div className="asw-cards-row">
+        <KpiCard
+          tone="accent"
+          label="Total Claims"
+          value={kpis.totalCount.toLocaleString('en-IN')}
+          sub={activeTab === 'all' ? 'All milestones registered' : `${activeTabTitle} claims`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
 
-          <KpiCard
-            tone="emerald"
-            label="Approved"
-            value={approvedCount.toLocaleString('en-IN')}
-            sub="Claims approved"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-                <path d="M9 12l2 2 4-4" />
-              </svg>
-            }
-          />
+        <KpiCard
+          tone="emerald"
+          label="Claims Approved"
+          value={kpis.approvedCount.toLocaleString('en-IN')}
+          sub={`₹ ${kpis.approvedAmount.toLocaleString('en-IN')}`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
 
-          <KpiCard
-            tone="amber"
-            label="Pending"
-            value={pendingCount.toLocaleString('en-IN')}
-            sub="Awaiting review"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="9" />
-                <polyline points="12 7 12 12 15 15" />
-              </svg>
-            }
-          />
+        <KpiCard
+          tone="cyan"
+          label="Pending Audit"
+          value={kpis.pendingCount.toLocaleString('en-IN')}
+          sub={`₹ ${kpis.pendingAmount.toLocaleString('en-IN')}`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 7 12 12 15 15" />
+            </svg>
+          }
+        />
 
-          <KpiCard
-            tone="cyan"
-            label="Total Amount"
-            value={`₹${totalAmount.toLocaleString('en-IN')}`}
-            sub="Sum of all claims"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            }
-          />
+        <KpiCard
+          tone="violet"
+          label="Total Amount"
+          value={`₹ ${kpis.totalAmount.toLocaleString('en-IN')}`}
+          sub={`${kpis.totalCount} claims registered`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* ── Table Tabs (Resco Installation Payment + Payment 40 % + Payment 30 % + Payment 30 %) ── */}
+      <div className="ax-col--12" style={{ marginBottom: 'var(--ax-space-4, 16px)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+            background: 'var(--ax-surface-subtle, #f8fafc)',
+            padding: '8px 12px',
+            borderRadius: 12,
+            border: '1px solid var(--ax-border, #e2e8f0)',
+          }}
+        >
+          <div className="ax-cluster" role="tablist" aria-label="Payment Claim Tabs" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'all'}
+              className={`ax-btn ax-btn--sm ${activeTab === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+              onClick={() => { setActiveTab('all'); setPage(1); }}
+              style={{ fontWeight: 600, height: 34, padding: '0 14px' }}
+            >
+              <span>Resco Installation Payment</span>
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  borderRadius: 12,
+                  background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-subtle, #f1f5f9)',
+                  color: activeTab === 'all' ? '#ffffff' : 'var(--ax-text-muted, #64748b)',
+                }}
+              >
+                {allList.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'pay40'}
+              className={`ax-btn ax-btn--sm ${activeTab === 'pay40' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+              onClick={() => { setActiveTab('pay40'); setPage(1); }}
+              style={{ fontWeight: 600, height: 34, padding: '0 14px' }}
+            >
+              <span>Payment 40 %</span>
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  borderRadius: 12,
+                  background: activeTab === 'pay40' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-subtle, #f1f5f9)',
+                  color: activeTab === 'pay40' ? '#ffffff' : 'var(--ax-text-muted, #64748b)',
+                }}
+              >
+                {pay40List.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'pay30_1'}
+              className={`ax-btn ax-btn--sm ${activeTab === 'pay30_1' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+              onClick={() => { setActiveTab('pay30_1'); setPage(1); }}
+              style={{ fontWeight: 600, height: 34, padding: '0 14px' }}
+            >
+              <span>Payment 30 %</span>
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  borderRadius: 12,
+                  background: activeTab === 'pay30_1' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-subtle, #f1f5f9)',
+                  color: activeTab === 'pay30_1' ? '#ffffff' : 'var(--ax-text-muted, #64748b)',
+                }}
+              >
+                {pay30_1List.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'pay30_2'}
+              className={`ax-btn ax-btn--sm ${activeTab === 'pay30_2' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+              onClick={() => { setActiveTab('pay30_2'); setPage(1); }}
+              style={{ fontWeight: 600, height: 34, padding: '0 14px' }}
+            >
+              <span>Payment 30 %</span>
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  borderRadius: 12,
+                  background: activeTab === 'pay30_2' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-subtle, #f1f5f9)',
+                  color: activeTab === 'pay30_2' ? '#ffffff' : 'var(--ax-text-muted, #64748b)',
+                }}
+              >
+                {pay30_2List.length}
+              </span>
+            </button>
+          </div>
         </div>
-      )}
+      </div>
 
-      <div className="ax-dash-grid">
-        {/* ── Main Table Card ── */}
-        <section className="ax-card ax-col--12" role="region" aria-labelledby="resco-table-title">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">UP RESCO</span>
-              <h2 id="resco-table-title" className="ax-card__title">Resco Installation Payment Claims</h2>
-              <p className="ax-card__subtitle">
-                <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{claims.length}</span> claims
-                {' '}· Approved <b className="ax-num">{approvedCount}</b> · Pending <b className="ax-num">{pendingCount}</b>
-              </p>
-            </div>
-
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                {hasFilters && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={clearFilters}
-                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  >
-                    Reset
-                  </button>
-                )}
-
-                <SearchInput
-                  value={searchQuery}
-                  onChange={(val) => { setSearchQuery(val); setCurrentPage(1); }}
-                  placeholder="Search claims…"
-                  size="sm"
-                  ariaLabel="Search claims"
-                />
-
-                <TableExportToolbar
-                  onCopy={handleCopy}
-                  onExportCSV={handleCsv}
-                  onExportExcel={handleExcel}
-                  onExportPDF={handlePdf}
-                />
-              </div>
-            </div>
+      {/* ── Main Table Card (Exact Match) ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Resco Installation Payment Table">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">{activeTabTitle}</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filteredPayments.length}</span> of <span className="ax-num">{tabFilteredPayments.length}</span> claims
+              {' '}· Approved <b className="ax-num">{kpis.approvedCount}</b> · Pending <b className="ax-num">{kpis.pendingCount}</b>
+            </p>
           </div>
 
-          {/* ── Table ── */}
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
-              <caption className="ax-visually-hidden">Resco Installation Payment Claims</caption>
-              <thead className="ax-table__head">
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                className="ax-input ax-input--sm"
+                style={{ width: 130, height: 32 }}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by claim status"
+              >
+                <option value="all">All Status</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending Audit</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px' }}
+                >
+                  Reset
+                </button>
+              )}
+
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search site, amount, remarks…"
+                size="sm"
+                ariaLabel="Search payment claims"
+              />
+
+              <TableExportToolbar
+                onCopy={() => {
+                  const t = [
+                    exportCols.map((c) => c.header).join('\t'),
+                    ...filteredPayments.map((r, i) =>
+                      exportCols.map((c) => (typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r])).join('\t')
+                    ),
+                  ].join('\n');
+                  navigator.clipboard.writeText(t);
+                  setToastMsg({ type: 'success', text: 'Copied to clipboard!' });
+                }}
+                onExportCSV={() => {
+                  const out = [
+                    exportCols.map((c) => c.header).join(','),
+                    ...filteredPayments.map((r, i) =>
+                      exportCols.map((c) => `"${String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || '').replace(/"/g, '""')}"`).join(',')
+                    ),
+                  ].join('\n');
+                  const blob = new Blob([out], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'UP_RESCO_Installation_Payment.csv';
+                  a.click();
+                }}
+                onExportExcel={() => {
+                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+                  const blob = new Blob([`\ufeff${html}`], { type: 'application/vnd.ms-excel' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'UP_RESCO_Installation_Payment.xls';
+                  a.click();
+                }}
+                onExportPDF={() => window.print()}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Table with EXACT user headers ── */}
+        <div className="ax-table-wrap">
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1600 }}>
+            <thead className="ax-table__head">
+              <tr>
+                {RESCO_PAYMENT_HEADERS.map((h) => (
+                  <th
+                    key={h}
+                    className="ax-table__th"
+                    scope="col"
+                    style={h === 'Action' ? { textAlign: 'center' } : undefined}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
                 <tr>
-                  <th className="ax-table__th" scope="col" style={{ width: 60, textAlign: 'center' }}>S.No.</th>
-                  <th className="ax-table__th" scope="col">Date</th>
-                  <th className="ax-table__th" scope="col">Claim</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Sites</th>
-                  <th className="ax-table__th" scope="col">Invoice</th>
-                  <th className="ax-table__th" scope="col">Amount</th>
-                  <th className="ax-table__th" scope="col">Remarks</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Status</th>
-                  <th className="ax-table__th" scope="col">Payment Amount</th>
-                  <th className="ax-table__th" scope="col">Payment Balance</th>
-                  <th className="ax-table__th" scope="col">Payment Date</th>
-                  <th className="ax-table__th" scope="col">Payment Remarks</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Payment Status</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 80, textAlign: 'center' }}>Action</th>
+                  <td colSpan={RESCO_PAYMENT_HEADERS.length} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading payment claims from server…
+                  </td>
                 </tr>
-              </thead>
-              <tbody aria-busy={loading}>
-                {loading && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={14} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                      <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
-                      Loading Resco claims from server…
-                    </td>
-                  </tr>
-                )}
-                {!loading && pagedItems.length === 0 && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={14} style={{ padding: 0 }}>
-                      <TableEmptyState
-                        title="No claims found"
-                        message={hasFilters ? 'No claims match your search. Try clearing filters.' : 'No claims submitted yet. Use the "Raise Claim" button above to create one.'}
-                        onClear={hasFilters ? clearFilters : undefined}
-                        clearLabel="Clear filters"
-                      />
-                    </td>
-                  </tr>
-                )}
-                {!loading && pagedItems.map((c, idx) => {
-                  const sr = (safePage - 1) * pageSize + idx + 1;
-                  const invoiceUrl = c.invoice ? resolveUpMediaUrl(c.invoice) : '';
+              )}
+              {!loading && filteredPayments.length === 0 && (
+                <tr>
+                  <td colSpan={RESCO_PAYMENT_HEADERS.length} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title="No payment records found"
+                      message={
+                        hasFilters
+                          ? 'No claim records match your current search or status filter.'
+                          : 'No installation claims have been raised yet. Click "+ Payment 40%" to initiate.'
+                      }
+                      onClear={hasFilters ? resetFilters : undefined}
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                paginatedData.map((row, index) => {
+                  const invoiceFile = row.invoice || row.file || (row as any).inst_doc_file;
+                  const invoiceUrl = invoiceFile ? resolveUpMediaUrl(invoiceFile) : '';
+                  const isApproved = Number(row.status) === 2;
+                  const isNotRaised = Number(row.status) === 0;
+
                   return (
-                    <tr key={c.id || idx} className="ax-table__row">
-                      <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>{sr}</td>
-                      <td className="ax-table__td">{txt(c.date)}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary, #2563eb)' }}>{txt(c.claim)}</td>
-                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>{txt(c.sites)}</td>
+                    <tr key={`${row.id}-${row.pay_type || index}`} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>
+                        {txt(row, 'date') || txt(row, 'claim_date') || txt(row, 'created_at') || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                        <div style={{ fontWeight: 600 }}>
+                          {(row as any).is_site_record && !(row as any).has_claim
+                            ? `Site ${row.site_id || row.id}`
+                            : `Claim ${row.id}`}
+                        </div>
+                        <span
+                          className="ax-badge ax-badge--soft"
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            marginTop: 3,
+                            display: 'inline-block',
+                            color:
+                              Number(row.pay_type) === 1
+                                ? '#2563eb'
+                                : Number(row.pay_type) === 2
+                                ? '#0891b2'
+                                : '#7c3aed',
+                          }}
+                        >
+                          {Number(row.pay_type) === 1
+                            ? '40% (M1)'
+                            : Number(row.pay_type) === 2
+                            ? '30% (M2)'
+                            : Number(row.pay_type) === 3
+                            ? '30% (M3)'
+                            : '40%'}
+                        </span>
+                      </td>
                       <td className="ax-table__td">
-                        {invoiceUrl ? (
-                          <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost ax-btn--xs" style={{ padding: '2px 8px' }}>
-                            Invoice ↗
-                          </a>
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {row.site_name || `Site ${row.site_id || row.id}`}
+                        </span>
+                        {row.district && (
+                          <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                            {row.district}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Invoice */}
+                      <td className="ax-table__td">
+                        {invoiceFile ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <InstallationThumbnail
+                              src={invoiceFile}
+                              alt={`Invoice - ${row.site_name || row.id}`}
+                              onPreview={openPreview}
+                              size={28}
+                            />
+                            <a
+                              href={invoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              style={{ color: '#2563eb', padding: '2px 6px', fontSize: 11 }}
+                              title="Open invoice file"
+                            >
+                              View ↗
+                            </a>
+                          </div>
                         ) : (
                           <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                         )}
                       </td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary, #2563eb)' }}>
-                        {c.amount ? `₹${Number(c.amount).toLocaleString('en-IN')}` : DASH}
+
+                      {/* Amount */}
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>
+                        {Number(row.amount || 0) > 0 ? (
+                          `₹ ${Number(row.amount).toLocaleString('en-IN')}`
+                        ) : (row as any).sanction_load ? (
+                          <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                            Load: {(row as any).sanction_load} kW
+                          </span>
+                        ) : (
+                          DASH
+                        )}
                       </td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(c.remarks)}</td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <span className={`ax-badge ax-badge--soft ${c.status === 2 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                          {c.status === 2 ? 'Approved' : 'Pending'}
-                        </span>
+
+                      {/* Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>
+                        {row.remarks || DASH}
                       </td>
-                      <td className="ax-table__td">{c.payment_amount ? `₹${Number(c.payment_amount).toLocaleString('en-IN')}` : DASH}</td>
-                      <td className="ax-table__td">{c.payment_balance ? `₹${Number(c.payment_balance).toLocaleString('en-IN')}` : DASH}</td>
-                      <td className="ax-table__td">{txt(c.payment_date)}</td>
-                      <td className="ax-table__td" style={{ maxWidth: 140, whiteSpace: 'normal', fontSize: 12 }}>{txt(c.payment_remarks)}</td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <span className={`ax-badge ax-badge--soft ${c.payment_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                          {c.payment_status === 1 ? 'Complete' : 'Pending'}
-                        </span>
+
+                      {/* Status */}
+                      <td className="ax-table__td">
+                        <ClaimStatusBadge status={row.status} />
                       </td>
+
+                      {/* Payment Amount */}
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#16a34a' }}>
+                        {row.payment_amount ? `₹ ${Number(row.payment_amount).toLocaleString('en-IN')}` : DASH}
+                      </td>
+
+                      {/* Payment Balance */}
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#d97706' }}>
+                        {row.payment_balance ? `₹ ${Number(row.payment_balance).toLocaleString('en-IN')}` : DASH}
+                      </td>
+
+                      {/* Payment Date */}
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>
+                        {txt(row, 'payment_date') || DASH}
+                      </td>
+
+                      {/* Payment Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>
+                        {row.payment_remarks || DASH}
+                      </td>
+
+                      {/* Payment Status */}
+                      <td className="ax-table__td">
+                        <PaymentStatusBadge status={row.payment_status} isClaimRaised={Boolean((row as any).has_claim || Number(row.status) > 0)} />
+                      </td>
+
+                      {/* Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--secondary ax-btn--xs"
-                          onClick={() => setViewItem(c)}
-                          title="View claim details"
-                        >
-                          View
-                        </button>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          {isNotRaised ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--primary ax-btn--xs"
+                              onClick={() => {
+                                const sId = String(row.site_id || row.id);
+                                setSelectedSiteId(sId);
+                                const pType = Number(row.pay_type || activePayType || 1);
+                                setClaimPayType(pType);
+                                handleOpenRaiseModal(pType, sId);
+                              }}
+                              style={{ height: 26, fontSize: 11, padding: '0 8px', fontWeight: 600 }}
+                              title="Raise Claim for this site"
+                            >
+                              + Raise Claim
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--ghost ax-btn--xs"
+                                onClick={() => {
+                                  if (invoiceUrl) {
+                                    openPreview(invoiceUrl, `Claim Invoice - ${row.site_name || row.id}`);
+                                  } else {
+                                    alert(`Claim ${row.id} is under review.`);
+                                  }
+                                }}
+                                style={{ height: 26, fontSize: 11, padding: '0 8px' }}
+                              >
+                                Inspect
+                              </button>
+
+                              {!isApproved && !(row as any).is_site_record && (
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--secondary ax-btn--xs"
+                                  onClick={() => handleOpenEditClaim(row.id)}
+                                  title="Edit Claim Details"
+                                  style={{ height: 26, fontSize: 11, padding: '0 8px' }}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Table Footer ── */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              setPage={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Invoice Lightbox Zoom Modal ── */}
+      {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Raise New Claim Modal (API 2: POST /up/resco/installation/add-claim) ── */}
+      <Modal open={raiseModalOpen} onClose={closeRaiseModal} labelledBy="raise-resco-claim-title" dialogClass="ax-modal__dialog--md">
+        <form onSubmit={handleRaiseClaimSubmit}>
+          <div className="ax-modal__header">
+            <div>
+              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="raise-resco-claim-title">
+                {claimPayType === 1
+                  ? 'Add 1st Payment 40%'
+                  : claimPayType === 2
+                  ? 'Add 2nd Payment 30%'
+                  : 'Add 3rd Payment 30%'}
+              </h4>
+            </div>
+            <button
+              type="button"
+              className="ax-modal__close"
+              onClick={closeRaiseModal}
+              disabled={submittingClaim}
+              aria-label="Close dialog"
+            >
+              {X_ICON}
+            </button>
           </div>
 
-          {/* ── Footer & Pagination (Jammu pattern) ── */}
-          <div className="ax-card__footer" style={footerStyle}>
-            <div className="ula-pagination-left">
-              <Pagination
-                currentPage={safePage}
-                totalPages={totalPages}
-                totalItems={filtered.length}
-                pageSize={pageSize}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
-                pageSizeOptions={[50, 100, 200]}
+          <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {claimError && (
+              <div style={{ padding: 12, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
+                ✕ {claimError}
+              </div>
+            )}
+
+            {/* Select Site */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="claim_site_select">
+                <span>Select Site</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <select
+                id="claim_site_select"
+                className="ax-input"
+                style={{ width: '100%', height: 42, background: '#fff' }}
+                value={selectedSiteId}
+                onChange={(e) => setSelectedSiteId(e.target.value)}
+                disabled={submittingClaim}
+                required
+              >
+                <option value="">-- Select Site --</option>
+                {sitesDropdown.map((s) => {
+                  const sid = String(s.id ?? s.site_id);
+                  const name = s.site_name || s.name || s.contact_person || `site${sid}`;
+                  return (
+                    <option key={sid} value={sid}>
+                      {name}
+                    </option>
+                  );
+                })}
+              </select>
+              {sitesDropdown.length === 0 && (
+                <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>
+                  {claimPayType === 1
+                    ? 'No eligible sites available for 1st Payment (40%).'
+                    : 'No approved sites available for this 30% milestone. (Prior 40% milestone claim must be approved first)'}
+                </div>
+              )}
+            </div>
+
+            {/* Invoice */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="claim_invoice_file">
+                <span>Invoice</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <input
+                ref={claimFileRef}
+                id="claim_invoice_file"
+                type="file"
+                accept=".pdf,image/png,image/jpeg,image/jpg"
+                className="ax-input"
+                style={{ width: '100%', padding: '8px 12px', height: 'auto', background: '#fff' }}
+                onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
+                disabled={submittingClaim}
+                required
+              />
+              {claimInvoiceFile && (
+                <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 4 }}>
+                  Selected: {claimInvoiceFile.name} ({(claimInvoiceFile.size / 1024).toFixed(1)} KB)
+                </div>
+              )}
+            </div>
+
+            {/* Amount */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="claim_amount_input">
+                <span>Amount</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <input
+                id="claim_amount_input"
+                type="number"
+                min="0.01"
+                step="any"
+                className="ax-input"
+                style={{ width: '100%', height: 42 }}
+                placeholder="Enter Amount"
+                value={claimAmount}
+                onChange={(e) => setClaimAmount(e.target.value)}
+                disabled={submittingClaim}
+                required
+              />
+            </div>
+
+            {/* Remarks */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="claim_remarks">
+                <span>Remarks</span>
+              </label>
+              <textarea
+                id="claim_remarks"
+                className="ax-input"
+                style={{ width: '100%', padding: '10px 12px' }}
+                placeholder="Remarks"
+                rows={3}
+                value={claimRemarks}
+                onChange={(e) => setClaimRemarks(e.target.value)}
+                disabled={submittingClaim}
               />
             </div>
           </div>
-        </section>
-      </div>
 
-      {/* ── Claim Submission Modal (Add 1st Payment 40%, Add 2nd Payment 30%, Add 3rd Payment 30%) ── */}
-      <ClaimModal
-        open={claimModalOpen}
-        title={claimModalInfo.title}
-        claimType={claimModalInfo.claimType}
-        milestone={claimModalInfo.milestone}
-        onClose={() => setClaimModalOpen(false)}
-        onSubmit={handleSubmitClaim}
-        submitting={submitting}
-        verifiedSites={verifiedSites}
-        loadingSites={loadingSites}
-      />
+          <div className="ax-modal__footer">
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={closeRaiseModal}
+              disabled={submittingClaim}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submittingClaim || !selectedSiteId || !claimAmount || !claimInvoiceFile}
+            >
+              {submittingClaim ? 'Submitting Claim…' : 'Submit Claim Request'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
-      {/* ── View Detail Modal ── */}
-      <ViewDetailModal
-        open={Boolean(viewItem)}
-        item={viewItem}
-        onClose={() => setViewItem(null)}
-      />
+      {/* ── Edit/Update Claim Modal (API 3 & 4) ── */}
+      <Modal open={editClaimModalOpen} onClose={() => setEditClaimModalOpen(false)} labelledBy="edit-claim-title" dialogClass="ax-modal__dialog--md">
+        <form onSubmit={handleSaveEditClaim}>
+          <div className="ax-modal__header">
+            <div>
+              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="edit-claim-title">
+                Update RESCO Claim {editingClaimId}
+              </h4>
+            </div>
+            <button
+              type="button"
+              className="ax-modal__close"
+              onClick={() => setEditClaimModalOpen(false)}
+              disabled={submittingEditClaim}
+              aria-label="Close dialog"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {editClaimError && (
+              <div style={{ padding: 12, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
+                ✕ {editClaimError}
+              </div>
+            )}
+
+            {editClaimLoading ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#2563eb' }}>
+                <span className="ax-spinner" /> Loading claim details…
+              </div>
+            ) : (
+              <>
+                <div className="ax-modern-field">
+                  <label className="ax-modern-label">
+                    <span>Claim Amount (₹)</span>
+                    <span className="ax-modern-req">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    className="ax-input"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="ax-modern-field">
+                  <label className="ax-modern-label">
+                    <span>Payment Milestone Type</span>
+                  </label>
+                  <select
+                    className="ax-input"
+                    value={editPayType}
+                    onChange={(e) => {
+                      const newPt = Number(e.target.value);
+                      setEditPayType(newPt);
+                      setEditPurpose(newPt === 1 ? 40 : 30);
+                    }}
+                  >
+                    <option value={1}>Milestone 1 (40% / Initial)</option>
+                    <option value={2}>Milestone 2 (30% / Commissioning)</option>
+                    <option value={3}>Milestone 3 (30% / Final Handover)</option>
+                  </select>
+                </div>
+
+                <div className="ax-modern-field">
+                  <label className="ax-modern-label">
+                    <span>Purpose (Milestone %)</span>
+                    <span className="ax-modern-req">*</span>
+                  </label>
+                  <select
+                    className="ax-input"
+                    value={editPurpose}
+                    onChange={(e) => setEditPurpose(Number(e.target.value))}
+                    required
+                  >
+                    <option value={40}>40 (Milestone 1 — 40%)</option>
+                    <option value={30}>30 (Milestone 2/3 — 30%)</option>
+                  </select>
+                </div>
+
+                <div className="ax-modern-field">
+                  <label className="ax-modern-label">
+                    <span>Updated Invoice File (Optional)</span>
+                  </label>
+                  <input
+                    ref={editFileRef}
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={(e) => setEditInvoiceFile(e.target.files?.[0] || null)}
+                  />
+                  {editInvoiceFile && (
+                    <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 4 }}>
+                      Selected: {editInvoiceFile.name} ({(editInvoiceFile.size / 1024).toFixed(1)} KB)
+                    </div>
+                  )}
+                </div>
+
+                <div className="ax-modern-field">
+                  <label className="ax-modern-label">
+                    <span>Remarks</span>
+                  </label>
+                  <textarea
+                    className="ax-input"
+                    value={editRemarks}
+                    onChange={(e) => setEditRemarks(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="ax-modal__footer">
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={() => setEditClaimModalOpen(false)}
+              disabled={submittingEditClaim}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submittingEditClaim || !editAmount}
+            >
+              {submittingEditClaim ? 'Updating…' : 'Update Claim'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

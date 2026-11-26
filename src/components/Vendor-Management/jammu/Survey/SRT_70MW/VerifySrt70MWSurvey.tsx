@@ -540,7 +540,7 @@ export function VerifySrt70MWSurvey() {
   const [selectedSiteForAction, setSelectedSiteForAction] = useState<JammuVerifySurveyItem | null>(null);
   const [actionStatus, setActionStatus] = useState<string>(''); // '' = -- Select Status --, 1 = Approved, 2 = Rejected
   const [actionRemarks, setActionRemarks] = useState<string>('');
-  const [actionFile, setActionFile] = useState<File | null>(null);
+  const [actionModalError, setActionModalError] = useState<string>('');
   const [submittingAction, setSubmittingAction] = useState(false);
 
   const [selectedSiteForDetails, setSelectedSiteForDetails] = useState<JammuVerifySurveyItem | null>(null);
@@ -727,38 +727,59 @@ export function VerifySrt70MWSurvey() {
     if (!selectedSiteForAction) return;
 
     if (!actionStatus) {
-      alert('Please select status.');
+      setActionModalError('Please select status.');
       return;
     }
 
     setSubmittingAction(true);
+    setActionModalError('');
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
+      const numStatus = Number(actionStatus);
       const res = await jammuSurveyAdminService.verifySrt70SurveyStatus({
         id: selectedSiteForAction.id,
-        status: actionStatus,
+        status: numStatus,
         vendor: selectedSiteForAction.vendorId || selectedSiteForAction.rawRecord.survey_vendor || '',
         remarks: actionRemarks,
       });
 
       if (res.success) {
+        const approvedOrRejected = numStatus === 1 ? 'Approved' : 'Rejected';
         setSuccessMsg(
           res.message ||
-            `Survey site #${selectedSiteForAction.id} successfully marked as ${actionStatus === '1' ? 'Approved' : 'Rejected'}!`
+            `Survey site #${selectedSiteForAction.id} successfully marked as ${approvedOrRejected}!`
         );
+
+        // Optimistically update local items state so user sees immediate feedback
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === selectedSiteForAction.id
+              ? {
+                  ...it,
+                  rawStatus: numStatus,
+                  verifyStatus: approvedOrRejected,
+                }
+              : it
+          )
+        );
+
         setSelectedSiteForAction(null);
         setActionStatus('');
         setActionRemarks('');
-        setActionFile(null);
+        setActionModalError('');
         loadData();
       } else {
-        setErrorMsg(res.message || 'Failed to update survey verification status.');
+        const err = res.message || 'Failed to update survey verification status.';
+        setActionModalError(err);
+        setErrorMsg(err);
       }
     } catch (err: any) {
       console.error('Action submit error:', err);
-      setErrorMsg(err?.message || 'Server error while submitting survey verification.');
+      const errText = err?.message || 'Server error while submitting survey verification.';
+      setActionModalError(errText);
+      setErrorMsg(errText);
     } finally {
       setSubmittingAction(false);
     }
@@ -1581,7 +1602,7 @@ export function VerifySrt70MWSurvey() {
                               setSelectedSiteForAction(r);
                               setActionStatus('');
                               setActionRemarks('');
-                              setActionFile(null);
+                              setActionModalError('');
                             }}
                             style={{
                               padding: '5px 12px',
@@ -1629,21 +1650,44 @@ export function VerifySrt70MWSurvey() {
           setSelectedSiteForAction(null);
           setActionStatus('');
           setActionRemarks('');
-          setActionFile(null);
+          setActionModalError('');
         }}
-        title="Verify Status"
-        subtitle={selectedSiteForAction ? `Site: ${selectedSiteForAction.siteName} • Vendor: ${selectedSiteForAction.vendor}` : undefined}
+        title="Verify Survey Status"
+        subtitle={
+          selectedSiteForAction
+            ? `Site: ${selectedSiteForAction.siteName} • Vendor: ${selectedSiteForAction.vendor} (Site ID: #${selectedSiteForAction.id})`
+            : undefined
+        }
         maxWidth={480}
       >
         {selectedSiteForAction && (
           <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {actionModalError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  fontSize: 12.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                <b>Error:</b> {actionModalError}
+              </div>
+            )}
+
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                 Status <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <select
                 value={actionStatus}
-                onChange={(e) => setActionStatus(e.target.value)}
+                onChange={(e) => {
+                  setActionStatus(e.target.value);
+                  if (actionModalError) setActionModalError('');
+                }}
                 style={{
                   width: '100%',
                   height: 42,
@@ -1660,25 +1704,6 @@ export function VerifySrt70MWSurvey() {
                 <option value="1">Verify Approve</option>
                 <option value="2">Verify Reject</option>
               </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                File <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 400 }}>(Optional)</span>
-              </label>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                onChange={(e) => setActionFile(e.target.files?.[0] || null)}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 12.5,
-                  background: '#f8fafc',
-                }}
-              />
             </div>
 
             <div>
@@ -1709,7 +1734,7 @@ export function VerifySrt70MWSurvey() {
                   setSelectedSiteForAction(null);
                   setActionStatus('');
                   setActionRemarks('');
-                  setActionFile(null);
+                  setActionModalError('');
                 }}
                 disabled={submittingAction}
               >
@@ -1718,7 +1743,7 @@ export function VerifySrt70MWSurvey() {
               <button
                 type="submit"
                 className="ax-btn ax-btn--primary"
-                disabled={submittingAction}
+                disabled={submittingAction || !actionStatus}
                 style={{ background: '#2559bf', color: '#fff', fontWeight: 700 }}
               >
                 {submittingAction ? 'Updating...' : 'Submit'}

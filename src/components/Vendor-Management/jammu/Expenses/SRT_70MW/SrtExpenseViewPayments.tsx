@@ -701,7 +701,7 @@ export function SrtExpenseViewPayments() {
     return result;
   }, [payments, activeTab, filterStatus, filterFromDate, filterToDate, filterVendor, search, initialClaimId]);
 
-  const pagination = usePagination(filteredPayments, { initialPageSize: 10 });
+  const pagination = usePagination(filteredPayments, { initialPageSize: 100 });
 
   // Export Columns definition
   const exportCols: ExportColumn<JammuSrtExpensePaymentItem>[] = useMemo(

@@ -6,6 +6,7 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   kashmirAdminService,
   resolveKashmirMediaUrl,
+  getKashmirMediaCandidates,
 } from '../../kashmir-services';
 import {
   TableExportToolbar,
@@ -19,6 +20,10 @@ import {
   printTableData,
   type ExportColumn,
 } from '../../../../../common';
+import {
+  MediaFileThumbnail,
+  MediaLightbox,
+} from '../../../up/Installation/upInstallationShared';
 
 type Row = any;
 type VerifyFilter = 'all' | 'approved' | 'pending' | 'rejected';
@@ -29,6 +34,7 @@ const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : 
 const siteNameOf = (r: Row) => r.site_name || r.name || `Site #${r.id}`;
 const siteCodeOf = (r: Row) => r.site_code || r.uid || (r.id ? `JK-${r.id}` : DASH);
 const isInstalled = (r: Row) => Number(r.site_inst_status ?? r.inst_status ?? 0) === 1;
+
 const verifyState = (r: Row): 'approved' | 'rejected' | 'pending' => {
   const v = Number(r.inst_verify_status ?? 0);
   return v === 1 ? 'approved' : v === 2 ? 'rejected' : 'pending';
@@ -38,19 +44,80 @@ const verifyLabel = (s: 'approved' | 'rejected' | 'pending') =>
 const verifyTone = (s: 'approved' | 'rejected' | 'pending') =>
   s === 'approved' ? 'success' : s === 'rejected' ? 'danger' : 'warning';
 
+const isMaterialDispatched = (r: Row): boolean => {
+  const s = String(r.material_status ?? '').toLowerCase().trim();
+  return Number(r.material_status ?? 0) === 1 || s === 'dispatched' || s === 'complete' || s === 'dispatched site';
+};
+
+const getClaimStatusLabel = (status: unknown): string => {
+  const n = Number(status ?? 0);
+  if (n === 2) return 'Approved';
+  if (n === 3) return 'Rejected';
+  if (n === 1) return 'Pending';
+  return 'Not Raised';
+};
+
+const getClaimStatusTone = (status: unknown): 'success' | 'danger' | 'warning' | 'neutral' => {
+  const n = Number(status ?? 0);
+  if (n === 2) return 'success';
+  if (n === 3) return 'danger';
+  if (n === 1) return 'warning';
+  return 'neutral';
+};
+
+const getPaymentStatusLabel = (status: unknown): string => {
+  return Number(status ?? 0) === 1 ? 'Paid' : 'Pending';
+};
+
+const fmtDate = (val?: string | null): string => {
+  if (!val) return DASH;
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch {}
+  return String(val).slice(0, 10);
+};
+
+const parseStringArray = (raw?: string | string[] | null): string[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(String).map((s) => s.trim()).filter(Boolean);
+  const trimmed = String(raw).trim();
+  if (!trimmed || trimmed === '[]') return [];
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map(String).map((s) => s.trim()).filter(Boolean);
+    } catch {}
+  }
+  return trimmed
+    .split(',')
+    .map((s) => s.trim().replace(/^["'[\]]+|["'[\]]+$/g, ''))
+    .filter(Boolean);
+};
+
 function normalizeKashmirStatus(status?: string | null): string {
   if (!status) return 'total-site';
   const s = status.toLowerCase().trim().replace(/[\s_]+/g, '-');
   if (s === 'all' || s === 'total' || s === 'total-site' || s === 'site-count' || s === 'total-sites') return 'total-site';
   if (s === 'complete' || s === 'installed') return 'complete';
   if (s === 'pending' || s === 'install-pending') return 'pending';
-  if (s === 'assigned' || s === 'site-assigned') return 'site-assigned';
+  if (s === 'assigned' || s === 'site-assigned' || s === 'total-assigned') return 'site-assigned';
+  if (s === 'site-not-assigned' || s === 'unassigned') return 'site-not-assigned';
+  if (s === 'material-dispatch' || s === 'material-dispatched') return 'material-dispatch';
+  if (s === 'material-pending') return 'material-pending';
   if (s === 'verify-approved' || s === 'verified') return 'verify-approved';
   if (s === 'verify-pending' || s === 'in-audit') return 'verify-pending';
   if (s === 'verify-reject' || s === 'rejected') return 'verify-reject';
   if (s === 'claim-raised' || s === 'claims') return 'claim-raised';
+  if (s === 'claim-applicable') return 'claim-applicable';
   if (s === 'pay80-complete' || s === 'pay-complete' || s === 'payment-settled') return 'pay80-complete';
   if (s === 'pay20-complete') return 'pay20-complete';
+  if (s === 'pay80-pending') return 'pay80-pending';
+  if (s === 'pay20-pending') return 'pay20-pending';
+  if (s === 'inst-doc-complete' || s === 'doc-complete') return 'inst-doc-complete';
+  if (s === 'inst-doc-pending' || s === 'doc-pending') return 'inst-doc-pending';
   return s;
 }
 
@@ -60,12 +127,20 @@ function getStatusDisplayLabel(status?: string | null): string {
   if (s === 'complete' || s === 'installed') return 'COMPLETED';
   if (s === 'pending' || s === 'install-pending') return 'INSTALLATION PENDING';
   if (s === 'site-assigned' || s === 'assigned') return 'SITE ASSIGNED';
+  if (s === 'site-not-assigned') return 'SITE NOT ASSIGNED';
+  if (s === 'material-dispatch' || s === 'material-dispatched') return 'MATERIAL DISPATCHED';
+  if (s === 'material-pending') return 'MATERIAL PENDING';
   if (s === 'verify-approved' || s === 'verified') return 'VERIFY APPROVED';
   if (s === 'verify-pending' || s === 'in-audit') return 'VERIFY PENDING';
   if (s === 'verify-reject' || s === 'rejected') return 'VERIFY REJECTED';
   if (s === 'claim-raised' || s === 'claims') return 'CLAIM RAISED';
+  if (s === 'claim-applicable') return 'CLAIM APPLICABLE';
   if (s === 'pay80-complete') return '80% PAYMENT COMPLETE';
+  if (s === 'pay80-pending') return '80% PAYMENT PENDING';
   if (s === 'pay20-complete') return '20% PAYMENT COMPLETE';
+  if (s === 'pay20-pending') return '20% PAYMENT PENDING';
+  if (s === 'inst-doc-complete') return 'DOCUMENTS COMPLETED';
+  if (s === 'inst-doc-pending') return 'DOCUMENTS PENDING';
   return status ? status.replace(/[-_]/g, ' ').toUpperCase() : 'TOTAL SITE';
 }
 
@@ -175,6 +250,7 @@ function Modal({
   subtitle,
   children,
   maxWidth = 680,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
@@ -182,6 +258,7 @@ function Modal({
   subtitle?: string;
   children: ReactNode;
   maxWidth?: number;
+  footer?: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, open);
@@ -215,6 +292,7 @@ function Modal({
           </button>
         </div>
         <div className="ax-modal__body">{children}</div>
+        {footer && <div className="ax-modal__footer">{footer}</div>}
       </div>
     </div>,
     document.body
@@ -307,6 +385,11 @@ export function StatusView() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [viewDetailSite, setViewDetailSite] = useState<Row | null>(null);
+
+  // Panel Serial modal & Lightbox
+  const [panelModalSite, setPanelModalSite] = useState<Row | null>(null);
+  const [panelSearch, setPanelSearch] = useState('');
+  const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
 
   const pageTitle = useMemo(() => {
     let t = `Kashmir SRT 70MW Sites: ${statusLabel}`;
@@ -410,18 +493,39 @@ export function StatusView() {
         return false;
       }
       if (!q) return true;
+      const serials = parseStringArray(r.panel_no).join(' ');
       return [
         siteNameOf(r),
+        r.id,
         r.site_code,
         r.uid,
+        r.state,
+        r.department_name,
+        r.dept_name,
         r.district,
+        r.location,
+        r.address,
+        r.firm_name,
+        r.work_order_no,
+        r.loa_no,
+        r.phase,
+        r.connection_phase,
+        r.ca_no,
         r.vendor_name,
         r.vendors?.name,
         r.contact_person,
+        r.contact_person_phone,
         r.contact_number,
+        r.solar_meter_no,
         r.solarmeter_no,
+        r.meter_no,
         r.inverter_no,
+        r.net_smart_meter_no,
+        r.nm_sm_no,
+        serials,
+        r.loger_no,
         r.sanction_load,
+        r.inst_remarks,
       ].some((v) => String(v ?? '').toLowerCase().includes(q));
     });
   }, [items, search, verifyFilter, installFilter, selectedDistrict, selectedVendor]);
@@ -447,21 +551,60 @@ export function StatusView() {
     setCurrentPage(1);
   };
 
+  /* ── Panel Serial Modal Filtered Items ── */
+  const modalAllSerials = useMemo(
+    () => (panelModalSite ? parseStringArray(panelModalSite.panel_no) : []),
+    [panelModalSite]
+  );
+
+  const modalFilteredSerials = useMemo(() => {
+    const q = panelSearch.trim().toLowerCase();
+    return modalAllSerials
+      .map((serial, index) => ({ serial, index: index + 1 }))
+      .filter((item) => !q || item.serial.toLowerCase().includes(q) || String(item.index) === q);
+  }, [modalAllSerials, panelSearch]);
+
   const exportCols: ExportColumn<Row>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
       { header: 'State', accessor: (r) => r.state || 'Jammu & Kashmir' },
+      { header: 'Department Name', accessor: (r) => r.department_name || r.dept_name || DASH },
       { header: 'District', accessor: (r) => r.district || DASH },
+      { header: 'Location', accessor: (r) => r.location || r.address || DASH },
       { header: 'Site Name', accessor: (r) => siteNameOf(r) },
       { header: 'Site Code', accessor: (r) => siteCodeOf(r) },
-      { header: 'Vendor Name', accessor: (r) => r.vendor_name || r.vendors?.name || DASH },
+      { header: 'Firm Name', accessor: (r) => r.firm_name || DASH },
+      { header: 'Work Order No.', accessor: (r) => r.work_order_no || DASH },
+      { header: 'Work Date', accessor: (r) => fmtDate(r.work_date) },
+      { header: 'LOA No.', accessor: (r) => r.loa_no || DASH },
+      { header: 'Phase', accessor: (r) => r.phase || DASH },
       { header: 'Sanction Load', accessor: (r) => (r.sanction_load ? `${r.sanction_load} kW` : DASH) },
+      { header: 'Connection Phase', accessor: (r) => r.connection_phase || DASH },
+      { header: 'CA No', accessor: (r) => r.ca_no || DASH },
+      { header: 'Material Status', accessor: (r) => (isMaterialDispatched(r) ? 'Dispatched' : 'Pending') },
+      { header: 'Material Dispatch Date', accessor: (r) => fmtDate(r.material_dispatch_date) },
+      { header: 'Installation Vendor', accessor: (r) => r.vendor_name || r.vendors?.name || (r.inst_vendor ? `Vendor #${r.inst_vendor}` : DASH) },
+      { header: 'Installation Date', accessor: (r) => fmtDate(r.inst_date || r.installation_date) },
       { header: 'Contact Person', accessor: (r) => r.contact_person || DASH },
-      { header: 'Contact Number', accessor: (r) => r.contact_number || DASH },
-      { header: 'Solar Meter No.', accessor: (r) => r.solarmeter_no || r.meter_no || DASH },
+      { header: 'Contact Person Phone', accessor: (r) => r.contact_person_phone || r.contact_number || DASH },
+      { header: 'Solar Meter No.', accessor: (r) => r.solar_meter_no || r.solarmeter_no || r.meter_no || DASH },
       { header: 'Inverter No.', accessor: (r) => r.inverter_no || DASH },
+      { header: 'Net/Smart Meter No.', accessor: (r) => r.net_smart_meter_no || r.nm_sm_no || DASH },
+      { header: 'Panel No.', accessor: (r) => parseStringArray(r.panel_no).join(', ') || DASH },
+      { header: 'Loger No.', accessor: (r) => r.loger_no || DASH },
+      { header: 'System Image', accessor: (r) => (r.system_image ? 'Available' : DASH) },
+      { header: 'Inverter Image', accessor: (r) => (r.inverter_image ? 'Available' : DASH) },
+      { header: 'Panel Image', accessor: (r) => (r.panel_image ? 'Available' : DASH) },
+      { header: 'Net/Smart Meter Image', accessor: (r) => ((r.net_smart_meter_image || r.nm_sm_image) ? 'Available' : DASH) },
+      { header: 'Loger Image', accessor: (r) => (r.loger_image ? 'Available' : DASH) },
+      { header: 'Latitude', accessor: (r) => txt(r.latitude ?? r.lat ?? r.inst_latitude) },
+      { header: 'Longitude', accessor: (r) => txt(r.longitude ?? r.long ?? r.inst_longitude) },
+      { header: 'Installation Remarks', accessor: (r) => r.inst_remarks || DASH },
       { header: 'Installation Status', accessor: (r) => (isInstalled(r) ? 'Installed' : 'Pending') },
-      { header: 'Verify Status', accessor: (r) => verifyLabel(verifyState(r)) },
+      { header: 'Verification Status', accessor: (r) => verifyLabel(verifyState(r)) },
+      { header: 'Claim Status', accessor: (r) => getClaimStatusLabel(r.inst_claim_status) },
+      { header: 'Payment 80%', accessor: (r) => getPaymentStatusLabel(r.inst_pay80_status) },
+      { header: 'Payment 20%', accessor: (r) => getPaymentStatusLabel(r.inst_pay20_status) },
     ],
     []
   );
@@ -650,7 +793,7 @@ export function StatusView() {
                     setSearch(val);
                     setCurrentPage(1);
                   }}
-                  placeholder="Search site, code, vendor, district…"
+                  placeholder="Search site, code, vendor, CA No, meter…"
                   size="sm"
                   ariaLabel="Search sites"
                 />
@@ -666,30 +809,56 @@ export function StatusView() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 3400 }}>
               <caption className="ax-visually-hidden">Kashmir SRT 70MW status drilldown</caption>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Sr. No.</th>
                   <th className="ax-table__th" scope="col">State</th>
+                  <th className="ax-table__th" scope="col">Department Name</th>
                   <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Location</th>
                   <th className="ax-table__th" scope="col">Site Name</th>
                   <th className="ax-table__th" scope="col">Site Code</th>
-                  <th className="ax-table__th" scope="col">Vendor Name</th>
+                  <th className="ax-table__th" scope="col">Firm Name</th>
+                  <th className="ax-table__th" scope="col">Work Order No.</th>
+                  <th className="ax-table__th" scope="col">Work Date</th>
+                  <th className="ax-table__th" scope="col">LOA No.</th>
+                  <th className="ax-table__th" scope="col">Phase</th>
                   <th className="ax-table__th" scope="col">Sanction Load</th>
+                  <th className="ax-table__th" scope="col">Connection Phase</th>
+                  <th className="ax-table__th" scope="col">CA No</th>
+                  <th className="ax-table__th" scope="col">Material Status</th>
+                  <th className="ax-table__th" scope="col">Material Dispatch Date</th>
+                  <th className="ax-table__th" scope="col">Installation Vendor</th>
+                  <th className="ax-table__th" scope="col">Installation Date</th>
                   <th className="ax-table__th" scope="col">Contact Person</th>
-                  <th className="ax-table__th" scope="col">Contact Number</th>
+                  <th className="ax-table__th" scope="col">Contact Person Phone</th>
                   <th className="ax-table__th" scope="col">Solar Meter No.</th>
                   <th className="ax-table__th" scope="col">Inverter No.</th>
-                  <th className="ax-table__th" scope="col">Install Status</th>
-                  <th className="ax-table__th" scope="col">Verify Status</th>
+                  <th className="ax-table__th" scope="col">Net/Smart Meter No.</th>
+                  <th className="ax-table__th" scope="col">Panel No.</th>
+                  <th className="ax-table__th" scope="col">Loger No.</th>
+                  <th className="ax-table__th" scope="col">System Image</th>
+                  <th className="ax-table__th" scope="col">Inverter Image</th>
+                  <th className="ax-table__th" scope="col">Panel Image</th>
+                  <th className="ax-table__th" scope="col">Net/Smart Meter Image</th>
+                  <th className="ax-table__th" scope="col">Loger Image</th>
+                  <th className="ax-table__th" scope="col">Latitude</th>
+                  <th className="ax-table__th" scope="col">Longitude</th>
+                  <th className="ax-table__th" scope="col">Installation Remarks</th>
+                  <th className="ax-table__th" scope="col">Installation Status</th>
+                  <th className="ax-table__th" scope="col">Verification Status</th>
+                  <th className="ax-table__th" scope="col">Claim Status</th>
+                  <th className="ax-table__th" scope="col">Payment 80%</th>
+                  <th className="ax-table__th" scope="col">Payment 20%</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody aria-busy={loading}>
                 {loading && (
                   <tr>
-                    <td colSpan={14} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                    <td colSpan={40} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
                       <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
                       Loading drilldown records from server…
                     </td>
@@ -697,7 +866,7 @@ export function StatusView() {
                 )}
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={14} style={{ padding: 0 }}>
+                    <td colSpan={40} style={{ padding: 0 }}>
                       <TableEmptyState
                         title="No records found"
                         message={
@@ -716,14 +885,37 @@ export function StatusView() {
                     const srNo = (currentPage - 1) * pageSize + idx + 1;
                     const installed = isInstalled(row);
                     const vs = verifyState(row);
+                    const serials = parseStringArray(row.panel_no);
+                    const matDispatched = isMaterialDispatched(row);
+                    const netSmartImg = row.net_smart_meter_image || row.nm_sm_image;
+
                     return (
                       <tr key={row.id ?? idx} className="ax-table__row">
+                        {/* 1. Sr. No. */}
                         <td className="ax-table__td ax-num">{srNo}</td>
+
+                        {/* 2. State */}
                         <td className="ax-table__td">{row.state || 'Jammu & Kashmir'}</td>
+
+                        {/* 3. Department Name */}
+                        <td className="ax-table__td" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.department_name || row.dept_name || ''}>
+                          {txt(row.department_name || row.dept_name)}
+                        </td>
+
+                        {/* 4. District */}
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row.district)}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+
+                        {/* 5. Location */}
+                        <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.location || row.address || ''}>
+                          {txt(row.location || row.address)}
+                        </td>
+
+                        {/* 6. Site Name */}
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }} title={siteNameOf(row)}>
                           {siteNameOf(row)}
                         </td>
+
+                        {/* 7. Site Code */}
                         <td
                           className="ax-table__td"
                           style={{
@@ -734,20 +926,201 @@ export function StatusView() {
                         >
                           {siteCodeOf(row)}
                         </td>
-                        <td className="ax-table__td">{txt(row.vendor_name || row.vendors?.name)}</td>
+
+                        {/* 8. Firm Name */}
+                        <td className="ax-table__td">{txt(row.firm_name)}</td>
+
+                        {/* 9. Work Order No. */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.work_order_no)}
+                        </td>
+
+                        {/* 10. Work Date */}
+                        <td className="ax-table__td">{fmtDate(row.work_date)}</td>
+
+                        {/* 11. LOA No. */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.loa_no)}
+                        </td>
+
+                        {/* 12. Phase */}
+                        <td className="ax-table__td">{txt(row.phase)}</td>
+
+                        {/* 13. Sanction Load */}
                         <td className="ax-table__td">
                           {row.sanction_load ? `${row.sanction_load} kW` : DASH}
                         </td>
+
+                        {/* 14. Connection Phase */}
+                        <td className="ax-table__td">{txt(row.connection_phase)}</td>
+
+                        {/* 15. CA No */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.ca_no)}
+                        </td>
+
+                        {/* 16. Material Status */}
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ${matDispatched ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                            <span className="ax-badge__dot" />
+                            {matDispatched ? 'Dispatched' : 'Pending'}
+                          </span>
+                        </td>
+
+                        {/* 17. Material Dispatch Date */}
+                        <td className="ax-table__td">{fmtDate(row.material_dispatch_date)}</td>
+
+                        {/* 18. Installation Vendor */}
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {txt(row.vendor_name || row.vendors?.name || (row.inst_vendor ? `Vendor #${row.inst_vendor}` : DASH))}
+                        </td>
+
+                        {/* 19. Installation Date */}
+                        <td className="ax-table__td">{fmtDate(row.inst_date || row.installation_date)}</td>
+
+                        {/* 20. Contact Person */}
                         <td className="ax-table__td">{txt(row.contact_person)}</td>
+
+                        {/* 21. Contact Person Phone */}
                         <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                          {txt(row.contact_number)}
+                          {txt(row.contact_person_phone || row.contact_number)}
                         </td>
+
+                        {/* 22. Solar Meter No. */}
                         <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                          {txt(row.solarmeter_no || row.meter_no)}
+                          {txt(row.solar_meter_no || row.solarmeter_no || row.meter_no)}
                         </td>
+
+                        {/* 23. Inverter No. */}
                         <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
                           {txt(row.inverter_no)}
                         </td>
+
+                        {/* 24. Net/Smart Meter No. */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.net_smart_meter_no || row.nm_sm_no)}
+                        </td>
+
+                        {/* 25. Panel No. */}
+                        <td className="ax-table__td">
+                          {serials.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {serials.slice(0, 2).map((s, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    fontFamily: 'monospace',
+                                    fontSize: 10.5,
+                                    background: 'var(--ax-surface-subtle, #f1f5f9)',
+                                    padding: '1px 5px',
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                              {serials.length > 2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPanelModalSite(row);
+                                    setPanelSearch('');
+                                  }}
+                                  style={{
+                                    fontSize: 10,
+                                    color: 'var(--ax-accent, #2563eb)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    padding: 0,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  +{serials.length - 2} more (Search)
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            DASH
+                          )}
+                        </td>
+
+                        {/* 26. Loger No. */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.loger_no)}
+                        </td>
+
+                        {/* 27. System Image */}
+                        <td className="ax-table__td">
+                          <MediaFileThumbnail
+                            url={row.system_image ? resolveKashmirMediaUrl(row.system_image) : null}
+                            candidates={row.system_image ? getKashmirMediaCandidates(row.system_image) : undefined}
+                            alt="System Image"
+                            onClick={(url, title) => setLightbox({ url, title: title || 'System Image' })}
+                          />
+                        </td>
+
+                        {/* 28. Inverter Image */}
+                        <td className="ax-table__td">
+                          <MediaFileThumbnail
+                            url={row.inverter_image ? resolveKashmirMediaUrl(row.inverter_image) : null}
+                            candidates={row.inverter_image ? getKashmirMediaCandidates(row.inverter_image) : undefined}
+                            alt="Inverter Image"
+                            onClick={(url, title) => setLightbox({ url, title: title || 'Inverter Image' })}
+                          />
+                        </td>
+
+                        {/* 29. Panel Image */}
+                        <td className="ax-table__td">
+                          <MediaFileThumbnail
+                            url={row.panel_image ? resolveKashmirMediaUrl(row.panel_image) : null}
+                            candidates={row.panel_image ? getKashmirMediaCandidates(row.panel_image) : undefined}
+                            alt="Panel Image"
+                            onClick={(url, title) => setLightbox({ url, title: title || 'Panel Image' })}
+                          />
+                        </td>
+
+                        {/* 30. Net/Smart Meter Image */}
+                        <td className="ax-table__td">
+                          <MediaFileThumbnail
+                            url={netSmartImg ? resolveKashmirMediaUrl(netSmartImg) : null}
+                            candidates={netSmartImg ? getKashmirMediaCandidates(netSmartImg) : undefined}
+                            alt="Net/Smart Meter Image"
+                            onClick={(url, title) => setLightbox({ url, title: title || 'Net/Smart Meter Image' })}
+                          />
+                        </td>
+
+                        {/* 31. Loger Image */}
+                        <td className="ax-table__td">
+                          <MediaFileThumbnail
+                            url={row.loger_image ? resolveKashmirMediaUrl(row.loger_image) : null}
+                            candidates={row.loger_image ? getKashmirMediaCandidates(row.loger_image) : undefined}
+                            alt="Loger Image"
+                            onClick={(url, title) => setLightbox({ url, title: title || 'Loger Image' })}
+                          />
+                        </td>
+
+                        {/* 32. Latitude */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.latitude ?? row.lat ?? row.inst_latitude)}
+                        </td>
+
+                        {/* 33. Longitude */}
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {txt(row.longitude ?? row.long ?? row.inst_longitude)}
+                        </td>
+
+                        {/* 34. Installation Remarks */}
+                        <td
+                          className="ax-table__td"
+                          style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={row.inst_remarks || ''}
+                        >
+                          {txt(row.inst_remarks)}
+                        </td>
+
+                        {/* 35. Installation Status */}
                         <td className="ax-table__td">
                           <span
                             className={`ax-badge ax-badge--soft ax-badge--pill ${
@@ -758,12 +1131,40 @@ export function StatusView() {
                             {installed ? 'Installed' : 'Pending'}
                           </span>
                         </td>
+
+                        {/* 36. Verification Status */}
                         <td className="ax-table__td">
                           <span className={`ax-badge ax-badge--soft ax-badge--pill ax-badge--${verifyTone(vs)}`}>
                             <span className="ax-badge__dot" />
                             {verifyLabel(vs)}
                           </span>
                         </td>
+
+                        {/* 37. Claim Status */}
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ax-badge--${getClaimStatusTone(row.inst_claim_status)}`}>
+                            <span className="ax-badge__dot" />
+                            {getClaimStatusLabel(row.inst_claim_status)}
+                          </span>
+                        </td>
+
+                        {/* 38. Payment 80% */}
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ${Number(row.inst_pay80_status) === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                            <span className="ax-badge__dot" />
+                            {getPaymentStatusLabel(row.inst_pay80_status)}
+                          </span>
+                        </td>
+
+                        {/* 39. Payment 20% */}
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ${Number(row.inst_pay20_status) === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                            <span className="ax-badge__dot" />
+                            {getPaymentStatusLabel(row.inst_pay20_status)}
+                          </span>
+                        </td>
+
+                        {/* 40. Action */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
                             type="button"
@@ -804,97 +1205,364 @@ export function StatusView() {
           onClose={() => setViewDetailSite(null)}
           title={`Site Details: ${siteNameOf(viewDetailSite)}`}
           subtitle={`Code: ${siteCodeOf(viewDetailSite)} · District: ${viewDetailSite.district || DASH}`}
-          maxWidth={640}
+          maxWidth={820}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Vendor</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.vendor_name || viewDetailSite.vendors?.name)}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sanction Load</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{viewDetailSite.sanction_load ? `${viewDetailSite.sanction_load} kW` : DASH}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Contact Person</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.contact_person)}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Contact Number</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.contact_number)}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Solar Meter No.</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.solarmeter_no || viewDetailSite.meter_no)}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Inverter No.</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.inverter_no)}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Installation Date</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.inst_date || viewDetailSite.installation_date)}</div>
-            </div>
-            <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>GPS Coordinates</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>
-                {viewDetailSite.inst_latitude && viewDetailSite.inst_longitude
-                  ? `${viewDetailSite.inst_latitude}, ${viewDetailSite.inst_longitude}`
-                  : DASH}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* 1. General & Department Info */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                Site & Department Information
               </div>
-            </div>
-          </div>
-
-          {/* Installation Media Preview if present */}
-          {(viewDetailSite.system_image || viewDetailSite.inverter_image || viewDetailSite.panel_image) && (
-            <div style={{ marginTop: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--ax-text-strong)' }}>Site Images</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                {viewDetailSite.system_image && (
-                  <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                    <img
-                      src={resolveKashmirMediaUrl(viewDetailSite.system_image)}
-                      alt="System"
-                      style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                    />
-                    <div style={{ padding: '4px 8px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>System</div>
-                  </div>
-                )}
-                {viewDetailSite.inverter_image && (
-                  <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                    <img
-                      src={resolveKashmirMediaUrl(viewDetailSite.inverter_image)}
-                      alt="Inverter"
-                      style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                    />
-                    <div style={{ padding: '4px 8px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>Inverter</div>
-                  </div>
-                )}
-                {viewDetailSite.panel_image && (
-                  <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                    <img
-                      src={resolveKashmirMediaUrl(viewDetailSite.panel_image)}
-                      alt="Panel"
-                      style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                    />
-                    <div style={{ padding: '4px 8px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>Panel</div>
-                  </div>
-                )}
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>State</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{viewDetailSite.state || 'Jammu & Kashmir'}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Department Name</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.department_name || viewDetailSite.dept_name)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>District</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.district)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Location</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.location || viewDetailSite.address)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Site Code</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace', color: 'var(--ax-accent)' }}>{siteCodeOf(viewDetailSite)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Firm Name</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.firm_name)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Work Order No.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.work_order_no)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Work Date</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{fmtDate(viewDetailSite.work_date)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>LOA No.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.loa_no)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Phase & Conn. Phase</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.phase)} / {txt(viewDetailSite.connection_phase)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sanction Load</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{viewDetailSite.sanction_load ? `${viewDetailSite.sanction_load} kW` : DASH}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>CA No</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.ca_no)}</div>
+                </div>
               </div>
             </div>
-          )}
 
-          {viewDetailSite.inst_remarks && (
-            <div style={{ marginTop: 14, padding: 12, background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Remarks</div>
-              <div style={{ fontSize: 12, marginTop: 4, color: 'var(--ax-text)' }}>{viewDetailSite.inst_remarks}</div>
+            {/* 2. Vendor & Contacts */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                Vendor & Contact Details
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Installation Vendor</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.vendor_name || viewDetailSite.vendors?.name || viewDetailSite.inst_vendor)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Contact Person</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{txt(viewDetailSite.contact_person)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Contact Person Phone</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.contact_person_phone || viewDetailSite.contact_number)}</div>
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* 3. Meters & Equipment */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                Meter & Equipment Serials
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Solar Meter No.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.solar_meter_no || viewDetailSite.solarmeter_no || viewDetailSite.meter_no)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Inverter No.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.inverter_no)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Net/Smart Meter No.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.net_smart_meter_no || viewDetailSite.nm_sm_no)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Loger No.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>{txt(viewDetailSite.loger_no)}</div>
+                </div>
+              </div>
+              {/* Panel Serials preview */}
+              {parseStringArray(viewDetailSite.panel_no).length > 0 && (
+                <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>
+                    Panel Serials ({parseStringArray(viewDetailSite.panel_no).length})
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {parseStringArray(viewDetailSite.panel_no).map((s, i) => (
+                      <span key={i} style={{ fontFamily: 'monospace', fontSize: 11, background: '#ffffff', padding: '2px 8px', borderRadius: 4, border: '1px solid var(--ax-border)' }}>
+                        #{i + 1} {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Workflow Status & Payment */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                Workflow Status & Payments
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Material Status</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>
+                    {isMaterialDispatched(viewDetailSite) ? 'Dispatched' : 'Pending'} {viewDetailSite.material_dispatch_date && `(${fmtDate(viewDetailSite.material_dispatch_date)})`}
+                  </div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Installation Status</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>
+                    {isInstalled(viewDetailSite) ? 'Installed' : 'Pending'} {viewDetailSite.inst_date && `(${fmtDate(viewDetailSite.inst_date || viewDetailSite.installation_date)})`}
+                  </div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Verification Status</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{verifyLabel(verifyState(viewDetailSite))}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Claim Status</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{getClaimStatusLabel(viewDetailSite.inst_claim_status)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Payment 80%</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{getPaymentStatusLabel(viewDetailSite.inst_pay80_status)}</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Payment 20%</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>{getPaymentStatusLabel(viewDetailSite.inst_pay20_status)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. GPS Coordinates */}
+            {(viewDetailSite.latitude || viewDetailSite.longitude || viewDetailSite.lat || viewDetailSite.long || viewDetailSite.inst_latitude || viewDetailSite.inst_longitude) && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                  GPS Coordinates
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8, fontSize: 12, fontFamily: 'monospace' }}>
+                  Latitude: {txt(viewDetailSite.latitude ?? viewDetailSite.lat ?? viewDetailSite.inst_latitude)} · Longitude: {txt(viewDetailSite.longitude ?? viewDetailSite.long ?? viewDetailSite.inst_longitude)}
+                </div>
+              </div>
+            )}
+
+            {/* 6. Site Images */}
+            {(viewDetailSite.system_image || viewDetailSite.inverter_image || viewDetailSite.panel_image || viewDetailSite.net_smart_meter_image || viewDetailSite.nm_sm_image || viewDetailSite.loger_image) && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                  Site Images (Click to Preview)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+                  {viewDetailSite.system_image && (
+                    <div
+                      style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)', cursor: 'pointer' }}
+                      onClick={() => setLightbox({ url: resolveKashmirMediaUrl(viewDetailSite.system_image), title: 'System Image' })}
+                    >
+                      <img
+                        src={resolveKashmirMediaUrl(viewDetailSite.system_image)}
+                        alt="System"
+                        style={{ width: '100%', height: 95, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                      <div style={{ padding: '4px 6px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>System</div>
+                    </div>
+                  )}
+                  {viewDetailSite.inverter_image && (
+                    <div
+                      style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)', cursor: 'pointer' }}
+                      onClick={() => setLightbox({ url: resolveKashmirMediaUrl(viewDetailSite.inverter_image), title: 'Inverter Image' })}
+                    >
+                      <img
+                        src={resolveKashmirMediaUrl(viewDetailSite.inverter_image)}
+                        alt="Inverter"
+                        style={{ width: '100%', height: 95, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                      <div style={{ padding: '4px 6px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>Inverter</div>
+                    </div>
+                  )}
+                  {viewDetailSite.panel_image && (
+                    <div
+                      style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)', cursor: 'pointer' }}
+                      onClick={() => setLightbox({ url: resolveKashmirMediaUrl(viewDetailSite.panel_image), title: 'Panel Image' })}
+                    >
+                      <img
+                        src={resolveKashmirMediaUrl(viewDetailSite.panel_image)}
+                        alt="Panel"
+                        style={{ width: '100%', height: 95, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                      <div style={{ padding: '4px 6px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>Panel</div>
+                    </div>
+                  )}
+                  {(viewDetailSite.net_smart_meter_image || viewDetailSite.nm_sm_image) && (
+                    <div
+                      style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)', cursor: 'pointer' }}
+                      onClick={() => setLightbox({ url: resolveKashmirMediaUrl(viewDetailSite.net_smart_meter_image || viewDetailSite.nm_sm_image), title: 'Net/Smart Meter Image' })}
+                    >
+                      <img
+                        src={resolveKashmirMediaUrl(viewDetailSite.net_smart_meter_image || viewDetailSite.nm_sm_image)}
+                        alt="Net/Smart Meter"
+                        style={{ width: '100%', height: 95, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                      <div style={{ padding: '4px 6px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>Net Meter</div>
+                    </div>
+                  )}
+                  {viewDetailSite.loger_image && (
+                    <div
+                      style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)', cursor: 'pointer' }}
+                      onClick={() => setLightbox({ url: resolveKashmirMediaUrl(viewDetailSite.loger_image), title: 'Loger Image' })}
+                    >
+                      <img
+                        src={resolveKashmirMediaUrl(viewDetailSite.loger_image)}
+                        alt="Loger"
+                        style={{ width: '100%', height: 95, objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                      <div style={{ padding: '4px 6px', fontSize: 10, textAlign: 'center', background: '#f8fafc', fontWeight: 600 }}>Loger</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 7. Remarks */}
+            {viewDetailSite.inst_remarks && (
+              <div style={{ padding: 12, background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                <div style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Installation Remarks</div>
+                <div style={{ fontSize: 12, marginTop: 4, color: 'var(--ax-text)' }}>{viewDetailSite.inst_remarks}</div>
+              </div>
+            )}
+          </div>
         </Modal>
       )}
+
+      {/* ── Panel Serial Numbers Search Modal ── */}
+      <Modal
+        open={Boolean(panelModalSite)}
+        onClose={() => {
+          setPanelModalSite(null);
+          setPanelSearch('');
+        }}
+        title="Panel Serial Numbers"
+        subtitle={
+          panelModalSite
+            ? `Site #${panelModalSite.id} • ${siteNameOf(panelModalSite)} • Code: ${siteCodeOf(panelModalSite)}`
+            : ''
+        }
+        maxWidth={640}
+        footer={
+          <button
+            type="button"
+            className="ax-btn ax-btn--primary"
+            onClick={() => {
+              setPanelModalSite(null);
+              setPanelSearch('');
+            }}
+          >
+            Close
+          </button>
+        }
+      >
+        {panelModalSite && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontSize: 11 }}>
+                {panelSearch.trim()
+                  ? `Showing ${modalFilteredSerials.length} of ${modalAllSerials.length}`
+                  : `${modalAllSerials.length} Panel(s)`}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 220px', maxWidth: 320 }}>
+                <input
+                  type="text"
+                  className="ax-input ax-input--sm"
+                  value={panelSearch}
+                  onChange={(e) => setPanelSearch(e.target.value)}
+                  placeholder="Search panel serial no..."
+                  aria-label="Search panel serial number"
+                  style={{ width: '100%', height: 32, fontSize: 12 }}
+                />
+                {panelSearch && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--xs"
+                    onClick={() => setPanelSearch('')}
+                    style={{ height: 32, padding: '0 8px' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {modalFilteredSerials.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', padding: '12px 0' }}>
+                No panel serial matches <b>"{panelSearch}"</b>.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+                {modalFilteredSerials.map(({ serial, index }) => (
+                  <span
+                    key={`${index}-${serial}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      background: 'var(--ax-surface-subtle, #f8fafc)',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: '1px solid var(--ax-border, #cbd5e1)',
+                      color: 'var(--ax-text-strong, #0f172a)',
+                    }}
+                  >
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ax-accent, #2563eb)' }}>#{index}</span>
+                    <span>{serial}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Media Lightbox Preview ── */}
+      <MediaLightbox
+        url={lightbox?.url || null}
+        title={lightbox?.title}
+        onClose={() => setLightbox(null)}
+      />
     </div>
   );
 }

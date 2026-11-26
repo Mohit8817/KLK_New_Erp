@@ -422,6 +422,7 @@ export interface JKRescoSurveyAssignRecord {
   sitecount?: number;
   site_count?: number;
   assign_date?: string;
+  deadline_date?: string;
   file?: string | null;
   document?: string | null;
   remarks?: string | null;
@@ -430,6 +431,16 @@ export interface JKRescoSurveyAssignRecord {
     id: number;
     name: string;
   };
+  sites?: Array<{
+    id?: number | string;
+    site_name?: string;
+    site_code?: string;
+    ca_no?: string;
+    sanction_load?: string | number;
+    district?: string;
+    inst_deadline?: string;
+    [key: string]: any;
+  }>;
   site_details?: Array<{ id: number; site_name: string }>;
   site_names?: string[];
   status?: number;
@@ -626,6 +637,7 @@ export interface JammuSrt70SurveyAssignRecord {
   sitecount?: number;
   site_count?: number;
   assign_date?: string;
+  deadline_date?: string;
   file?: string | null;
   document?: string | null;
   remarks?: string | null;
@@ -634,6 +646,16 @@ export interface JammuSrt70SurveyAssignRecord {
     id: number;
     name: string;
   };
+  sites?: Array<{
+    id?: number | string;
+    site_name?: string;
+    site_code?: string;
+    ca_no?: string;
+    sanction_load?: string | number;
+    district?: string;
+    inst_deadline?: string;
+    [key: string]: any;
+  }>;
   site_details?: Array<{ id: number; site_name: string }>;
   site_names?: string[];
   status?: number;
@@ -928,6 +950,43 @@ export const jammuSurveyAdminService = {
 
       throw primaryErr;
     }
+  },
+
+  /**
+   * 9b. Approval Assign Survey
+   * POST /api/admin/jk/resco/survey/approval-assign/{id}
+   */
+  async approvalAssign(id: number | string): Promise<{ success: boolean; message: string; data?: any }> {
+    const candidateUrls = [
+      typeof (JAMMU_VENDOR_API as any).ADMIN_RESCO_SURVEY_APPROVAL_ASSIGN === 'function'
+        ? (JAMMU_VENDOR_API as any).ADMIN_RESCO_SURVEY_APPROVAL_ASSIGN(id)
+        : `${ADMIN_BASE_URL}/jk/resco/survey/approval-assign/${encodeURIComponent(id)}`,
+      `${ADMIN_BASE_URL}/jammu/resco/survey/approval-assign/${encodeURIComponent(id)}`,
+      typeof (JAMMU_VENDOR_API as any).ADMIN_RESCO_APPROVAL_ASSIGN === 'function'
+        ? (JAMMU_VENDOR_API as any).ADMIN_RESCO_APPROVAL_ASSIGN(id)
+        : `${ADMIN_BASE_URL}/jk/resco/installation/approval-assign/${encodeURIComponent(id)}`,
+      `${ADMIN_BASE_URL}/jammu/resco/installation/approval-assign/${encodeURIComponent(id)}`,
+    ];
+
+    let lastError: any = null;
+    for (const url of candidateUrls) {
+      try {
+        const res = await apiRequest<any>(url, { method: 'POST', headers: getAuthHeaders() });
+        if (res.success) {
+          return {
+            success: true,
+            message: res.message || 'Assigned survey approved successfully.',
+            data: res.data,
+          };
+        }
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    return {
+      success: false,
+      message: lastError?.message || 'Failed to approve assigned survey.',
+    };
   },
 
   /**

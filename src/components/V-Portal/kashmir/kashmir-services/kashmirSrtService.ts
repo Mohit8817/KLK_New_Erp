@@ -424,8 +424,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -464,8 +479,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -504,8 +534,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -560,8 +605,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -741,8 +801,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -810,8 +885,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -861,8 +951,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -954,8 +1059,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -994,8 +1114,23 @@ class KashmirSrtService {
           ''
         ).trim();
       }
+      const sObj = item.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof item.district === 'string' && item.district.trim() && item.district.trim() !== '[object Object]') {
+        dist = item.district.trim();
+      }
       return {
         ...item,
+        site_details: typeof sObj === 'object' ? sObj : item.site_details,
+        site_name: sName || (typeof item.site_name === 'string' && item.site_name !== '[object Object]' ? item.site_name : ''),
+        district: dist || (typeof item.district === 'string' && item.district !== '[object Object]' ? item.district : ''),
         vendor_name: vName || item.vendor_name,
       };
     });
@@ -1048,7 +1183,83 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load payment details: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? { payments: [], payment_detail: { total: 0, complete: 0, partially: 0, pending: 0 } };
+    const rawData = json.data ?? { payments: [], payment_detail: { total: 0, complete: 0, partially: 0, pending: 0 } };
+    const rawPayments = Array.isArray(rawData.payments) ? rawData.payments : [];
+    const normalizedPayments = rawPayments.map((p: any) => {
+      const sObj = p.site_name;
+      let sName = '';
+      let dist = '';
+      if (sObj && typeof sObj === 'object') {
+        sName = String(sObj.site_name || sObj.name || '').trim();
+        if (sObj.district) dist = String(sObj.district).trim();
+      } else if (typeof sObj === 'string' && sObj.trim() && sObj.trim() !== '[object Object]') {
+        sName = sObj.trim();
+      }
+      if (!dist && typeof p.district === 'string' && p.district.trim() && p.district.trim() !== '[object Object]') {
+        dist = p.district.trim();
+      }
+      return {
+        ...p,
+        site_details: typeof sObj === 'object' ? sObj : p.site_details,
+        site_name: sName || (typeof p.site_name === 'string' && p.site_name !== '[object Object]' ? p.site_name : ''),
+        district: dist || (typeof p.district === 'string' && p.district !== '[object Object]' ? p.district : ''),
+      };
+    });
+    return {
+      ...rawData,
+      payments: normalizedPayments,
+    };
+  }
+
+  // 29. Download Expense Claim PDF: GET kashmir/srt70mw/installation-expenses-claim-pdf/{id}
+  async downloadExpenseClaimPdf(claimId: number | string, siteName = 'Site'): Promise<{ success: boolean; message?: string }> {
+    try {
+      const url = KASHMIR_API.EXPENSES.SRT_70MW.CLAIM_PDF(claimId);
+      const token = authService.getToken();
+      const headers: Record<string, string> = {
+        Accept: 'application/pdf, application/json, */*',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await this.fetchWithFallback(url, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!res.ok) {
+        let msg = `Download failed with HTTP ${res.status}`;
+        try {
+          const json = await res.json();
+          if (json?.message) msg = json.message;
+        } catch {}
+        return { success: false, message: msg };
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const json = await res.json();
+        return { success: false, message: json?.message || 'Failed to download PDF.' };
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      const safeSite = String(siteName || 'Site').replace(/[^a-zA-Z0-9_-]/g, '_');
+      a.download = `Expense_Claim_${safeSite}_${claimId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 300);
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('[kashmirSrtService] downloadExpenseClaimPdf error:', err);
+      return { success: false, message: err?.message || 'Failed to download claim PDF.' };
+    }
   }
 }
 

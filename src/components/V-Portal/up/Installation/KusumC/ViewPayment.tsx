@@ -14,6 +14,7 @@ import {
   upInstallationService,
   resolveUpMediaUrl,
   type UpKusumCClaimPaymentItem,
+  type UpKusumCInstallPaymentBreakdown,
 } from '../../up-services';
 
 /* ───────── Responsive page CSS (Exact Assam SWP Claims & Payments pattern) ───────── */
@@ -462,6 +463,100 @@ const renderClaimStatusBadge = (status: number) => {
   return <Badge tone="warning">Raised (Pending)</Badge>;
 };
 
+const getAllPayments = (c: UpKusumCClaimPaymentItem): UpKusumCInstallPaymentBreakdown[] => {
+  if (Array.isArray(c.allpayment) && c.allpayment.length > 0) return c.allpayment;
+  if (Array.isArray((c as any).all_payments) && (c as any).all_payments.length > 0) return (c as any).all_payments;
+  if (Array.isArray((c as any).payments) && (c as any).payments.length > 0) return (c as any).payments;
+  return [];
+};
+
+const getPaymentAmount = (c: UpKusumCClaimPaymentItem): number | null => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    return list.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+  }
+  if (c.pay_amount !== undefined && c.pay_amount !== null && c.pay_amount !== '') {
+    return Number(c.pay_amount) || 0;
+  }
+  if ((c as any).payment_amount !== undefined && (c as any).payment_amount !== null && (c as any).payment_amount !== '') {
+    return Number((c as any).payment_amount) || 0;
+  }
+  if ((c as any).paid_amount !== undefined && (c as any).paid_amount !== null && (c as any).paid_amount !== '') {
+    return Number((c as any).paid_amount) || 0;
+  }
+  if (Number(c.pay_status) === 1) {
+    return Number(c.amount) || 0;
+  }
+  return null;
+};
+
+const getPaymentBalance = (c: UpKusumCClaimPaymentItem): number | null => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    const last = list[list.length - 1];
+    if (last.balance !== undefined && last.balance !== null && last.balance !== '') {
+      return Number(last.balance) || 0;
+    }
+    const total = Number(c.amount || 0);
+    const paid = list.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    return Math.max(0, total - paid);
+  }
+  if (c.balance_amount !== undefined && c.balance_amount !== null && c.balance_amount !== '') {
+    return Number(c.balance_amount) || 0;
+  }
+  if ((c as any).payment_balance !== undefined && (c as any).payment_balance !== null && (c as any).payment_balance !== '') {
+    return Number((c as any).payment_balance) || 0;
+  }
+  if (Number(c.pay_status) === 1) {
+    return 0;
+  }
+  const total = Number(c.amount || 0);
+  const paid = getPaymentAmount(c);
+  if (paid !== null) {
+    return Math.max(0, total - paid);
+  }
+  if (Number(c.pay_status) === 0 || c.pay_status === null || c.pay_status === undefined) {
+    return total;
+  }
+  return null;
+};
+
+const getPaymentDate = (c: UpKusumCClaimPaymentItem): string => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    const last = list[list.length - 1];
+    if (last.date) return last.date;
+    if (last.created_at) return last.created_at.slice(0, 10);
+  }
+  return (
+    c.pay_date ||
+    (c as any).payment_date ||
+    (c as any).paid_date ||
+    (Number(c.pay_status) === 1 || Number(c.pay_status) === 2 ? c.approved_date : '') ||
+    ''
+  );
+};
+
+const getPaymentRemarks = (c: UpKusumCClaimPaymentItem): string => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const r = list[i].pay_remarks || list[i].remarks;
+      if (r && typeof r === 'string' && r.trim() !== '' && r !== '—') {
+        return r;
+      }
+    }
+  }
+  return c.pay_remarks || (c as any).payment_remarks || c.approved_remarks || '—';
+};
+
+const renderPaymentStatusBadge = (status: number | string | undefined | null) => {
+  const s = Number(status);
+  if (s === 1) return <Badge tone="success">Complete</Badge>;
+  if (s === 2) return <Badge tone="warning">Partially</Badge>;
+  return <Badge tone="neutral">Pending</Badge>;
+};
+
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const parseSiteIds = (val?: any): (number | string)[] => {
@@ -538,93 +633,98 @@ export function UP_Installation_KusumC_ViewPayment() {
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
 
-  // Map of site IDs to farmer names for quick label lookup
-  const siteLabelMap = useMemo(() => {
-    const map = new Map<number, { name: string; district?: string }>();
-    claimableSites.forEach((s) => {
-      map.set(Number(s.id), { name: s.f_farmer_name, district: s.district });
-    });
-    return map;
-  }, [claimableSites]);
+  // View Payment Details / Breakdown Modal
+  const [viewingPaymentClaim, setViewingPaymentClaim] = useState<UpKusumCClaimPaymentItem | null>(null);
 
-  // Load Claims Data & Eligible Completed Sites
+  // Map of site IDs to farmer names for quick label lookup
+  const [siteLabelMap, setSiteLabelMap] = useState<Map<number, { name: string; district?: string }>>(new Map());
+
+  // Load Claims Data & Eligible Sites strictly from view-claim API (no fetch-site API)
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [availRes, claimsRes, installedRes] = await Promise.allSettled([
-        upInstallationService.getKusumCAvailableSites(),
-        upInstallationService.getKusumCClaims(),
-        upInstallationService.getKusumCInstalledSites(),
-      ]);
+      const claimsRes = await upInstallationService.getKusumCClaims();
 
       let paymentsList: UpKusumCClaimPaymentItem[] = [];
-      const sitesMap = new Map<number, { id: number; f_farmer_name: string; inst_doc_status: number; district?: string }>();
+      const cVal = claimsRes;
+      if (Array.isArray(cVal?.payments)) paymentsList = cVal.payments;
 
-      // 1. Available sites from fetch-site
-      if (availRes.status === 'fulfilled' && Array.isArray(availRes.value)) {
-        availRes.value.forEach((s: any) => {
+      const realAvailableSites: { id: number; f_farmer_name: string; district?: string }[] = [];
+      const labelsMap = new Map<number, { name: string; district?: string }>();
+      const seenSiteIds = new Set<number>();
+
+      // 1. Available sites from view-claim sites array
+      if (Array.isArray(cVal?.sites)) {
+        cVal.sites.forEach((s: any) => {
           if (s && s.id) {
-            sitesMap.set(Number(s.id), {
-              id: Number(s.id),
-              f_farmer_name: s.f_farmer_name || s.farmer_name || s.site_name || `Site #${s.id}`,
-              district: s.district || '',
-              inst_doc_status: 2,
-            });
+            const numId = Number(s.id);
+            const farmerName = s.f_farmer_name || s.farmer_name || s.site_name || s.name || '';
+            const dist = s.district || '';
+            if (farmerName) {
+              labelsMap.set(numId, { name: farmerName, district: dist });
+            }
+            if (!seenSiteIds.has(numId)) {
+              seenSiteIds.add(numId);
+              realAvailableSites.push({
+                id: numId,
+                f_farmer_name: farmerName,
+                district: dist,
+              });
+            }
           }
         });
       }
 
-      // 2. Sites & claims from view-claim
-      if (claimsRes.status === 'fulfilled') {
-        const cVal = claimsRes.value;
-        if (Array.isArray(cVal.payments)) paymentsList = cVal.payments;
-        if (Array.isArray(cVal.sites)) {
-          cVal.sites.forEach((s: any) => {
-            if (s && s.id && !sitesMap.has(Number(s.id))) {
-              sitesMap.set(Number(s.id), {
-                id: Number(s.id),
-                f_farmer_name: s.f_farmer_name || s.farmer_name || `Site #${s.id}`,
-                district: s.district || '',
-                inst_doc_status: s.inst_doc_status ?? 2,
+      // 2. Also populate labelsMap and pending sites from view-claim payments array
+      paymentsList.forEach((p: any) => {
+        const isPending = Number(p.claim_status) === 1 || Number(p.claim_status) === 0;
+        const details = Array.isArray(p.site_details) ? p.site_details : [];
+        details.forEach((s: any) => {
+          if (s && s.id) {
+            const numId = Number(s.id);
+            const farmerName = s.f_farmer_name || s.farmer_name || s.name || '';
+            const dist = s.district || '';
+            if (farmerName) {
+              labelsMap.set(numId, { name: farmerName, district: dist });
+            }
+            if (isPending && !seenSiteIds.has(numId)) {
+              seenSiteIds.add(numId);
+              realAvailableSites.push({
+                id: numId,
+                f_farmer_name: farmerName,
+                district: dist,
+              });
+            }
+          }
+        });
+
+        // Also if site_id is present without site_details
+        const pIds = parseSiteIds(p.site_id);
+        if (isPending && pIds.length > 0) {
+          pIds.forEach((sid) => {
+            const numId = Number(sid);
+            if (!isNaN(numId) && !seenSiteIds.has(numId)) {
+              seenSiteIds.add(numId);
+              const farmerName = labelsMap.get(numId)?.name || '';
+              realAvailableSites.push({
+                id: numId,
+                f_farmer_name: farmerName,
+                district: labelsMap.get(numId)?.district || '',
               });
             }
           });
         }
-      }
-
-      // 3. Sites from view-installation
-      if (installedRes.status === 'fulfilled' && installedRes.value) {
-        const instVal = installedRes.value;
-        const candidateSites = [
-          ...(Array.isArray(instVal.payment_sites) ? instVal.payment_sites : []),
-          ...(Array.isArray(instVal.sites) ? instVal.sites : []),
-        ];
-        candidateSites.forEach((s: any) => {
-          if (s && s.id && !sitesMap.has(Number(s.id))) {
-            const farmerName =
-              s.f_farmer_name ||
-              s.farmer_name ||
-              s.beneficiary_name ||
-              s.applicant_name ||
-              s.site_name ||
-              `Site #${s.id}`;
-            sitesMap.set(Number(s.id), {
-              id: Number(s.id),
-              f_farmer_name: farmerName,
-              district: s.district || '',
-              inst_doc_status: s.inst_doc_status ?? 2,
-            });
-          }
-        });
-      }
+      });
 
       setClaims(paymentsList);
-      setClaimableSites(Array.from(sitesMap.values()));
+      setClaimableSites(realAvailableSites);
+      setSiteLabelMap(labelsMap);
     } catch (err: any) {
       console.error('Failed to load UP Kusum-C claims:', err);
       setClaims([]);
       setClaimableSites([]);
+      setSiteLabelMap(new Map());
       setError(err?.message || 'Failed to load UP Kusum-C claims.');
     } finally {
       setLoading(false);
@@ -796,6 +896,38 @@ export function UP_Installation_KusumC_ViewPayment() {
     }
   };
 
+  const renderSiteFarmerNames = useCallback((c: UpKusumCClaimPaymentItem): string => {
+    // 1. From c.site_details array (e.g. [{ id: 3030, f_farmer_name: "Deepak Pal" }])
+    const details = (c as any).site_details;
+    if (Array.isArray(details) && details.length > 0) {
+      const names = details
+        .map((s: any) => s.f_farmer_name || s.farmer_name || s.name)
+        .filter((n: any) => typeof n === 'string' && n.trim() !== '');
+      if (names.length > 0) {
+        return names.join(', ');
+      }
+    }
+
+    // 2. From site_id mapped via siteLabelMap
+    const ids = parseSiteIds(c.site_id);
+    if (ids && ids.length > 0) {
+      const names = ids
+        .map((id) => {
+          const numId = Number(id);
+          const match = !isNaN(numId) ? siteLabelMap.get(numId) : undefined;
+          if (match?.name && isNaN(Number(match.name))) return match.name;
+          if (typeof id === 'string' && isNaN(Number(id))) return id;
+          return '';
+        })
+        .filter(Boolean);
+      if (names.length > 0) {
+        return names.join(', ');
+      }
+    }
+
+    return '—';
+  }, [siteLabelMap]);
+
   // Filtered dataset
   const filtered = useMemo(() => {
     let list = claims;
@@ -811,18 +943,22 @@ export function UP_Installation_KusumC_ViewPayment() {
         const amountStr = String(c.amount || '');
         const remarksStr = (c.remarks || '').toLowerCase();
         const dateStr = (c.date || (c as any).created_at || '').toLowerCase();
-        const siteStr = String(c.site_id || '').toLowerCase();
+        const farmerStr = renderSiteFarmerNames(c).toLowerCase();
+        const payRemarksStr = getPaymentRemarks(c).toLowerCase();
+        const payDateStr = getPaymentDate(c).toLowerCase();
         return (
           idStr.includes(q) ||
           amountStr.includes(q) ||
           remarksStr.includes(q) ||
           dateStr.includes(q) ||
-          siteStr.includes(q)
+          farmerStr.includes(q) ||
+          payRemarksStr.includes(q) ||
+          payDateStr.includes(q)
         );
       });
     }
     return list;
-  }, [claims, search, statusFilter]);
+  }, [claims, search, statusFilter, renderSiteFarmerNames]);
 
   // Pagination hook
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
@@ -846,21 +982,49 @@ export function UP_Installation_KusumC_ViewPayment() {
   const totalAmountSum = claims.reduce((acc, c) => acc + Number(c.amount || 0), 0);
   const eligibleSitesCount = claimableSites.length;
 
-  // Export Columns definition
+  // Export Columns definition - Exact fields
   const exportCols: ExportColumn<UpKusumCClaimPaymentItem>[] = useMemo(
     () => [
-      { header: 'Submission Date', accessor: (r: UpKusumCClaimPaymentItem) => fmtDate(r.date || (r as any).created_at) },
-      { header: 'Covered Sites', accessor: (r: UpKusumCClaimPaymentItem) => String(r.site_id || '—') },
-      { header: 'Claim Amount', accessor: (r: UpKusumCClaimPaymentItem) => fmtMoney(r.amount) },
-      { header: 'Invoice File', accessor: (r: UpKusumCClaimPaymentItem) => (r.file ? resolveUpMediaUrl(r.file) : '—') },
+      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Date', accessor: (r: UpKusumCClaimPaymentItem) => fmtDate(r.date || (r as any).created_at) },
+      { header: 'Sites', accessor: (r: UpKusumCClaimPaymentItem) => renderSiteFarmerNames(r) },
+      { header: 'Invoice', accessor: (r: UpKusumCClaimPaymentItem) => (r.file ? resolveUpMediaUrl(r.file) : '—') },
+      { header: 'Amount', accessor: (r: UpKusumCClaimPaymentItem) => (r.amount ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : '—') },
       { header: 'Remarks', accessor: (r: UpKusumCClaimPaymentItem) => r.remarks || '—' },
       {
-        header: 'Status',
+        header: 'Claim Status',
         accessor: (r: UpKusumCClaimPaymentItem) =>
           r.claim_status === 2 ? 'Approved' : r.claim_status === 3 ? 'Rejected' : 'Raised (Pending)',
       },
+      {
+        header: 'Payment Amount',
+        accessor: (r: UpKusumCClaimPaymentItem) => {
+          const p = getPaymentAmount(r);
+          return p !== null ? `₹ ${p.toLocaleString('en-IN')}` : '—';
+        },
+      },
+      {
+        header: 'Payment Balance',
+        accessor: (r: UpKusumCClaimPaymentItem) => {
+          const b = getPaymentBalance(r);
+          return b !== null ? `₹ ${b.toLocaleString('en-IN')}` : '—';
+        },
+      },
+      {
+        header: 'Payment Date',
+        accessor: (r: UpKusumCClaimPaymentItem) => {
+          const d = getPaymentDate(r);
+          return d ? fmtDate(d) : '—';
+        },
+      },
+      { header: 'Payment Remarks', accessor: (r: UpKusumCClaimPaymentItem) => getPaymentRemarks(r) },
+      {
+        header: 'Payment Status',
+        accessor: (r: UpKusumCClaimPaymentItem) =>
+          Number(r.pay_status) === 1 ? 'Complete' : Number(r.pay_status) === 2 ? 'Partially' : 'Pending',
+      },
     ],
-    []
+    [siteLabelMap, renderSiteFarmerNames]
   );
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -939,20 +1103,22 @@ export function UP_Installation_KusumC_ViewPayment() {
     w.focus();
   };
 
-  const headers = ['S.no', 'Submission Date', 'Covered Sites / Farmers', 'Claim Amount', 'Invoice Document', 'Remarks', 'Status', 'Action'];
+  const headers = [
+    'S.No.',
+    'Date',
+    'Sites',
+    'Invoice',
+    'Amount',
+    'Remarks',
+    'Claim Status',
+    'Payment Amount',
+    'Payment Balance',
+    'Payment Date',
+    'Payment Remarks',
+    'Payment Status',
+    'Action',
+  ];
   const TOTAL_COLUMNS = headers.length;
-
-  const renderSiteLabels = (siteIdRaw: any) => {
-    const ids = parseSiteIds(siteIdRaw);
-    if (!ids || ids.length === 0) return String(siteIdRaw || '—');
-    return ids
-      .map((id) => {
-        const numId = Number(id);
-        const match = !isNaN(numId) ? siteLabelMap.get(numId) : undefined;
-        return match ? `Site #${id} (${match.name})` : `Site #${id}`;
-      })
-      .join(', ');
-  };
 
   return (
     <div className="solar-erp-page">
@@ -1096,7 +1262,7 @@ export function UP_Installation_KusumC_ViewPayment() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search claim, amount, site…"
+                placeholder="Search date, farmer, amount, remarks…"
                 size="sm"
                 ariaLabel="Search vendor claims"
               />
@@ -1115,7 +1281,7 @@ export function UP_Installation_KusumC_ViewPayment() {
         <div className="ax-table-wrap">
           <table
             className="ax-table ax-table--hover ula-table--wide"
-            style={{ whiteSpace: 'nowrap', minWidth: 1050 }}
+            style={{ whiteSpace: 'nowrap', minWidth: 1450 }}
           >
             <caption className="ax-visually-hidden">Vendor Claims & Invoice Registry</caption>
             <thead className="ax-table__head">
@@ -1125,7 +1291,17 @@ export function UP_Installation_KusumC_ViewPayment() {
                     key={h}
                     className="ax-table__th"
                     scope="col"
-                    style={h === 'Action' ? { textAlign: 'right' } : undefined}
+                    style={
+                      h === 'Action'
+                        ? { textAlign: 'right' }
+                        : h === 'Amount' || h === 'Payment Amount' || h === 'Payment Balance'
+                        ? { textAlign: 'right' }
+                        : h === 'Claim Status' || h === 'Payment Status' || h === 'Invoice'
+                        ? { textAlign: 'center' }
+                        : h === 'S.No.'
+                        ? { width: 60 }
+                        : undefined
+                    }
                   >
                     {h}
                   </th>
@@ -1159,28 +1335,34 @@ export function UP_Installation_KusumC_ViewPayment() {
               {!loading &&
                 paginatedData.map((c, index) => {
                   const invoiceUrl = c.file ? resolveUpMediaUrl(c.file) : '';
+                  const payAmt = getPaymentAmount(c);
+                  const balAmt = getPaymentBalance(c);
+                  const payDate = getPaymentDate(c);
+                  const payRemarks = getPaymentRemarks(c);
+
                   return (
                     <tr key={c.id} className="ax-table__row">
+                      {/* 1. S.No. */}
                       <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>
                         {(currentPage - 1) * pageSize + index + 1}
                       </td>
 
+                      {/* 2. Date */}
                       <td className="ax-table__td">
                         <div style={{ fontSize: '13px', fontWeight: 500 }}>
                           {fmtDate(c.date || (c as any).created_at)}
                         </div>
                       </td>
+
+                      {/* 3. Sites (Only f_farmer_name, no ID) */}
                       <td className="ax-table__td">
                         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {renderSiteLabels(c.site_id)}
+                          {renderSiteFarmerNames(c)}
                         </div>
                       </td>
-                      <td className="ax-table__td">
-                        <strong style={{ fontSize: '14px', color: 'var(--asw-primary)' }}>
-                          {fmtMoney(c.amount)}
-                        </strong>
-                      </td>
-                      <td className="ax-table__td">
+
+                      {/* 4. Invoice */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {invoiceUrl ? (
                           <a
                             href={invoiceUrl}
@@ -1195,16 +1377,98 @@ export function UP_Installation_KusumC_ViewPayment() {
                           <span style={{ color: 'var(--ax-text-muted)', fontSize: '12px' }}>—</span>
                         )}
                       </td>
+
+                      {/* 5. Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                        <strong style={{ fontSize: '14px', color: 'var(--asw-primary)' }}>
+                          {fmtMoney(c.amount)}
+                        </strong>
+                      </td>
+
+                      {/* 6. Remarks */}
                       <td className="ax-table__td">
                         <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)', maxWidth: 220, display: 'inline-block' }}>
                           {c.remarks || '—'}
                         </span>
                       </td>
-                      <td className="ax-table__td">
+
+                      {/* 7. Claim Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {renderClaimStatusBadge(c.claim_status)}
                       </td>
+
+                      {/* 8. Payment Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {payAmt !== null ? (
+                          <div>
+                            <span style={{ color: 'var(--ax-text-strong)' }}>{fmtMoney(payAmt)}</span>
+                            {getAllPayments(c).length > 0 && (
+                              <div style={{ fontSize: '10px', color: 'var(--ax-text-muted)', fontWeight: 500 }}>
+                                {getAllPayments(c).length} {getAllPayments(c).length === 1 ? 'installment' : 'installments'}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+
+                      {/* 9. Payment Balance */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {balAmt !== null ? fmtMoney(balAmt) : '—'}
+                      </td>
+
+                      {/* 10. Payment Date */}
+                      <td className="ax-table__td">
+                        <div style={{ fontSize: '13px' }}>
+                          {payDate ? fmtDate(payDate) : '—'}
+                        </div>
+                      </td>
+
+                      {/* 11. Payment Remarks */}
+                      <td className="ax-table__td">
+                        <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)', maxWidth: 220, display: 'inline-block' }}>
+                          {payRemarks}
+                        </span>
+                      </td>
+
+                      {/* 12. Payment Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {renderPaymentStatusBadge(c.pay_status)}
+                      </td>
+
+                      {/* 13. Action */}
                       <td className="ax-table__td" style={{ textAlign: 'right' }}>
                         <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                          {(c.claim_status === 2 || getAllPayments(c).length > 0 || c.pay_status) && (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              onClick={() => setViewingPaymentClaim(c)}
+                              title="View Payment Breakdown & History"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 8px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                color: 'var(--asw-primary, #0369a1)',
+                                border: '1px solid #bae6fd',
+                                background: '#f0f9ff',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="16" x2="12" y2="12" />
+                                <line x1="12" y1="8" x2="12.01" y2="8" />
+                              </svg>
+                              Details
+                            </button>
+                          )}
+
                           {c.claim_status === 2 ? (
                             <button
                               type="button"
@@ -1344,9 +1608,10 @@ export function UP_Installation_KusumC_ViewPayment() {
                 </option>
                 {claimableSites.map((site) => {
                   const isSelected = addSelectedSites.includes(site.id);
+                  const farmerLabel = site.f_farmer_name || siteLabelMap.get(site.id)?.name || 'Farmer';
                   return (
                     <option key={site.id} value={site.id}>
-                      {site.id} — {site.f_farmer_name || 'Farmer'} {site.district ? `(${site.district})` : ''} {isSelected ? '✓ [Selected]' : ''}
+                      {farmerLabel} {isSelected ? '✓ [Selected]' : ''}
                     </option>
                   );
                 })}
@@ -1357,6 +1622,7 @@ export function UP_Installation_KusumC_ViewPayment() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                   {addSelectedSites.map((sid) => {
                     const match = claimableSites.find((s) => s.id === sid);
+                    const farmerLabel = match?.f_farmer_name || siteLabelMap.get(sid)?.name || 'Farmer';
                     return (
                       <span
                         key={sid}
@@ -1370,10 +1636,7 @@ export function UP_Installation_KusumC_ViewPayment() {
                           borderRadius: 6,
                         }}
                       >
-                        <span>
-                          {sid} — {match?.f_farmer_name || `Site ${sid}`}
-                          {match?.district ? ` (${match.district})` : ''}
-                        </span>
+                        <span>{farmerLabel}</span>
                         <button
                           type="button"
                           onClick={() => setAddSelectedSites((prev) => prev.filter((id) => id !== sid))}
@@ -1570,12 +1833,13 @@ export function UP_Installation_KusumC_ViewPayment() {
                     }
                   }}
                 >
-                  <option value="">-- Select Site from Dropdown to Add --</option>
+                  <option value="">-- Select Site to Add --</option>
                   {claimableSites.map((site) => {
                     const isChecked = editSelectedSites.some((id) => String(id) === String(site.id));
+                    const farmerLabel = site.f_farmer_name || siteLabelMap.get(site.id)?.name || 'Farmer';
                     return (
                       <option key={site.id} value={site.id}>
-                        {site.id} — {site.f_farmer_name} {isChecked ? '✓ [Included]' : ''}
+                        {farmerLabel} {isChecked ? '✓ [Included]' : ''}
                       </option>
                     );
                   })}
@@ -1584,13 +1848,14 @@ export function UP_Installation_KusumC_ViewPayment() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                   {editSelectedSites.map((sid) => {
                     const match = claimableSites.find((s) => String(s.id) === String(sid));
+                    const farmerLabel = match?.f_farmer_name || siteLabelMap.get(Number(sid))?.name || 'Farmer';
                     return (
                       <span
                         key={sid}
                         className="ax-badge ax-badge--soft ax-badge--info"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: '12px' }}
                       >
-                        <span>{sid} — {match?.f_farmer_name || String(sid)}</span>
+                        <span>{farmerLabel}</span>
                         <button
                           type="button"
                           onClick={() => setEditSelectedSites((prev) => prev.filter((id) => String(id) !== String(sid)))}
@@ -1722,6 +1987,151 @@ export function UP_Installation_KusumC_ViewPayment() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* ── Payment Details & Breakdown Modal ── */}
+      <Modal
+        open={!!viewingPaymentClaim}
+        onClose={() => setViewingPaymentClaim(null)}
+        title={viewingPaymentClaim ? `Payment Details — Claim #${viewingPaymentClaim.id}` : 'Payment Details'}
+        subtitle="Detailed breakdown of disbursements, approval records, and balance"
+        maxWidth={740}
+      >
+        {viewingPaymentClaim && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Top Stat Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: 12,
+              }}
+            >
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Claim Amount</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--asw-primary, #2563eb)', marginTop: 4 }}>
+                  {fmtMoney(viewingPaymentClaim.amount)}
+                </div>
+              </div>
+
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Amount Paid</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#16a34a', marginTop: 4 }}>
+                  {fmtMoney(getPaymentAmount(viewingPaymentClaim) ?? 0)}
+                </div>
+              </div>
+
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>Remaining Balance</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#d97706', marginTop: 4 }}>
+                  {fmtMoney(getPaymentBalance(viewingPaymentClaim) ?? 0)}
+                </div>
+              </div>
+
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Payout Status</div>
+                <div style={{ marginTop: 6 }}>
+                  {renderPaymentStatusBadge(viewingPaymentClaim.pay_status)}
+                </div>
+              </div>
+            </div>
+
+            {/* Approval Info */}
+            {(viewingPaymentClaim.approved_date || viewingPaymentClaim.approved_by || viewingPaymentClaim.approved_remarks) && (
+              <div style={{ padding: 14, borderRadius: 10, background: '#f1f5f9', border: '1px solid #cbd5e1' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: 13, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Administrative Approval
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, fontSize: 13 }}>
+                  {viewingPaymentClaim.approved_date && (
+                    <div>
+                      <span style={{ color: '#64748b' }}>Approved Date: </span>
+                      <strong>{fmtDate(viewingPaymentClaim.approved_date)}</strong>
+                    </div>
+                  )}
+                  {viewingPaymentClaim.approved_by && (
+                    <div>
+                      <span style={{ color: '#64748b' }}>Approved By: </span>
+                      <strong>User #{viewingPaymentClaim.approved_by}</strong>
+                    </div>
+                  )}
+                  {viewingPaymentClaim.approved_remarks && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <span style={{ color: '#64748b' }}>Approval Remarks: </span>
+                      <strong>{viewingPaymentClaim.approved_remarks}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sites Info */}
+            <div style={{ padding: 14, borderRadius: 10, background: '#ffffff', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>
+                Associated Site(s)
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+                {renderSiteFarmerNames(viewingPaymentClaim)}
+              </div>
+            </div>
+
+            {/* Individual Payments / Installments Table */}
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                Disbursement Transactions ({getAllPayments(viewingPaymentClaim).length})
+              </h4>
+              {getAllPayments(viewingPaymentClaim).length > 0 ? (
+                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>#</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Date</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Amount Paid</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Balance</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Remarks</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getAllPayments(viewingPaymentClaim).map((p, idx) => (
+                        <tr key={p.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px 12px', color: '#64748b' }}>#{idx + 1}</td>
+                          <td style={{ padding: '8px 12px', fontWeight: 500 }}>{fmtDate(p.date || p.created_at)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
+                            {fmtMoney(p.amount)}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#d97706' }}>
+                            {fmtMoney(p.balance)}
+                          </td>
+                          <td style={{ padding: '8px 12px', color: '#475569' }}>{p.pay_remarks || p.remarks || '—'}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            <Badge tone="success">Settled</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ padding: '16px', textAlign: 'center', background: '#f8fafc', borderRadius: 8, color: '#64748b', fontSize: 13 }}>
+                  No installment transactions recorded yet.
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={() => setViewingPaymentClaim(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

@@ -4,6 +4,7 @@ import {
 } from '../../up-services';
 import {
   documentCol,
+  getLoggedInUserName,
   pick,
   textCol,
   type ComplaintColumn,
@@ -152,7 +153,7 @@ export function UPComplaintSSLAssigned() {
           { label: 'Complaint Issue', value: pick(r, ['complaint_issue', 'issue', 'complaint']) },
           { label: 'Complaint Description', value: pick(r, ['complaint']) },
           { label: 'Complaint Source', value: pick(r, ['complaint_source']) },
-          { label: 'Created By', value: pick(r, ['created_by']) },
+          { label: 'Created By', value: getLoggedInUserName() || pick(r, ['created_by_name', 'created_by']) },
           { label: 'Assigned Date', value: pick(r, ['assigned_date', 'start_date', 'created_at']) },
         ],
       }}

@@ -5,6 +5,7 @@ import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { getMediaUrl, getUpMediaCandidates } from '../../up-services';
 import { UP_MODAL_CSS } from './UpComplaintModalUI';
+import { authService } from '../../../../../services/authService';
 import {
   Pagination,
   usePagination,
@@ -39,6 +40,39 @@ export const pick = (row: unknown, keys: string[], fallback: string = DASH): str
   }
   return fallback;
 };
+
+/**
+ * Retrieves the logged-in vendor / user's name directly from login API / session storage.
+ * Used across UP Complaint tables and detail views for the "Created by" column.
+ */
+export function getLoggedInUserName(): string {
+  try {
+    const session = authService.getSession() as any;
+    const raw = authService.getRawResponse() as any;
+    const userObj =
+      raw?.vendor ||
+      raw?.user ||
+      raw?.data?.vendor ||
+      raw?.data?.user ||
+      raw?.data ||
+      {};
+    const name = String(
+      session?.name ||
+      session?.vendor_name ||
+      session?.user?.name ||
+      session?.vendor?.name ||
+      userObj?.name ||
+      userObj?.vendor_name ||
+      userObj?.company_name ||
+      session?.company_name ||
+      ''
+    ).trim();
+    if (name && name !== 'null' && name !== 'undefined') return name;
+  } catch (e) {
+    // ignore
+  }
+  return '';
+}
 
 type StatusKey = 'open' | 'pending' | 'resolved';
 
@@ -131,10 +165,17 @@ export function textCol<T>(
   keys: string[],
   opts: { strong?: boolean; accent?: boolean; fallback?: string; clamp?: boolean } = {}
 ): ComplaintColumn<T> {
+  const isCreatedBy =
+    keys.includes('created_by') ||
+    header.toLowerCase().replace(/[^a-z]/g, '') === 'createdby';
   return {
     header,
     cell: (row) => {
-      const v = pick(row, keys, opts.fallback ?? DASH);
+      let v = pick(row, keys, opts.fallback ?? DASH);
+      if (isCreatedBy) {
+        const logged = getLoggedInUserName();
+        if (logged) v = logged;
+      }
       if (opts.clamp) {
         return (
           <span
@@ -149,7 +190,32 @@ export function textCol<T>(
       if (opts.strong) return <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{v}</span>;
       return v;
     },
-    exportValue: (row) => pick(row, keys, opts.fallback ?? DASH),
+    exportValue: (row) => {
+      if (isCreatedBy) {
+        const logged = getLoggedInUserName();
+        if (logged) return logged;
+      }
+      return pick(row, keys, opts.fallback ?? DASH);
+    },
+  };
+}
+
+/**
+ * Dedicated "Created By" column for UP Complaint tables.
+ * Displays the logged-in vendor / user's name from login API, with fallback to row's created_by.
+ */
+export function createdByCol<T>(header = 'Created By'): ComplaintColumn<T> {
+  return {
+    header,
+    cell: (row) => {
+      const loggedName = getLoggedInUserName();
+      const val = loggedName || pick(row, ['created_by_name', 'creator', 'vendor_name', 'created_by'], DASH);
+      return <span style={{ fontWeight: 500, color: 'var(--ax-text-strong)' }}>{val}</span>;
+    },
+    exportValue: (row) => {
+      const loggedName = getLoggedInUserName();
+      return loggedName || pick(row, ['created_by_name', 'creator', 'vendor_name', 'created_by'], DASH);
+    },
   };
 }
 

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -599,6 +599,41 @@ const STATUS_CATALOG: StatusOption[] = [
   { key: 'verify_pending', label: 'Verify Pending', sub: 'Awaiting inspection audit', category: 'verification', tone: 'amber' },
   { key: 'verify_reject', label: 'Verify Rejected', sub: 'Flagged with audit rework', category: 'verification', tone: 'red' },
 
+  { key: 'doc_approved', label: 'Document Approved', sub: 'Verified document records', category: 'verification', tone: 'emerald' },
+  { key: 'doc_pending', label: 'Document Pending', sub: 'Awaiting document approval', category: 'verification', tone: 'amber' },
+  { key: 'doc_reject', label: 'Document Rejected', sub: 'Document rejected', category: 'verification', tone: 'red' },
+
+  { key: 'inst_claim1_applicable', label: 'Claim 1 Applicable', sub: 'Milestone 1 claimable sites', category: 'claim', tone: 'accent' },
+  { key: 'inst_claim2_applicable', label: 'Claim 2 Applicable', sub: 'Milestone 2 claimable sites', category: 'claim', tone: 'accent' },
+  { key: 'inst_claim3_applicable', label: 'Claim 3 Applicable', sub: 'Milestone 3 claimable sites', category: 'claim', tone: 'accent' },
+
+  { key: 'inst_claim1_raised', label: 'Claim 1 Submitted', sub: 'Submitted Claim 1 requests', category: 'claim', tone: 'pink' },
+  { key: 'inst_claim1_approved', label: 'Claim 1 Approved', sub: 'Approved Claim 1 requests', category: 'claim', tone: 'emerald' },
+  { key: 'inst_claim1_pending', label: 'Claim 1 Pending', sub: 'Pending Claim 1 requests', category: 'claim', tone: 'amber' },
+  { key: 'inst_claim1_reject', label: 'Claim 1 Rejected', sub: 'Rejected Claim 1 requests', category: 'claim', tone: 'red' },
+
+  { key: 'inst_claim2_raised', label: 'Claim 2 Submitted', sub: 'Submitted Claim 2 requests', category: 'claim', tone: 'pink' },
+  { key: 'inst_claim2_approved', label: 'Claim 2 Approved', sub: 'Approved Claim 2 requests', category: 'claim', tone: 'emerald' },
+  { key: 'inst_claim2_pending', label: 'Claim 2 Pending', sub: 'Pending Claim 2 requests', category: 'claim', tone: 'amber' },
+  { key: 'inst_claim2_reject', label: 'Claim 2 Rejected', sub: 'Rejected Claim 2 requests', category: 'claim', tone: 'red' },
+
+  { key: 'inst_claim3_raised', label: 'Claim 3 Submitted', sub: 'Submitted Claim 3 requests', category: 'claim', tone: 'pink' },
+  { key: 'inst_claim3_approved', label: 'Claim 3 Approved', sub: 'Approved Claim 3 requests', category: 'claim', tone: 'emerald' },
+  { key: 'inst_claim3_pending', label: 'Claim 3 Pending', sub: 'Pending Claim 3 requests', category: 'claim', tone: 'amber' },
+  { key: 'inst_claim3_reject', label: 'Claim 3 Rejected', sub: 'Rejected Claim 3 requests', category: 'claim', tone: 'red' },
+
+  { key: 'inst_pay1_complete', label: 'Payment 1 Complete', sub: 'Disbursed Payment 1', category: 'claim', tone: 'emerald' },
+  { key: 'inst_pay1_partially', label: 'Payment 1 Partially', sub: 'Partially paid Payment 1', category: 'claim', tone: 'amber' },
+  { key: 'inst_pay1_pending', label: 'Payment 1 Pending', sub: 'Pending Payment 1', category: 'claim', tone: 'red' },
+
+  { key: 'inst_pay2_complete', label: 'Payment 2 Complete', sub: 'Disbursed Payment 2', category: 'claim', tone: 'emerald' },
+  { key: 'inst_pay2_partially', label: 'Payment 2 Partially', sub: 'Partially paid Payment 2', category: 'claim', tone: 'amber' },
+  { key: 'inst_pay2_pending', label: 'Payment 2 Pending', sub: 'Pending Payment 2', category: 'claim', tone: 'red' },
+
+  { key: 'inst_pay3_complete', label: 'Payment 3 Complete', sub: 'Disbursed Payment 3', category: 'claim', tone: 'emerald' },
+  { key: 'inst_pay3_partially', label: 'Payment 3 Partially', sub: 'Partially paid Payment 3', category: 'claim', tone: 'amber' },
+  { key: 'inst_pay3_pending', label: 'Payment 3 Pending', sub: 'Pending Payment 3', category: 'claim', tone: 'red' },
+
   { key: 'claim1_approved', label: 'Claim 1 Approved', sub: 'Milestone 1 sanctioned', category: 'claim', tone: 'emerald' },
   { key: 'claim2_approved', label: 'Claim 2 Approved', sub: 'Milestone 2 sanctioned', category: 'claim', tone: 'cyan' },
   { key: 'claim3_approved', label: 'Claim 3 Approved', sub: 'Milestone 3 sanctioned', category: 'claim', tone: 'violet' },
@@ -650,8 +685,9 @@ const panelsOf = (r: any): string[] => {
 const sanctionOf = (r: any) => txt(r, 'sanction_load') || (r.plant_sc ? `${r.plant_sc} kW` : '');
 
 export function RescoStatusView() {
+  const { status: routeStatus } = useParams<{ status?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialStatus = normalizeRescoStatus(searchParams.get('status') || 'total');
+  const initialStatus = normalizeRescoStatus(routeStatus || searchParams.get('status') || 'total');
   const initialDistrict = searchParams.get('district') || 'all';
 
   const [currentStatus, setCurrentStatus] = useState<string>(initialStatus);
@@ -685,9 +721,9 @@ export function RescoStatusView() {
     );
   }, [currentStatus]);
 
-  // Sync state from query params
+  // Sync state from query params & route params
   useEffect(() => {
-    const s = searchParams.get('status');
+    const s = routeStatus || searchParams.get('status');
     const d = searchParams.get('district');
     if (s) {
       const norm = normalizeRescoStatus(s);
@@ -695,7 +731,7 @@ export function RescoStatusView() {
     }
     setDistrictFilter(d || 'all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [routeStatus, searchParams]);
 
   const loadStatusData = useCallback(async (statusKey: string, district: string, isRefresh = false) => {
     try {

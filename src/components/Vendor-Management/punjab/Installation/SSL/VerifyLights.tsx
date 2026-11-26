@@ -668,7 +668,7 @@ export function VerifyLights() {
     pagination.setPage(1);
   }, [searchQuery, activeTab]);
 
-  // Export Columns definition (Exact 23 columns, NO #)
+  // Export Columns definition (Exact 26 columns matching requested table headers)
   const exportCols: ExportColumn<LightVerificationItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: LightVerificationItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
@@ -682,19 +682,22 @@ export function VerifyLights() {
       { header: 'Ward No', accessor: (r: LightVerificationItem) => r.ward_no ?? '—' },
       { header: 'Pole No', accessor: (r: LightVerificationItem) => r.pole_no ?? '—' },
       { header: 'Beneficiary Name', accessor: (r: LightVerificationItem) => r.beneficiary_name || '—' },
-      { header: 'Beneficiary Contact', accessor: (r: LightVerificationItem) => r.beneficiary_contact || r.contact_number || '—' },
+      { header: 'Beneficiary Contact', accessor: (r: LightVerificationItem) => r.contact_no || r.beneficiary_contact || r.contact_number || '—' },
       { header: 'Sarpanch Name', accessor: (r: LightVerificationItem) => r.sarpanch_name || '—' },
       { header: 'Sarpanch Contact', accessor: (r: LightVerificationItem) => r.sarpanch_contact || '—' },
       { header: 'Latitude', accessor: (r: LightVerificationItem) => r.latitude || r.lat || '—' },
       { header: 'Longitude', accessor: (r: LightVerificationItem) => r.longitude || r.lng || '—' },
       { header: 'UUID No.', accessor: (r: LightVerificationItem) => r.uuid_no || '—' },
       { header: 'Light No.', accessor: (r: LightVerificationItem) => r.light_no || '—' },
-      { header: 'Battery No.', accessor: (r: LightVerificationItem) => r.battery_no || '—' },
+      { header: 'Battery No.', accessor: (r: LightVerificationItem) => r.battery_serial_no || r.battery_no || '—' },
       { header: 'Panel No.', accessor: (r: LightVerificationItem) => r.panel_no || '—' },
-      { header: 'Light Image', accessor: (r: LightVerificationItem) => r.light_file || r.file || '—' },
-      { header: 'Remark', accessor: (r: LightVerificationItem) => r.remark || r.inst_remark || '—' },
+      { header: 'light Image', accessor: (r: LightVerificationItem) => r.light_file || r.image || r.file || '—' },
+      { header: 'Pole With Light Image', accessor: (r: LightVerificationItem) => r.light_file2 || r.pole_image || '—' },
+      { header: 'Panel Image', accessor: (r: LightVerificationItem) => r.panel_image || '—' },
+      { header: 'Battery Serial Image', accessor: (r: LightVerificationItem) => r.battery_serial_image || '—' },
+      { header: 'Remark', accessor: (r: LightVerificationItem) => r.inst_remark || r.remark || r.inst_verify_remarks || '—' },
       {
-        header: 'Verification Status',
+        header: 'Verify Status',
         accessor: (r: LightVerificationItem) => {
           const st = Number(r.inst_verify_status ?? r.status ?? 0);
           return st === 1 ? 'Approved' : st === 2 ? 'Rejected' : 'Pending';
@@ -1051,7 +1054,7 @@ export function VerifyLights() {
 
         {/* ── Responsive Horizontal Scroll Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: activeTab === 'pending' ? 2400 : 2250 }}>
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th" style={{ width: 60, textAlign: 'center' }}>Sr. No.</th>
@@ -1074,9 +1077,12 @@ export function VerifyLights() {
                 <th className="ax-table__th">Light No.</th>
                 <th className="ax-table__th">Battery No.</th>
                 <th className="ax-table__th">Panel No.</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Light Image</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>light Image</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Pole With Light Image</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Panel Image</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Battery Serial Image</th>
                 <th className="ax-table__th" style={{ minWidth: 150 }}>Remark</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
                 {activeTab === 'pending' && (
                   <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
                 )}
@@ -1085,7 +1091,7 @@ export function VerifyLights() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 27 : 26} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading light installation records...</span>
@@ -1094,7 +1100,7 @@ export function VerifyLights() {
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 27 : 26} style={centerCell}>
                     <TableEmptyState
                       title="No installation records found"
                       description={searchQuery ? 'Try adjusting your search criteria' : 'No records match this bifurcation view'}
@@ -1105,7 +1111,10 @@ export function VerifyLights() {
                 pagination.paged.map((row: LightVerificationItem, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const vName = getVendorName(row);
-                  const imgUrl = row.light_file || row.file || row.inst_file;
+                  const lightImg = row.light_file || row.image || row.file || row.inst_file;
+                  const poleImg = row.light_file2 || row.pole_image;
+                  const panelImg = row.panel_image;
+                  const batterySerialImg = row.battery_serial_image;
                   const verifyStatus = Number(row.inst_verify_status ?? row.status ?? 0);
                   const uidStr = String(row.uid || row.unique_id || row.id || '—');
                   const lat = row.latitude || row.lat;
@@ -1148,7 +1157,7 @@ export function VerifyLights() {
                         {row.beneficiary_name || '—'}
                       </td>
                       <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 12 }}>
-                        {row.beneficiary_contact || row.contact_number || '—'}
+                        {row.contact_no || row.beneficiary_contact || row.contact_number || '—'}
                       </td>
                       <td className="ax-table__td">{row.sarpanch_name || '—'}</td>
                       <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 12 }}>
@@ -1184,26 +1193,27 @@ export function VerifyLights() {
                       <td className="ax-table__td">{lng || '—'}</td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.uuid_no || '—'}</td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.light_no || '—'}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.battery_no || '—'}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.battery_serial_no || row.battery_no || '—'}</td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.panel_no || '—'}</td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <MediaFileThumbnail file={imgUrl} onClick={setLightboxUrl} />
+                        <MediaFileThumbnail file={lightImg} onClick={setLightboxUrl} />
                       </td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, fontSize: 11, lineHeight: 1.3 }}>
-                        {row.remark || row.inst_remark ? (
-                          <div>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>Vendor: </span>
-                            <span>{row.remark || row.inst_remark}</span>
-                          </div>
-                        ) : null}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <MediaFileThumbnail file={poleImg} onClick={setLightboxUrl} />
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <MediaFileThumbnail file={panelImg} onClick={setLightboxUrl} />
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <MediaFileThumbnail file={batterySerialImg} onClick={setLightboxUrl} />
+                      </td>
+                      <td className="ax-table__td" style={{ maxWidth: 180, fontSize: 12 }}>
+                        {row.inst_remark || row.remark || '—'}
                         {row.inst_verify_remarks && (
-                          <div style={{ marginTop: row.remark ? 3 : 0, color: '#b45309' }}>
+                          <div style={{ marginTop: 3, fontSize: 11, color: '#b45309' }}>
                             <span style={{ fontWeight: 600 }}>QA: </span>
                             <span>{row.inst_verify_remarks}</span>
                           </div>
-                        )}
-                        {!row.remark && !row.inst_remark && !row.inst_verify_remarks && (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
                         )}
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
@@ -1250,7 +1260,7 @@ export function VerifyLights() {
                               onClick={() => {
                                 setSelectedSiteForAction(row);
                                 setActionStatus('1');
-                                setActionRemarks(row.inst_verify_remarks || row.remark || '');
+                                setActionRemarks(row.inst_verify_remarks || row.inst_remark || row.remark || '');
                               }}
                               className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
@@ -1258,8 +1268,16 @@ export function VerifyLights() {
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
                               }}
+                              title="Verify installation"
                             >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                <polyline points="22 4 12 14.01 9 11.01" />
+                              </svg>
                               Verify
                             </button>
                           </div>
@@ -1476,9 +1494,9 @@ export function VerifyLights() {
                   </div>
                 </div>
                 <div>
-                  <div style={{ color: '#64748b', fontSize: 11 }}>Battery No.</div>
+                  <div style={{ color: '#64748b', fontSize: 11 }}>Battery No. / Serial</div>
                   <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e293b' }}>
-                    {selectedLightForDetails.battery_no || '—'}
+                    {selectedLightForDetails.battery_serial_no || selectedLightForDetails.battery_no || '—'}
                   </div>
                 </div>
                 <div>
@@ -1490,40 +1508,51 @@ export function VerifyLights() {
               </div>
             </div>
 
-            {/* Grid 3: Photographic Evidence */}
+            {/* Grid 3: Photographic Evidence (4 Real On-site Photos) */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
                 Photographic Evidence
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-                {(() => {
-                  const img =
-                    selectedLightForDetails.light_file ||
-                    selectedLightForDetails.file ||
-                    selectedLightForDetails.inst_file;
-                  return (
-                    <div style={{ border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', textAlign: 'center' }}>
-                      <div style={{ padding: '6px 8px', background: '#f8fafc', fontSize: 11, fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
-                        Installed Light Image
-                      </div>
-                      {img ? (
-                        <div
-                          style={{ padding: 8, cursor: 'pointer', background: '#f1f5f9' }}
-                          onClick={() => setLightboxUrl(resolvePunjabMediaUrl(img))}
-                        >
-                          <img
-                            src={resolvePunjabMediaUrl(img)}
-                            alt="Installed Light"
-                            style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 6, background: '#fff' }}
-                          />
-                          <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to view full image</div>
-                        </div>
-                      ) : (
-                        <div style={{ padding: 40, color: '#94a3b8', fontSize: 12 }}>No Image Available</div>
-                      )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+                {[
+                  {
+                    title: 'Light Image',
+                    src: selectedLightForDetails.light_file || selectedLightForDetails.image || selectedLightForDetails.file || selectedLightForDetails.inst_file,
+                  },
+                  {
+                    title: 'Pole With Light Image',
+                    src: selectedLightForDetails.light_file2 || selectedLightForDetails.pole_image,
+                  },
+                  {
+                    title: 'Panel Image',
+                    src: selectedLightForDetails.panel_image,
+                  },
+                  {
+                    title: 'Battery Serial Image',
+                    src: selectedLightForDetails.battery_serial_image,
+                  },
+                ].map((item, photoIdx) => (
+                  <div key={photoIdx} style={{ border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', textAlign: 'center' }}>
+                    <div style={{ padding: '6px 8px', background: '#f8fafc', fontSize: 11, fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
+                      {item.title}
                     </div>
-                  );
-                })()}
+                    {item.src ? (
+                      <div
+                        style={{ padding: 8, cursor: 'pointer', background: '#f1f5f9' }}
+                        onClick={() => setLightboxUrl(resolvePunjabMediaUrl(item.src))}
+                      >
+                        <img
+                          src={resolvePunjabMediaUrl(item.src)}
+                          alt={item.title}
+                          style={{ width: '100%', height: 140, objectFit: 'contain', borderRadius: 6, background: '#fff' }}
+                        />
+                        <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to view full image</div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: 36, color: '#94a3b8', fontSize: 12 }}>No Image Uploaded</div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1533,8 +1562,8 @@ export function VerifyLights() {
                 Remarks & Audit Log
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 12 }}>
-                <span style={{ color: '#64748b' }}>Vendor Remarks:</span>
-                <span style={{ color: '#0f172a' }}>{selectedLightForDetails.remark || selectedLightForDetails.inst_remark || '—'}</span>
+                <span style={{ color: '#64748b' }}>Installation Remark (inst_remark):</span>
+                <span style={{ color: '#0f172a' }}>{selectedLightForDetails.inst_remark || selectedLightForDetails.remark || '—'}</span>
 
                 <span style={{ color: '#64748b' }}>QA Verified Date:</span>
                 <span>{selectedLightForDetails.updated_at || selectedLightForDetails.inst_date || '—'}</span>

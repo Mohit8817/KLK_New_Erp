@@ -86,7 +86,6 @@ export const BIHAR_ADMIN_API = {
         ...buildCandidateUrls(`/bihar/srt200mw/survey/approval-assign/${encodeURIComponent(id)}`),
       ])),
     VIEW_SURVEY: Array.from(new Set([
-      'https://klkerp.com/api/admin/bihar/srt200mw/survey/view-survey',
       ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
       ...buildCandidateUrls('/bihar/srt200mw/survey/view-survey'),
       ...buildCandidateUrls('/bihar/srt200mw-view-survey'),

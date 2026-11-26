@@ -1029,6 +1029,7 @@ class JammuRescoAdminService {
         d.hoc_photo ||
         null;
       return {
+        ...d,
         id: Number(d.id),
         vendor_name: d.vendor_name || d.vendor || d.firm_name || (d.inst_vendor ? `Vendor #${d.inst_vendor}` : '') || d.vendors?.name || '',
         state: 'jammu',
@@ -1043,9 +1044,6 @@ class JammuRescoAdminService {
         verify_status: Number(d.inst_doc_status ?? d.verify_status ?? 0),
         inst_doc_status: Number(d.inst_doc_status ?? d.verify_status ?? 0),
         verify_remarks: d.inst_doc_verify_remarks || d.verify_remarks || d.doc_verify_remarks || '',
-        ...d,
-        document_file: rawDocFile,
-        inst_doc_file: rawDocFile,
       };
     };
 

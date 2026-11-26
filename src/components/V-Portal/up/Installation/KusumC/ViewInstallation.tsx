@@ -58,7 +58,7 @@ const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string | null 
 /* ── Comprehensive Claim Status Resolution (0: Not Applicable, 1: Claim Applicable, 2: Approved, 3: Reject) ── */
 type ClaimStatusKey =
   | 'not_applicable'
-  | 'claim_applicable'
+  | 'Raised'
   | 'approved'
   | 'rejected'
   | 'paid'
@@ -135,10 +135,10 @@ function resolveSiteClaimInfo(
 
   // 1. Payment settlement states (highest priority)
   if (payStatus === 1) {
-    return { key: 'paid', label: 'Paid', tone: 'success', amount, claimId, remarks };
+    return { key: 'paid', label: 'Paid', tone: 'success',  claimId, remarks };
   }
   if (payStatus === 2) {
-    return { key: 'partially_paid', label: 'Partially Paid', tone: 'warning', amount, claimId, remarks };
+    return { key: 'partially_paid', label: 'Partially Paid', tone: 'warning',  remarks };
   }
 
   // 2. Claim verification states (from linked claim record)
@@ -151,17 +151,12 @@ function resolveSiteClaimInfo(
       return { key: 'rejected', label: 'Reject', tone: 'danger', amount, claimId, remarks };
     }
     if (cs === 1) {
-      return { key: 'claim_applicable', label: 'Claim Applicable', tone: 'info', amount, claimId, remarks };
+      return { key: 'Raised', label: 'Raised', tone: 'info', amount, claimId, remarks };
     }
   }
 
-  // 3. User mapping for inst_claim_status:
-  // 0 -> Not Applicable
-  // 1 -> Claim Applicable
-  // 2 -> Approved
-  // 3 -> Reject
   if (rawClaimStatus === 1) {
-    return { key: 'claim_applicable', label: 'Claim Applicable', tone: 'info', amount };
+    return { key: 'Raised', label: 'Raised', tone: 'info', amount };
   }
   if (rawClaimStatus === 2) {
     return { key: 'approved', label: 'Approved', tone: 'success', amount };
@@ -2242,7 +2237,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
               >
                 <option value="all">All Claim Status</option>
                 <option value="not_applicable">Not Applicable</option>
-                <option value="claim_applicable">Claim Applicable</option>
+                <option value="Raised">Claim Applicable</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Reject</option>
                 <option value="paid">Paid</option>

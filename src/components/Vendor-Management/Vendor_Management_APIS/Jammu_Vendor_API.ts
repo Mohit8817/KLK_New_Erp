@@ -342,6 +342,10 @@ export const JAMMU_VENDOR_API = {
     `${ADMIN_BASE_URL}/jk/resco/survey/fetch-site?district=${encodeURIComponent(district)}`,
   ADMIN_RESCO_SURVEY_STORE_ASSIGN: `${ADMIN_BASE_URL}/jk/resco/survey/store-assign`,
   ADMIN_RESCO_SURVEY_VIEW_ASSIGN: `${ADMIN_BASE_URL}/jk/resco/survey/view-assign`,
+  ADMIN_RESCO_SURVEY_APPROVAL_ASSIGN: (id: string | number) =>
+    `${ADMIN_BASE_URL}/jk/resco/survey/approval-assign/${encodeURIComponent(id)}`,
+  ADMIN_RESCO_SURVEY_EDIT_ASSIGN: (id: string | number) =>
+    `${ADMIN_BASE_URL}/jk/resco/survey/edit-assign/${encodeURIComponent(id)}`,
   ADMIN_RESCO_SURVEY_ASSIGN_VENDOR: `${ADMIN_BASE_URL}/jk/resco/survey/assign-vendor`,
   ADMIN_RESCO_SURVEY_FETCH_SITE_DETAIL: (srtId: string | number) =>
     `${ADMIN_BASE_URL}/jk/resco/survey/fetch-site-detail?srt_id=${encodeURIComponent(srtId)}`,

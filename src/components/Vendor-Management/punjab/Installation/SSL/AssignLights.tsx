@@ -468,9 +468,19 @@ export function AssignLights() {
             });
           }
 
-          const vol = cleanStr(assignObj.volume) || '2';
-          const dist = cleanStr(assignObj.district);
-          const blk = cleanStr(assignObj.block);
+          const vol = cleanStr(assignObj.volume) || cleanStr(recordFromView?.volume) || '2';
+          const rawDist = assignObj.district ?? recordFromView?.district;
+          const rawBlk = assignObj.block ?? recordFromView?.block;
+          const dist = typeof rawDist === 'string'
+            ? cleanStr(rawDist)
+            : (!Array.isArray(rawDist) && rawDist && typeof rawDist === 'object'
+                ? cleanStr(rawDist.district || rawDist.district_name || rawDist.name)
+                : cleanStr(recordFromView?.district));
+          const blk = typeof rawBlk === 'string'
+            ? cleanStr(rawBlk)
+            : (!Array.isArray(rawBlk) && rawBlk && typeof rawBlk === 'object'
+                ? cleanStr(rawBlk.block || rawBlk.block_name || rawBlk.name)
+                : cleanStr(recordFromView?.block));
 
           if (vol && !volSet.has(vol)) {
             combinedVolumes.push({ volume: vol });
@@ -789,8 +799,12 @@ export function AssignLights() {
 
   const filteredPanchayats = useMemo(() => {
     const q = panchayatFilterQuery.trim().toLowerCase();
-    if (!q) return panchayats;
-    return panchayats.filter((p) => cleanStr(p.panchayat).toLowerCase().includes(q));
+    const valid = panchayats.filter((p) => {
+      const name = cleanStr(p.panchayat);
+      return Boolean(name && name !== '[object Object]');
+    });
+    if (!q) return valid;
+    return valid.filter((p) => cleanStr(p.panchayat).toLowerCase().includes(q));
   }, [panchayats, panchayatFilterQuery]);
 
   const selectedLightsTally = useMemo(() => {
@@ -1553,12 +1567,13 @@ export function AssignLights() {
                       }}
                       disabled={submitting || isAcceptedLocked}
                     >
-                      <option value="">-- Quick Select Panchayat from List ({panchayats.length}) --</option>
-                      {panchayats.map((p, idx) => {
-                        const isChecked = selectedPanchayats.includes(cleanStr(p.panchayat));
+                      <option value="">-- Quick Select Panchayat from List ({filteredPanchayats.length}) --</option>
+                      {filteredPanchayats.map((p, idx) => {
+                        const pName = cleanStr(p.panchayat);
+                        const isChecked = selectedPanchayats.includes(pName);
                         return (
-                          <option key={idx} value={cleanStr(p.panchayat)}>
-                            {isChecked ? '✓ ' : ''}{cleanStr(p.panchayat)}{p.light_count !== undefined ? ` (${p.light_count} lights available)` : ''}
+                          <option key={idx} value={pName}>
+                            {isChecked ? '✓ ' : ''}{pName}{p.light_count !== undefined ? ` (${p.light_count} lights available)` : ''}
                           </option>
                         );
                       })}

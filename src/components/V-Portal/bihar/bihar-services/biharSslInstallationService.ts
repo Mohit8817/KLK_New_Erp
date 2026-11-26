@@ -340,11 +340,19 @@ export interface SslDashboardStats {
 export interface SslDashboardDistrictRow {
   district: string;
   total_light: number;
+  total_assigned?: number;
   inst_complete: number;
   inst_pending: number;
   verify_approved: number;
+  verify_pending?: number;
+  verify_reject?: number;
+  cms_approve_pending?: number;
+  cms_pending?: number;
   claim_raised: number;
+  claim_approved?: number;
+  claim_reject?: number;
   payment_done: number;
+  payment_pending?: number;
 }
 
 export interface SslDashboardData {

@@ -102,10 +102,82 @@ const txt = (row: any, key: string): string => {
   return String(v);
 };
 
-const fmtModules = (row: JammuSwpInstalledSiteItem): string => {
-  const list = row.jammuModulee || row.jammu_modules;
+const getVendorName = (r: any, payload?: JammuSwpInstallViewData | null) =>
+  r?.vendor_name || r?.vendor || payload?.vendor?.name || payload?.loginName || r?.c_firm || (r?.inst_vendor ? `Vendor #${r.inst_vendor}` : DASH);
+
+const getAppNo = (r: any) =>
+  r?.f_app_no || r?.application_no || r?.app_no || r?.f_customer_no || (r?.id ? String(r.id) : DASH);
+
+const getFarmerName = (r: any) =>
+  r?.f_farmer_name || r?.farmer_name || r?.beneficiary_name || DASH;
+
+const getContactNo = (r: any) =>
+  r?.contact_number || r?.contact_no || r?.c_contact || r?.mobile || r?.phone || DASH;
+
+const getLatitude = (r: any) =>
+  r?.inst_latitude || r?.s_latitude || r?.latitude || DASH;
+
+const getLongitude = (r: any) =>
+  r?.inst_longitude || r?.s_longitude || r?.longitude || DASH;
+
+const getPumpType = (r: any) => {
+  const pType = r?.p_pump_type || r?.pump_type;
+  const pSub = r?.p_pump_subtype;
+  if (!pType && !pSub) return DASH;
+  if (pType && pSub) return `${pType} (${pSub})`;
+  return pType || pSub || DASH;
+};
+
+const getPumpCapacity = (r: any) =>
+  r?.p_pump_capacity || r?.pump_capacity || r?.capacity || DASH;
+
+const getPumpHead = (r: any) =>
+  r?.p_pump_head || r?.pump_head || r?.head || DASH;
+
+const getWaterSource = (r: any) =>
+  r?.water_source || r?.p_water_source || r?.source || r?.s_source || r?.p_pump_subtype || DASH;
+
+const getTDH = (r: any) =>
+  r?.total_dynamic_head || r?.tdh || r?.dynamic_head || r?.p_pump_head || DASH;
+
+const getBorewellDepth = (r: any) =>
+  r?.borewell_depth || r?.depth || r?.b_depth || r?.bore_depth || DASH;
+
+const getWaterDelivery = (r: any) =>
+  r?.water_delivery_output || r?.discharge || r?.water_output || DASH;
+
+const getPanelCapacity = (r: any) =>
+  r?.mt_module_watt || r?.panel_capacity || r?.module_capacity || DASH;
+
+const getNoOfPanels = (r: any) => {
+  const mList = r?.jammu_modulee || r?.jammuModulee || r?.jammu_modules || r?.modules;
+  if (Array.isArray(mList) && mList.length > 0) return String(mList.length);
+  return r?.no_of_panels ? String(r.no_of_panels) : DASH;
+};
+
+const getInverterSrNo = (r: any) =>
+  r?.vfd_no || r?.mt_controller_no || r?.inverter_sr_no || DASH;
+
+const getPumpSrNo = (r: any) =>
+  r?.mt_pump_no || r?.pump_sr_no || r?.p_pump_no || DASH;
+
+const getMotorSrNo = (r: any) =>
+  r?.mt_motor_no || r?.motor_sr_no || r?.m_motor_no || DASH;
+
+const getSurveyStatusText = (r: any) => {
+  const isDone =
+    String(r?.s_survey_done || '').toLowerCase() === 'yes' ||
+    String(r?.survey_done || '').toLowerCase() === 'yes' ||
+    String(r?.s_recieved || '').toLowerCase() === 'yes' ||
+    Number(r?.survey_status) === 1 ||
+    String(r?.survey_status || '').toLowerCase() === 'completed';
+  return isDone ? 'Completed' : 'Pending';
+};
+
+const fmtModules = (row: any): string => {
+  const list = row?.jammu_modulee || row?.jammuModulee || row?.jammu_modules || row?.modules;
   if (Array.isArray(list) && list.length > 0) {
-    return list.map((m) => m.sr_no).filter(Boolean).join(', ');
+    return list.map((m: any) => m.sr_no || m.module_no).filter(Boolean).join(', ');
   }
   return DASH;
 };
@@ -558,28 +630,28 @@ const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as cons
 // Exactly 24 requested headers:
 const HEADERS_24 = [
   'Sr. No.',
-  'Vendor',
   'State',
   'District',
-  'Application No.',
-  'Beneficiary Name',
-  'Contact Number',
-  'Latitude',
-  'Longitude',
-  'Pump Type',
-  'Pump Capacity',
-  'Pump Head (in Mtr)',
-  'Water Source',
-  'Total Dynamic Head (in Mtr)',
-  'Borewell Depth (in Mtr)',
-  'Water Delivery Output (in Ltr)',
-  'Panel Capacity (in Watts)',
-  'No. of Panels',
-  'Inverter Serial No.',
-  'Pump Serial No.',
-  'Motor Serial No.',
-  'Status',
-  'Survey Status',
+  'Tehsil',
+  'Block',
+  'Village',
+  'Applicant Name',
+  'VFD No.',
+  'Motor No.',
+  'Pump No.',
+  'Module Serial No.',
+  'Farmer With Module Image',
+  'Inverter and VFD with Farmer Image',
+  'Running Water With Farmer Image',
+  'Pole With Farmer Image',
+  'Remarks',
+  'Verify Status',
+  'Verify Remarks',
+  'Document Status',
+  'Document Remarks',
+  'Doc Verify Remarks',
+  'Claim Status',
+  'Payment Status',
   'Action',
 ];
 
@@ -596,6 +668,11 @@ export function SWPViewInstallation() {
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
+
+  // View Detail Modal State
+  const [detailSite, setDetailSite] = useState<JammuSwpInstalledSiteItem | null>(null);
+  const handleOpenDetailModal = (site: JammuSwpInstalledSiteItem) => setDetailSite(site);
+  const closeDetailModal = () => setDetailSite(null);
 
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -688,20 +765,26 @@ export function SWPViewInstallation() {
 
     const q = search.trim().toLowerCase();
     if (q) {
-      list = list.filter((s) => {
-        const farmerMatch = (s.f_farmer_name || '').toLowerCase().includes(q);
-        const distMatch = (s.district || '').toLowerCase().includes(q);
+      list = list.filter((s: any) => {
+        const farmerMatch = (s.f_farmer_name || s.farmer_name || s.beneficiary_name || '').toLowerCase().includes(q);
+        const fatherMatch = (s.f_father_name || '').toLowerCase().includes(q);
+        const appNoMatch = (s.f_app_no || s.application_no || s.app_no || s.f_customer_no || '').toLowerCase().includes(q);
+        const contactMatch = (s.contact_number || s.contact_no || s.c_contact || '').toLowerCase().includes(q);
+        const distMatch = (s.district || s.f_district || '').toLowerCase().includes(q);
         const tehsilMatch = (s.tehsil || '').toLowerCase().includes(q);
         const blockMatch = (s.block || '').toLowerCase().includes(q);
         const villageMatch = (s.village || '').toLowerCase().includes(q);
         const motorMatch = (s.mt_motor_no || '').toLowerCase().includes(q);
         const pumpMatch = (s.mt_pump_no || '').toLowerCase().includes(q);
-        const vfdMatch = (s.vfd_no || '').toLowerCase().includes(q);
+        const vfdMatch = (s.vfd_no || s.mt_controller_no || '').toLowerCase().includes(q);
         const modulesMatch = fmtModules(s).toLowerCase().includes(q);
         const remarksMatch = (s.inst_remarks || '').toLowerCase().includes(q);
         return (
           String(s.id).includes(q) ||
           farmerMatch ||
+          fatherMatch ||
+          appNoMatch ||
+          contactMatch ||
           distMatch ||
           tehsilMatch ||
           blockMatch ||
@@ -743,32 +826,38 @@ export function SWPViewInstallation() {
       const srt = res.site;
       if (srt) {
         let mArr: string[] = [];
-        if (Array.isArray(srt.jammuModulee)) {
-          mArr = srt.jammuModulee.map((m) => m.sr_no).filter(Boolean);
+        const modArr = srt.jammu_modulee || srt.jammuModulee || srt.jammu_modules;
+        if (Array.isArray(modArr)) {
+          mArr = modArr.map((m: any) => m.sr_no || m.module_no).filter(Boolean);
         }
 
         setEditForm({
-          farmer_name: srt.f_farmer_name || '',
-          motor_no: srt.mt_motor_no || '',
-          pump_no: srt.mt_pump_no || '',
-          vfd_no: srt.vfd_no || '',
+          farmer_name: srt.f_farmer_name || srt.farmer_name || '',
+          motor_no: srt.mt_motor_no || srt.motor_no || '',
+          pump_no: srt.mt_pump_no || srt.pump_no || '',
+          vfd_no: srt.vfd_no || srt.mt_controller_no || '',
           module_serial_no: mArr.length > 0 ? mArr : [''],
-          inst_latitude: srt.inst_latitude || '',
-          inst_longitude: srt.inst_longitude || '',
+          inst_latitude: srt.inst_latitude || srt.s_latitude || '',
+          inst_longitude: srt.inst_longitude || srt.s_longitude || '',
           inst_remarks: srt.inst_remarks || '',
         });
       }
     } catch (err: any) {
       console.error('Error loading edit data:', err);
       const target = sites.find((c) => c.id === id);
+      const modArr = target?.jammu_modulee || target?.jammuModulee || target?.jammu_modules;
+      let mArr: string[] = [];
+      if (Array.isArray(modArr)) {
+        mArr = modArr.map((m: any) => m.sr_no || m.module_no).filter(Boolean);
+      }
       setEditForm({
-        farmer_name: target?.f_farmer_name || '',
-        motor_no: target?.mt_motor_no || '',
-        pump_no: target?.mt_pump_no || '',
-        vfd_no: target?.vfd_no || '',
-        module_serial_no: [''],
-        inst_latitude: target?.inst_latitude || '',
-        inst_longitude: target?.inst_longitude || '',
+        farmer_name: target?.f_farmer_name || target?.farmer_name || '',
+        motor_no: target?.mt_motor_no || target?.motor_no || '',
+        pump_no: target?.mt_pump_no || target?.pump_no || '',
+        vfd_no: target?.vfd_no || target?.mt_controller_no || '',
+        module_serial_no: mArr.length > 0 ? mArr : [''],
+        inst_latitude: target?.inst_latitude || target?.s_latitude || '',
+        inst_longitude: target?.inst_longitude || target?.s_longitude || '',
         inst_remarks: target?.inst_remarks || '',
       });
       setEditError(err?.message || 'Failed to load site details for editing.');
@@ -937,28 +1026,28 @@ export function SWPViewInstallation() {
   const exportCols: ExportColumn<JammuSwpInstalledSiteItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'Vendor', accessor: (r: any) => txt(r, 'vendor_name') || txt(r, 'vendor') || DASH },
-      { header: 'State', accessor: (r: any) => r.state || 'Jammu' },
-      { header: 'District', accessor: (r: any) => txt(r, 'district') || DASH },
-      { header: 'Application No.', accessor: (r: any) => txt(r, 'application_no') || txt(r, 'app_no') || String(r.id) },
-      { header: 'Beneficiary Name', accessor: (r: any) => r.f_farmer_name || txt(r, 'beneficiary_name') || DASH },
-      { header: 'Contact Number', accessor: (r: any) => txt(r, 'contact_no') || txt(r, 'mobile') || txt(r, 'phone') || DASH },
-      { header: 'Latitude', accessor: (r: any) => txt(r, 'inst_latitude') || txt(r, 'latitude') || DASH },
-      { header: 'Longitude', accessor: (r: any) => txt(r, 'inst_longitude') || txt(r, 'longitude') || DASH },
-      { header: 'Pump Type', accessor: (r: any) => txt(r, 'pump_type') || DASH },
-      { header: 'Pump Capacity', accessor: (r: any) => txt(r, 'pump_capacity') || txt(r, 'capacity') || DASH },
-      { header: 'Pump Head (in Mtr)', accessor: (r: any) => txt(r, 'pump_head') || txt(r, 'head') || DASH },
-      { header: 'Water Source', accessor: (r: any) => txt(r, 'water_source') || DASH },
-      { header: 'Total Dynamic Head (in Mtr)', accessor: (r: any) => txt(r, 'total_dynamic_head') || txt(r, 'tdh') || DASH },
-      { header: 'Borewell Depth (in Mtr)', accessor: (r: any) => txt(r, 'borewell_depth') || txt(r, 'depth') || DASH },
-      { header: 'Water Delivery Output (in Ltr)', accessor: (r: any) => txt(r, 'water_delivery_output') || txt(r, 'discharge') || DASH },
-      { header: 'Panel Capacity (in Watts)', accessor: (r: any) => txt(r, 'panel_capacity') || txt(r, 'module_capacity') || DASH },
-      { header: 'No. of Panels', accessor: (r: any) => txt(r, 'no_of_panels') || String(r.jammuModulee?.length || r.jammu_modules?.length || DASH) },
-      { header: 'Inverter Serial No.', accessor: (r: any) => txt(r, 'vfd_no') || txt(r, 'inverter_sr_no') || DASH },
-      { header: 'Pump Serial No.', accessor: (r: any) => txt(r, 'mt_pump_no') || txt(r, 'pump_sr_no') || DASH },
-      { header: 'Motor Serial No.', accessor: (r: any) => txt(r, 'mt_motor_no') || txt(r, 'motor_sr_no') || DASH },
-      { header: 'Status', accessor: (r: any) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending') },
-      { header: 'Survey Status', accessor: (r: any) => (Number(r.survey_status ?? r.inst_verify_status) === 1 ? 'Completed' : 'Pending') },
+      { header: 'State', accessor: (r: any) => (r.state ? r.state.charAt(0).toUpperCase() + r.state.slice(1) : 'Jammu') },
+      { header: 'District', accessor: (r: any) => r.district || r.f_district || DASH },
+      { header: 'Tehsil', accessor: (r: any) => r.tehsil || DASH },
+      { header: 'Block', accessor: (r: any) => r.block || r.f_block || DASH },
+      { header: 'Village', accessor: (r: any) => r.village || r.f_village || DASH },
+      { header: 'Applicant Name', accessor: (r: any) => getFarmerName(r) },
+      { header: 'VFD No.', accessor: (r: any) => r.vfd_no || r.mt_controller_no || DASH },
+      { header: 'Motor No.', accessor: (r: any) => r.mt_motor_no || r.motor_sr_no || r.m_motor_no || DASH },
+      { header: 'Pump No.', accessor: (r: any) => r.mt_pump_no || r.pump_sr_no || r.p_pump_no || DASH },
+      { header: 'Module Serial No.', accessor: (r: any) => fmtModules(r) },
+      { header: 'Farmer With Module Image', accessor: (r: any) => (r.module_image ? resolveJammuSwpMediaUrl(r.module_image) : DASH) },
+      { header: 'Inverter and VFD with Farmer Image', accessor: (r: any) => (r.vfd_image ? resolveJammuSwpMediaUrl(r.vfd_image) : DASH) },
+      { header: 'Running Water With Farmer Image', accessor: (r: any) => (r.running_water_image ? resolveJammuSwpMediaUrl(r.running_water_image) : DASH) },
+      { header: 'Pole With Farmer Image', accessor: (r: any) => (r.pole_image ? resolveJammuSwpMediaUrl(r.pole_image) : DASH) },
+      { header: 'Remarks', accessor: (r: any) => r.inst_remarks || r.remarks || DASH },
+      { header: 'Verify Status', accessor: (r: any) => (Number(r.inst_verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status) === 2 ? 'Rejected' : 'Pending') },
+      { header: 'Verify Remarks', accessor: (r: any) => r.inst_verify_remarks || DASH },
+      { header: 'Document Status', accessor: (r: any) => (Number(r.inst_doc_status) === 2 ? 'Approved' : Number(r.inst_doc_status) === 1 || r.inst_doc ? 'Submitted' : 'Not Submitted') },
+      { header: 'Document Remarks', accessor: (r: any) => r.inst_doc_remarks || DASH },
+      { header: 'Doc Verify Remarks', accessor: (r: any) => r.inst_doc_verify_remarks || DASH },
+      { header: 'Claim Status', accessor: (r: any) => (Number(r.inst_claim_status) === 2 ? 'Approved' : Number(r.inst_claim_status) === 3 ? 'Rejected' : Number(r.inst_claim_status) === 1 ? 'Raised' : 'Not Raised') },
+      { header: 'Payment Status', accessor: (r: any) => (Number(r.inst_pay_status) === 1 ? 'Done' : Number(r.inst_pay_status) === 2 ? 'Partially' : 'Pending') },
     ],
     []
   );
@@ -1263,43 +1352,163 @@ export function SWPViewInstallation() {
 
                   return (
                     <tr key={row.id} className="ax-table__row">
+                      {/* 1. Sr. No. */}
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row, 'vendor_name') || txt(row, 'vendor') || DASH}</td>
-                      <td className="ax-table__td">{row.state || 'Jammu'}</td>
-                      <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
-                      <td className="ax-table__td ax-num" style={monoCell}>{txt(row, 'application_no') || txt(row, 'app_no') || String(row.id)}</td>
+
+                      {/* 2. State */}
                       <td className="ax-table__td">
-                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {row.f_farmer_name || txt(row, 'beneficiary_name') || DASH}
-                        </span>
-                      </td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'contact_no') || txt(row, 'mobile') || txt(row, 'phone') || DASH}</td>
-                      <td className="ax-table__td" style={{ fontSize: '12px' }}>{txt(row, 'inst_latitude') || txt(row, 'latitude') || DASH}</td>
-                      <td className="ax-table__td" style={{ fontSize: '12px' }}>{txt(row, 'inst_longitude') || txt(row, 'longitude') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'pump_type') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'pump_capacity') || txt(row, 'capacity') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'pump_head') || txt(row, 'head') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'water_source') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'total_dynamic_head') || txt(row, 'tdh') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'borewell_depth') || txt(row, 'depth') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'water_delivery_output') || txt(row, 'discharge') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'panel_capacity') || txt(row, 'module_capacity') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'no_of_panels') || String(row.jammuModulee?.length || row.jammu_modules?.length || DASH)}</td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'vfd_no') || txt(row, 'inverter_sr_no') || DASH}</td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'mt_pump_no') || txt(row, 'pump_sr_no') || DASH}</td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'mt_motor_no') || txt(row, 'motor_sr_no') || DASH}</td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Badge tone={Number(row.inst_status) === 1 ? 'success' : 'warning'}>
-                          {Number(row.inst_status) === 1 ? 'Installed' : 'Pending'}
-                        </Badge>
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Badge tone={Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'success' : 'neutral'}>
-                          {Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'Completed' : 'Pending'}
-                        </Badge>
+                        {row.state ? row.state.charAt(0).toUpperCase() + row.state.slice(1) : 'Jammu'}
                       </td>
 
-                      {/* Action */}
+                      {/* 3. District */}
+                      <td className="ax-table__td">
+                        <b>{row.district || row.f_district || DASH}</b>
+                      </td>
+
+                      {/* 4. Tehsil */}
+                      <td className="ax-table__td">{row.tehsil || DASH}</td>
+
+                      {/* 5. Block */}
+                      <td className="ax-table__td">{row.block || row.f_block || DASH}</td>
+
+                      {/* 6. Village */}
+                      <td className="ax-table__td">{row.village || row.f_village || DASH}</td>
+
+                      {/* 7. Applicant Name */}
+                      <td className="ax-table__td">
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {getFarmerName(row)}
+                        </span>
+                      </td>
+
+                      {/* 8. VFD No. */}
+                      <td className="ax-table__td ax-num" style={monoCell}>
+                        {row.vfd_no || row.mt_controller_no || DASH}
+                      </td>
+
+                      {/* 9. Motor No. */}
+                      <td className="ax-table__td ax-num" style={monoCell}>
+                        {row.mt_motor_no || row.motor_sr_no || row.m_motor_no || DASH}
+                      </td>
+
+                      {/* 10. Pump No. */}
+                      <td className="ax-table__td ax-num" style={monoCell}>
+                        {row.mt_pump_no || row.pump_sr_no || row.p_pump_no || DASH}
+                      </td>
+
+                      {/* 11. Module Serial No. */}
+                      <td className="ax-table__td ax-num" style={monoCell}>
+                        {fmtModules(row)}
+                      </td>
+
+                      {/* 12. Farmer With Module Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <InstallationThumbnail
+                            src={row.module_image}
+                            alt="Farmer With Module"
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        </div>
+                      </td>
+
+                      {/* 13. Inverter and VFD with Farmer Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <InstallationThumbnail
+                            src={row.vfd_image}
+                            alt="Inverter and VFD with Farmer"
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        </div>
+                      </td>
+
+                      {/* 14. Running Water With Farmer Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <InstallationThumbnail
+                            src={row.running_water_image}
+                            alt="Running Water With Farmer"
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        </div>
+                      </td>
+
+                      {/* 15. Pole With Farmer Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <InstallationThumbnail
+                            src={row.pole_image}
+                            alt="Pole With Farmer"
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        </div>
+                      </td>
+
+                      {/* 16. Remarks */}
+                      <td
+                        className="ax-table__td"
+                        style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={row.inst_remarks || row.remarks || ''}
+                      >
+                        {row.inst_remarks || row.remarks || DASH}
+                      </td>
+
+                      {/* 17. Verify Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <VerifyBadge value={row.inst_verify_status} raw={row.inst_verify_status} />
+                      </td>
+
+                      {/* 18. Verify Remarks */}
+                      <td
+                        className="ax-table__td"
+                        style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={row.inst_verify_remarks || ''}
+                      >
+                        {row.inst_verify_remarks || DASH}
+                      </td>
+
+                      {/* 19. Document Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <DocStatusBadge
+                          status={row.inst_doc_status}
+                          docUrl={resolveJammuSwpMediaUrl(row.inst_doc)}
+                        />
+                      </td>
+
+                      {/* 20. Document Remarks */}
+                      <td
+                        className="ax-table__td"
+                        style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={row.inst_doc_remarks || ''}
+                      >
+                        {row.inst_doc_remarks || DASH}
+                      </td>
+
+                      {/* 21. Doc Verify Remarks */}
+                      <td
+                        className="ax-table__td"
+                        style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={row.inst_doc_verify_remarks || ''}
+                      >
+                        {row.inst_doc_verify_remarks || DASH}
+                      </td>
+
+                      {/* 22. Claim Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <ClaimBadge status={row.inst_claim_status} />
+                      </td>
+
+                      {/* 23. Payment Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <PaymentStatusBadge status={row.inst_pay_status} />
+                      </td>
+
+                      {/* 24. Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
                           <button
@@ -1787,6 +1996,325 @@ export function SWPViewInstallation() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+      {/* ── View Detail Modal ── */}
+      <Modal
+        open={Boolean(detailSite)}
+        onClose={closeDetailModal}
+        labelledBy="swp-detail-title"
+        dialogClass="ax-modal__dialog--lg"
+      >
+        {detailSite && (
+          <div>
+            <div className="ax-modal__header">
+              <div>
+                <h4
+                  style={{
+                    margin: 0,
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: 'var(--ax-text-strong, #0f172a)',
+                  }}
+                  id="swp-detail-title"
+                >
+                  Site Installation Specifications · #{detailSite.id}
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Beneficiary: <b>{getFarmerName(detailSite)}</b> • District: <b>{detailSite.district || DASH}</b> • Vendor: <b>{getVendorName(detailSite, dataPayload)}</b>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={closeDetailModal}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* 1. Beneficiary & Location Information */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>
+                  Farmer & Location Details
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle, #f8fafc)', padding: 14, borderRadius: 10, border: '1px solid var(--ax-border, #e2e8f0)' }}>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Beneficiary Name</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getFarmerName(detailSite)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Father's Name</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.f_father_name || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Contact Number</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getContactNo(detailSite)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Aadhaar Number</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.adhaar_number || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Application Number</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getAppNo(detailSite)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Customer Number</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.f_customer_no || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Work Order & Date</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {detailSite.work_order || DASH} {detailSite.work_order_date ? `(${detailSite.work_order_date})` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor Name</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getVendorName(detailSite, dataPayload)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Tehsil</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.tehsil || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Block</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.block || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Village</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.village || DASH}</span>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Address / Location</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>
+                      {[
+                        detailSite.village && `Village: ${detailSite.village}`,
+                        detailSite.post && `Post: ${detailSite.post}`,
+                        detailSite.tehsil && `Tehsil: ${detailSite.tehsil}`,
+                        detailSite.district && `District: ${detailSite.district}`,
+                        detailSite.state && `State: ${detailSite.state}`,
+                        detailSite.f_pin && `PIN: ${detailSite.f_pin}`,
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || DASH}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Pump & Technical Details */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>
+                  Pump & Equipment Specifications
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle, #f8fafc)', padding: 14, borderRadius: 10, border: '1px solid var(--ax-border, #e2e8f0)' }}>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Pump Capacity</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getPumpCapacity(detailSite)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Pump Type & Subtype</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getPumpType(detailSite)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Pump Head</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getPumpHead(detailSite)} Mtr</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Motor Serial No.</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {getMotorSrNo(detailSite)} {detailSite.mt_motor_make ? `(Make: ${detailSite.mt_motor_make})` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Pump Serial No.</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{getPumpSrNo(detailSite)}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>VFD / Controller Serial No.</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {getInverterSrNo(detailSite)} {detailSite.mt_controller_make ? `(Make: ${detailSite.mt_controller_make})` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>RMS ID & IMEI</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      RMS: {detailSite.mt_rmsid || DASH} | IMEI: {detailSite.mt_imei || DASH}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Panel Capacity & Make</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {getPanelCapacity(detailSite)} {detailSite.mt_module_make ? `(${detailSite.mt_module_make})` : ''}
+                    </span>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6 }}>
+                      Module Serial Numbers ({getNoOfPanels(detailSite)})
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {(() => {
+                        const mList = detailSite.jammu_modulee || detailSite.jammuModulee || detailSite.jammu_modules;
+                        if (Array.isArray(mList) && mList.length > 0) {
+                          return mList.map((m: any, mIdx: number) => (
+                            <span
+                              key={mIdx}
+                              style={{
+                                display: 'inline-block',
+                                padding: '3px 8px',
+                                borderRadius: 4,
+                                background: '#e0f2fe',
+                                color: '#0369a1',
+                                fontSize: 12,
+                                fontWeight: 600,
+                              }}
+                            >
+                              #{mIdx + 1}: {m.sr_no || m.module_no}
+                            </span>
+                          ));
+                        }
+                        return <span style={{ color: '#64748b', fontSize: 13 }}>{DASH}</span>;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Installation & Verification Status */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>
+                  Installation & Audit Status
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle, #f8fafc)', padding: 14, borderRadius: 10, border: '1px solid var(--ax-border, #e2e8f0)' }}>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Installation Date</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.inst_date || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>GPS Coordinates</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                      {getLatitude(detailSite)}, {getLongitude(detailSite)}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Installation Status</span>
+                    <span style={{ marginTop: 2, display: 'inline-block' }}>
+                      <Badge tone={Number(detailSite.inst_status) === 1 ? 'success' : 'warning'}>
+                        {Number(detailSite.inst_status) === 1 ? 'Installed' : 'Pending'}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Survey Status</span>
+                    <span style={{ marginTop: 2, display: 'inline-block' }}>
+                      <Badge tone={getSurveyStatusText(detailSite) === 'Completed' ? 'success' : 'neutral'}>
+                        {getSurveyStatusText(detailSite)}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Verify Status</span>
+                    <span style={{ marginTop: 2, display: 'inline-block' }}>
+                      <VerifyBadge value={detailSite.inst_verify_status} />
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Verify Remarks</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{detailSite.inst_verify_remarks || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>HOC Document Status</span>
+                    <span style={{ marginTop: 2, display: 'inline-block' }}>
+                      <DocStatusBadge status={detailSite.inst_doc_status} docUrl={resolveJammuSwpMediaUrl(detailSite.inst_doc)} />
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Document Remarks</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{detailSite.inst_doc_remarks || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Doc Verify Remarks</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{detailSite.inst_doc_verify_remarks || DASH}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Claim Status</span>
+                    <span style={{ marginTop: 2, display: 'inline-block' }}>
+                      <ClaimBadge status={detailSite.inst_claim_status} />
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Payment Status</span>
+                    <span style={{ marginTop: 2, display: 'inline-block' }}>
+                      <PaymentStatusBadge status={detailSite.inst_pay_status} />
+                    </span>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Installation Remarks</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{detailSite.inst_remarks || DASH}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Installation Photos & Documents */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>
+                  Installation Evidence Photos & Documents
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14 }}>
+                  {[
+                    { label: 'Farmer with Module', src: detailSite.module_image },
+                    { label: 'Farmer with VFD', src: detailSite.vfd_image },
+                    { label: 'Farmer with Water', src: detailSite.running_water_image },
+                    { label: 'Farmer with Pole', src: detailSite.pole_image },
+                    { label: 'Handover Certificate (HOC)', src: detailSite.inst_doc },
+                  ].map((p, pIdx) => {
+                    const resolved = resolveJammuSwpMediaUrl(p.src);
+                    return (
+                      <div
+                        key={pIdx}
+                        style={{
+                          border: '1px solid var(--ax-border, #e2e8f0)',
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          background: '#fff',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ height: 110, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {p.src ? (
+                            <img
+                              src={resolved}
+                              alt={p.label}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
+                              onClick={() => openPreview(resolved, p.label)}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#94a3b8' }}>No Image</span>
+                          )}
+                        </div>
+                        <div style={{ padding: '6px 8px', fontSize: 11.5, fontWeight: 600, color: '#334155' }}>
+                          {p.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="ax-modal__footer">
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary"
+                onClick={closeDetailModal}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

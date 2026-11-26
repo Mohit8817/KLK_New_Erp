@@ -41,6 +41,8 @@ export function normalizeRescoStatus(rawStatus?: string | null): string {
   const s = String(rawStatus).trim().toLowerCase();
 
   const MAP: Record<string, string> = {
+    'total': 'total',
+    'all': 'total',
     'complete': 'complete',
     'completed': 'complete',
     'installed': 'complete',
@@ -63,28 +65,80 @@ export function normalizeRescoStatus(rawStatus?: string | null): string {
     'verify_reject': 'verify_reject',
     'reject': 'verify_reject',
     'rejected': 'verify_reject',
-    'claim-applicable': 'complete',
-    'claim-raised': 'claim1_approved',
-    'claim_raised': 'claim1_approved',
-    'claim1': 'claim1_approved',
-    'claim1-approved': 'claim1_approved',
-    'claim1_approved': 'claim1_approved',
-    'claim2': 'claim2_approved',
-    'claim2-approved': 'claim2_approved',
-    'claim2_approved': 'claim2_approved',
-    'claim3': 'claim3_approved',
-    'claim3-approved': 'claim3_approved',
-    'claim3_approved': 'claim3_approved',
-    'pay80': 'claim1_approved',
-    'pay-80': 'claim1_approved',
-    '80': 'claim1_approved',
-    'inst-pay80-done': 'claim1_approved',
-    'pay20': 'claim2_approved',
-    'pay-20': 'claim2_approved',
-    '20': 'claim2_approved',
-    'inst-pay20-done': 'claim2_approved',
-    'total': 'total',
-    'all': 'total',
+    'doc-approved': 'doc_approved',
+    'doc_approved': 'doc_approved',
+    'doc-pending': 'doc_pending',
+    'doc_pending': 'doc_pending',
+    'doc-reject': 'doc_reject',
+    'doc_reject': 'doc_reject',
+    'inst-claim1-applicable': 'inst_claim1_applicable',
+    'inst_claim1_applicable': 'inst_claim1_applicable',
+    'inst-claim2-applicable': 'inst_claim2_applicable',
+    'inst_claim2_applicable': 'inst_claim2_applicable',
+    'inst-claim3-applicable': 'inst_claim3_applicable',
+    'inst_claim3_applicable': 'inst_claim3_applicable',
+    'inst-claim1-raised': 'inst_claim1_raised',
+    'inst_claim1_raised': 'inst_claim1_raised',
+    'inst-claim1-approved': 'inst_claim1_approved',
+    'inst_claim1_approved': 'inst_claim1_approved',
+    'inst-claim1-pending': 'inst_claim1_pending',
+    'inst_claim1_pending': 'inst_claim1_pending',
+    'inst-claim1-reject': 'inst_claim1_reject',
+    'inst_claim1_reject': 'inst_claim1_reject',
+    'inst-claim2-raised': 'inst_claim2_raised',
+    'inst_claim2_raised': 'inst_claim2_raised',
+    'inst-claim2-approved': 'inst_claim2_approved',
+    'inst_claim2_approved': 'inst_claim2_approved',
+    'inst-claim2-pending': 'inst_claim2_pending',
+    'inst_claim2_pending': 'inst_claim2_pending',
+    'inst-claim2-reject': 'inst_claim2_reject',
+    'inst_claim2_reject': 'inst_claim2_reject',
+    'inst-claim3-raised': 'inst_claim3_raised',
+    'inst_claim3_raised': 'inst_claim3_raised',
+    'inst-claim3-approved': 'inst_claim3_approved',
+    'inst_claim3_approved': 'inst_claim3_approved',
+    'inst-claim3-pending': 'inst_claim3_pending',
+    'inst_claim3_pending': 'inst_claim3_pending',
+    'inst-claim3-reject': 'inst_claim3_reject',
+    'inst_claim3_reject': 'inst_claim3_reject',
+    'inst-pay1-complete': 'inst_pay1_complete',
+    'inst_pay1_complete': 'inst_pay1_complete',
+    'inst-pay1-partially': 'inst_pay1_partially',
+    'inst_pay1_partially': 'inst_pay1_partially',
+    'inst-pay1-pending': 'inst_pay1_pending',
+    'inst_pay1_pending': 'inst_pay1_pending',
+    'inst-pay2-complete': 'inst_pay2_complete',
+    'inst_pay2_complete': 'inst_pay2_complete',
+    'inst-pay2-partially': 'inst_pay2_partially',
+    'inst_pay2_partially': 'inst_pay2_partially',
+    'inst-pay2-pending': 'inst_pay2_pending',
+    'inst_pay2_pending': 'inst_pay2_pending',
+    'inst-pay3-complete': 'inst_pay3_complete',
+    'inst_pay3_complete': 'inst_pay3_complete',
+    'inst-pay3-partially': 'inst_pay3_partially',
+    'inst_pay3_partially': 'inst_pay3_partially',
+    'inst-pay3-pending': 'inst_pay3_pending',
+    'inst_pay3_pending': 'inst_pay3_pending',
+    'claim-applicable': 'inst_claim1_applicable',
+    'claim-raised': 'inst_claim1_raised',
+    'claim_raised': 'inst_claim1_raised',
+    'claim1': 'inst_claim1_approved',
+    'claim1-approved': 'inst_claim1_approved',
+    'claim1_approved': 'inst_claim1_approved',
+    'claim2': 'inst_claim2_approved',
+    'claim2-approved': 'inst_claim2_approved',
+    'claim2_approved': 'inst_claim2_approved',
+    'claim3': 'inst_claim3_approved',
+    'claim3-approved': 'inst_claim3_approved',
+    'claim3_approved': 'inst_claim3_approved',
+    'pay80': 'inst_pay1_complete',
+    'pay-80': 'inst_pay1_complete',
+    '80': 'inst_pay1_complete',
+    'inst-pay80-done': 'inst_pay1_complete',
+    'pay20': 'inst_pay2_complete',
+    'pay-20': 'inst_pay2_complete',
+    '20': 'inst_pay2_complete',
+    'inst-pay20-done': 'inst_pay2_complete',
   };
 
   return MAP[s] || s;
@@ -816,6 +870,22 @@ class JammuRescoService {
       if (val) formData.append('site_id[]', String(val));
     }
 
+    // Backend validation requires 'payment_type' (required|integer|in:1,2,3)
+    const rawPType = formData.get('payment_type') || formData.get('pay_type') || '1';
+    const pType = Number(rawPType) || 1;
+    formData.set('payment_type', String(pType));
+    formData.set('pay_type', String(pType));
+
+    // Backend validation requires 'purpose' (required|integer|in:40,30)
+    // Controller mapping: 1 => 40, 2 => 30, 3 => 30
+    const allowedPurpose: Record<number, number> = { 1: 40, 2: 30, 3: 30 };
+    const rawPurpose = formData.get('purpose');
+    const numPurpose = Number(rawPurpose);
+    const resolvedPurpose = (numPurpose === 40 || numPurpose === 30)
+      ? numPurpose
+      : (allowedPurpose[pType] || (pType === 1 ? 40 : 30));
+    formData.set('purpose', String(resolvedPurpose));
+
     const res = await fetch(JAMMU_API.INSTALLATION.RESCO.ADD_CLAIM, {
       method: 'POST',
       headers: getAuthHeaders(true),
@@ -833,9 +903,9 @@ class JammuRescoService {
 
     let errMsg = json?.message || json?.error || 'Failed to raise claim';
     if (json?.errors && typeof json.errors === 'object') {
-      const firstKey = Object.keys(json.errors)[0];
-      if (firstKey && Array.isArray(json.errors[firstKey]) && json.errors[firstKey][0]) {
-        errMsg = json.errors[firstKey][0];
+      const allErrList = Object.values(json.errors).flat().filter(Boolean);
+      if (allErrList.length > 0) {
+        errMsg = allErrList.join(' ');
       }
     }
 
@@ -857,6 +927,21 @@ class JammuRescoService {
       if (val) formData.append('site_id[]', String(val));
     }
 
+    // Backend validation requires 'payment_type' (required|integer|in:1,2,3)
+    const rawPType = formData.get('payment_type') || formData.get('pay_type') || '1';
+    const pType = Number(rawPType) || 1;
+    formData.set('payment_type', String(pType));
+    formData.set('pay_type', String(pType));
+
+    // Backend validation requires 'purpose' (required|integer|in:40,30)
+    const allowedPurpose: Record<number, number> = { 1: 40, 2: 30, 3: 30 };
+    const rawPurpose = formData.get('purpose');
+    const numPurpose = Number(rawPurpose);
+    const resolvedPurpose = (numPurpose === 40 || numPurpose === 30)
+      ? numPurpose
+      : (allowedPurpose[pType] || (pType === 1 ? 40 : 30));
+    formData.set('purpose', String(resolvedPurpose));
+
     const res = await fetch(JAMMU_API.INSTALLATION.RESCO.UPDATE_CLAIM, {
       method: 'POST',
       headers: getAuthHeaders(true),
@@ -874,9 +959,9 @@ class JammuRescoService {
 
     let errMsg = json?.message || json?.error || 'Failed to update claim';
     if (json?.errors && typeof json.errors === 'object') {
-      const firstKey = Object.keys(json.errors)[0];
-      if (firstKey && Array.isArray(json.errors[firstKey]) && json.errors[firstKey][0]) {
-        errMsg = json.errors[firstKey][0];
+      const allErrList = Object.values(json.errors).flat().filter(Boolean);
+      if (allErrList.length > 0) {
+        errMsg = allErrList.join(' ');
       }
     }
 

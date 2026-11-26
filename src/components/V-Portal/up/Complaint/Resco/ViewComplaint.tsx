@@ -6,7 +6,9 @@ import {
   ComplaintViewPage,
   DASH,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -75,7 +77,7 @@ const COLUMNS: ComplaintColumn<Row>[] = [
     cell: (r) => formatDate(pick(r, ['manual_close_date', 'close_date'])),
     exportValue: (r) => pick(r, ['manual_close_date', 'close_date']),
   },
-  T('Created By', ['created_by']),
+  createdByCol<Row>('Created By'),
 ];
 
 export function UP_Complaint_Resco_ViewComplaint() {
@@ -163,7 +165,7 @@ export function UP_Complaint_Resco_ViewComplaint() {
         if (pick(r, ['sms']) !== DASH) {
           fields.push({ label: 'SMS Notification', value: pick(r, ['sms']) === '1' ? 'Sent (Yes)' : pick(r, ['sms']) === '0' ? 'No' : pick(r, ['sms']) });
         }
-        fields.push({ label: 'Created By', value: pick(r, ['created_by']) });
+        fields.push({ label: 'Created By', value: getLoggedInUserName() || pick(r, ['created_by_name', 'created_by']) });
         fields.push({ label: 'Created At', value: pick(r, ['created_at']) });
 
         return fields;

@@ -4,7 +4,6 @@ import {
   kashmirSrtService,
   type KashmirExpensePaymentData,
   type KashmirExpenseItem,
-  getKashmirMediaUrl,
 } from '../../kashmir-services';
 import {
   TableExportToolbar,
@@ -20,14 +19,13 @@ import {
 } from '../../../../../common';
 
 const DASH = '—';
-const TOTAL_COLUMNS = 15;
+const TOTAL_COLUMNS = 12;
 
-type PayFilter = 'all' | 'paid' | 'partial' | 'pending';
-type ClaimFilter = 'all' | 'approved' | 'pending' | 'rejected';
+type PayFilter = 'all' | 'complete' | 'partially' | 'pending';
 
 const DEFAULT_DETAILS = { total: 0, complete: 0, partially: 0, pending: 0 };
 
-/* Safe getter: API field names pehle match karte hain jo mile wahi use hota hai */
+/* Safe getter: checks candidate keys in object */
 const pick = (r: KashmirExpenseItem, ...keys: string[]): string => {
   const o = r as unknown as Record<string, unknown>;
   for (const k of keys) {
@@ -37,36 +35,7 @@ const pick = (r: KashmirExpenseItem, ...keys: string[]): string => {
   return '';
 };
 
-/* ── Pay Status helpers ── */
-const payKey = (r: KashmirExpenseItem): Exclude<PayFilter, 'all'> => {
-  const s = Number(r.pay_status);
-  return s === 1 ? 'paid' : s === 2 ? 'partial' : 'pending';
-};
-
-const payLabel = (r: KashmirExpenseItem) => {
-  const k = payKey(r);
-  return k === 'paid' ? 'Paid' : k === 'partial' ? 'Partial' : 'Pending';
-};
-
-/* ── Claim Status helpers ── */
-const claimStatusLabel = (r: KashmirExpenseItem) => {
-  const s = Number(pick(r, 'claim_status'));
-  if (s === 1) return 'Pending';
-  if (s === 2) return 'Approved';
-  if (s === 3) return 'Rejected';
-  return 'Pending';
-};
-
-const claimStatusBadge = (r: KashmirExpenseItem) => {
-  const s = Number(pick(r, 'claim_status'));
-  if (s === 2) return <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Approved</span>;
-  if (s === 3) return <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600 }}>Rejected</span>;
-  return <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>;
-};
-
-const money = (v: unknown) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
-
-/* Format datetime: "2026-11-04 13:49:03" → "04 Nov 2026, 01:49 PM" */
+/* Format date helper */
 const fmtDate = (v: string | null | undefined): string => {
   if (!v) return DASH;
   try {
@@ -78,18 +47,113 @@ const fmtDate = (v: string | null | undefined): string => {
   }
 };
 
-const fmtDateTime = (v: string | null | undefined): string => {
-  if (!v) return DASH;
-  try {
-    const d = new Date(v);
-    if (isNaN(d.getTime())) return v;
-    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-  } catch {
-    return v;
+/* ── Installment / Payment parsing helpers ── */
+const parseAllPayments = (row: KashmirExpenseItem): Array<{ amount?: number | string; balance?: number | string; date?: string; pay_remarks?: string }> => {
+  if (Array.isArray(row.allpayment)) return row.allpayment;
+  if (typeof row.allpayment === 'string' && row.allpayment.trim()) {
+    try {
+      const parsed = JSON.parse(row.allpayment);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
   }
+  return [];
 };
 
-/* ───────── KPI Card (same style as View Assigned SRT Installation) ───────── */
+const getRowDate = (row: KashmirExpenseItem): string => {
+  return row.date || row.approved_date || row.created_at || '';
+};
+
+const getRowPayAmount = (row: KashmirExpenseItem): number | null => {
+  const allPay = parseAllPayments(row);
+  if (allPay.length > 0) {
+    return allPay.reduce((acc, curr) => acc + (Number(curr?.amount) || 0), 0);
+  }
+  if (row.pay_amount !== undefined && row.pay_amount !== null && row.pay_amount !== '') {
+    return Number(row.pay_amount) || 0;
+  }
+  if (row.payment_amount !== undefined && row.payment_amount !== null && row.payment_amount !== '') {
+    return Number(row.payment_amount) || 0;
+  }
+  if (row.paid_amount !== undefined && row.paid_amount !== null && row.paid_amount !== '') {
+    return Number(row.paid_amount) || 0;
+  }
+  if (Number(row.pay_status) === 1) {
+    return Number(row.amount) || 0;
+  }
+  return null;
+};
+
+const getRowBalanceAmount = (row: KashmirExpenseItem): number | null => {
+  const allPay = parseAllPayments(row);
+  if (allPay.length > 0) {
+    for (let i = allPay.length - 1; i >= 0; i--) {
+      const b = allPay[i]?.balance;
+      if (b !== undefined && b !== null && b !== '') {
+        return Number(b) || 0;
+      }
+    }
+    const totalAmt = Number(row.amount) || 0;
+    const paidAmt = getRowPayAmount(row) || 0;
+    return Math.max(0, totalAmt - paidAmt);
+  }
+  if (row.balance_amount !== undefined && row.balance_amount !== null && row.balance_amount !== '') {
+    return Number(row.balance_amount) || 0;
+  }
+  if (row.payment_balance !== undefined && row.payment_balance !== null && row.payment_balance !== '') {
+    return Number(row.payment_balance) || 0;
+  }
+  if (Number(row.pay_status) === 1) {
+    return 0;
+  }
+  if (Number(row.pay_status) === 0) {
+    return Number(row.amount) || 0;
+  }
+  const totalAmt = Number(row.amount) || 0;
+  const paid = getRowPayAmount(row) ?? 0;
+  return Math.max(0, totalAmt - paid);
+};
+
+const getRowPayDate = (row: KashmirExpenseItem): string => {
+  const allPay = parseAllPayments(row);
+  if (allPay.length > 0) {
+    for (let i = allPay.length - 1; i >= 0; i--) {
+      const d = allPay[i]?.date;
+      if (d) return d;
+    }
+  }
+  return row.pay_date || row.payment_date || row.paid_date || (Number(row.pay_status) === 1 ? row.approved_date : '') || '';
+};
+
+const getRowPayRemarks = (row: KashmirExpenseItem): string => {
+  const allPay = parseAllPayments(row);
+  if (allPay.length > 0) {
+    const list = allPay
+      .map((p) => p.pay_remarks?.trim())
+      .filter((r): r is string => Boolean(r));
+    if (list.length > 0) {
+      return Array.from(new Set(list)).join('; ');
+    }
+  }
+  return row.pay_remarks || row.payment_remarks || row.approved_remarks || '';
+};
+
+const payLabel = (r: KashmirExpenseItem) => {
+  const s = Number(r.pay_status);
+  return s === 1 ? 'Complete' : s === 2 ? 'Partially' : 'Pending';
+};
+
+const PayStatusBadge = ({ status }: { status: number | string | undefined | null }) => {
+  const s = Number(status);
+  if (s === 1) {
+    return <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Complete</span>;
+  }
+  if (s === 2) {
+    return <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Partially</span>;
+  }
+  return <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600 }}>Pending</span>;
+};
+
+/* ───────── KPI Card ───────── */
 type KpiTone = 'accent' | 'emerald' | 'amber' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -168,12 +232,6 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  .solar-erp-page img,
-  .solar-erp-page .ula-table--wide img,
-  .solar-erp-page .ax-card img {
-    border-radius: 0 !important;
-  }
-
   .solar-erp-page .ax-card__header {
     display: flex;
     flex-wrap: nowrap;
@@ -239,12 +297,6 @@ const PAGE_CSS = `
     white-space: nowrap;
     vertical-align: middle;
   }
-
-  .solar-erp-page .invoice-thumb {
-    width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--ax-border);
-    cursor: pointer; transition: transform 0.2s ease;
-  }
-  .solar-erp-page .invoice-thumb:hover { transform: scale(1.15); }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -346,8 +398,8 @@ const X_ICON = (
 export function Kashmir_Expenses_ViewPayments() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<KashmirExpensePaymentData | null>(null);
+  const [siteMap, setSiteMap] = useState<Record<string, { site_name: string; district?: string }>>({});
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PayFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
@@ -356,8 +408,44 @@ export function Kashmir_Expenses_ViewPayments() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const resp = await kashmirSrtService.getExpensePayments();
-      setData(resp);
+      const [resp, sitesResult] = await Promise.allSettled([
+        kashmirSrtService.getExpensePayments(),
+        kashmirSrtService.getExpenseCreateSites(),
+      ]);
+
+      if (resp.status === 'fulfilled') {
+        setData(resp.value);
+        // Pre-populate siteMap from any embedded site_name objects in payments
+        const embeddedMap: Record<string, { site_name: string; district?: string }> = {};
+        const paymentsList = resp.value?.payments || [];
+        for (const p of paymentsList) {
+          const sObj = (p as any).site_name;
+          if (sObj && typeof sObj === 'object' && sObj.id) {
+            embeddedMap[String(sObj.id)] = {
+              site_name: sObj.site_name || sObj.name || '',
+              district: sObj.district || '',
+            };
+          }
+        }
+        if (Object.keys(embeddedMap).length > 0) {
+          setSiteMap((prev) => ({ ...embeddedMap, ...prev }));
+        }
+      } else {
+        throw resp.reason;
+      }
+
+      if (sitesResult.status === 'fulfilled' && Array.isArray(sitesResult.value)) {
+        const map: Record<string, { site_name: string; district?: string }> = {};
+        for (const s of sitesResult.value) {
+          if (s?.id) {
+            map[String(s.id)] = {
+              site_name: s.site_name || '',
+              district: s.district || '',
+            };
+          }
+        }
+        setSiteMap((prev) => ({ ...prev, ...map }));
+      }
     } catch (err: any) {
       console.error('Failed to load expense payments:', err);
       setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load expense payments.' });
@@ -384,76 +472,145 @@ export function Kashmir_Expenses_ViewPayments() {
     setCurrentPage(1);
   };
 
-  // Distinct expense types for filter dropdown
-  const expenseTypes = useMemo(() => {
-    const set = new Set<string>();
-    payments.forEach((r) => {
-      const t = pick(r, 'type').trim();
-      if (t) set.add(t);
-    });
-    return Array.from(set).sort();
-  }, [payments]);
+  const getRowSiteName = useCallback((r: KashmirExpenseItem): string => {
+    const raw = (r as any).site_name;
+    // 1. If site_name is an object
+    if (raw && typeof raw === 'object') {
+      if (typeof raw.site_name === 'string' && raw.site_name.trim() && raw.site_name.trim() !== '[object Object]') {
+        return raw.site_name.trim();
+      }
+      if (typeof raw.name === 'string' && raw.name.trim() && raw.name.trim() !== '[object Object]') {
+        return raw.name.trim();
+      }
+    }
+    // 2. If site_name is a string and not [object Object]
+    if (typeof raw === 'string' && raw.trim() && raw.trim() !== '[object Object]') {
+      return raw.trim();
+    }
+    // 3. Check site / srt70mw / site_details objects
+    const altObj = (r as any).site || (r as any).srt70mw || (r as any).site_details;
+    if (altObj && typeof altObj === 'object') {
+      const name = altObj.site_name || altObj.name;
+      if (typeof name === 'string' && name.trim() && name.trim() !== '[object Object]') {
+        return name.trim();
+      }
+    }
+    // 4. Lookup from siteMap
+    const sId = String(r.site_id ?? (raw && typeof raw === 'object' ? raw.id : '') ?? '').trim();
+    if (sId && siteMap[sId]?.site_name) {
+      return siteMap[sId].site_name;
+    }
+    if (sId && sId !== '[object Object]') return sId;
+    return DASH;
+  }, [siteMap]);
+
+  const getRowDistrict = useCallback((r: KashmirExpenseItem): string => {
+    // 1. Direct district string
+    if (typeof r.district === 'string' && r.district.trim() && r.district.trim() !== '[object Object]') {
+      return r.district.trim();
+    }
+    // 2. From site_name object
+    const raw = (r as any).site_name;
+    if (raw && typeof raw === 'object') {
+      if (typeof raw.district === 'string' && raw.district.trim() && raw.district.trim() !== '[object Object]') {
+        return raw.district.trim();
+      }
+    }
+    // 3. From site / srt70mw / site_details objects
+    const altObj = (r as any).site || (r as any).srt70mw || (r as any).site_details;
+    if (altObj && typeof altObj === 'object') {
+      if (typeof altObj.district === 'string' && altObj.district.trim() && altObj.district.trim() !== '[object Object]') {
+        return altObj.district.trim();
+      }
+    }
+    // 4. Direct site_district
+    if (typeof r.site_district === 'string' && r.site_district.trim() && r.site_district.trim() !== '[object Object]') {
+      return r.site_district.trim();
+    }
+    // 5. Lookup from siteMap
+    const sId = String(r.site_id ?? (raw && typeof raw === 'object' ? raw.id : '') ?? '').trim();
+    if (sId && siteMap[sId]?.district) {
+      return siteMap[sId].district!;
+    }
+    return DASH;
+  }, [siteMap]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return payments.filter((r) => {
       // Pay status filter
-      if (statusFilter !== 'all' && payKey(r) !== statusFilter) return false;
-
-      // Type filter (installation, survey, etc.)
-      if (typeFilter !== 'all' && pick(r, 'type').toLowerCase() !== typeFilter.toLowerCase()) {
-        return false;
+      if (statusFilter !== 'all') {
+        const s = Number(r.pay_status);
+        if (statusFilter === 'complete' && s !== 1) return false;
+        if (statusFilter === 'partially' && s !== 2) return false;
+        if (statusFilter === 'pending' && (s === 1 || s === 2)) return false;
       }
 
       if (!q) return true;
+
+      const district = getRowDistrict(r).toLowerCase();
+      const siteName = getRowSiteName(r).toLowerCase();
+      const payRemarks = getRowPayRemarks(r).toLowerCase();
+      const payDate = fmtDate(getRowPayDate(r)).toLowerCase();
+      const date = fmtDate(getRowDate(r)).toLowerCase();
+
       return (
-        String(r.id).includes(q) ||
-        (r.amount && String(r.amount).includes(q)) ||
+        String(r.id || '').includes(q) ||
+        date.includes(q) ||
+        district.includes(q) ||
+        siteName.includes(q) ||
+        (r.site_id && String(r.site_id).includes(q)) ||
         (r.purpose && r.purpose.toLowerCase().includes(q)) ||
-        pick(r, 'type').toLowerCase().includes(q) ||
-        pick(r, 'state').toLowerCase().includes(q) ||
-        pick(r, 'project').toLowerCase().includes(q) ||
-        pick(r, 'vendor_id').includes(q) ||
-        pick(r, 'site_id').includes(q) ||
-        pick(r, 'remarks').toLowerCase().includes(q) ||
-        pick(r, 'approved_remarks').toLowerCase().includes(q)
+        (r.amount && String(r.amount).includes(q)) ||
+        (r.remarks && r.remarks.toLowerCase().includes(q)) ||
+        payRemarks.includes(q) ||
+        payDate.includes(q) ||
+        payLabel(r).toLowerCase().includes(q)
       );
     });
-  }, [payments, search, typeFilter, statusFilter]);
+  }, [payments, search, statusFilter, getRowDistrict, getRowSiteName]);
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, currentPage, pageSize]);
 
-  const hasFilters = search.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'all';
+  const hasFilters = search.trim() !== '' || statusFilter !== 'all';
   const resetFilters = () => {
     setSearch('');
-    setTypeFilter('all');
     setStatusFilter('all');
     setCurrentPage(1);
   };
 
-  // Export columns — mapped to ACTUAL API fields
+  // Export columns — Exactly 12 columns per specification
   const exportCols: ExportColumn<KashmirExpenseItem>[] = useMemo(
     () => [
-      { header: 'ID', accessor: (r) => String(r.id ?? '') },
-      { header: 'Date', accessor: (r) => r.date || DASH },
-      { header: 'State', accessor: (r) => pick(r, 'state') || DASH },
-      { header: 'Project', accessor: (r) => pick(r, 'project') || DASH },
-      { header: 'Type', accessor: (r) => pick(r, 'type') || DASH },
-      { header: 'Site ID', accessor: (r) => pick(r, 'site_id') || DASH },
-      { header: 'Vendor ID', accessor: (r) => pick(r, 'vendor_id') || DASH },
+      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Date', accessor: (r) => fmtDate(getRowDate(r)) },
+      { header: 'District', accessor: (r) => getRowDistrict(r) },
+      { header: 'Site Name', accessor: (r) => getRowSiteName(r) },
       { header: 'Purpose', accessor: (r) => r.purpose || DASH },
-      { header: 'Amount', accessor: (r) => String(r.amount ?? '') },
-      { header: 'Remarks', accessor: (r) => pick(r, 'remarks') || DASH },
-      { header: 'Claim Status', accessor: (r) => claimStatusLabel(r) },
-      { header: 'Approved Date', accessor: (r) => pick(r, 'approved_date') || DASH },
-      { header: 'Approved By', accessor: (r) => pick(r, 'approved_by') || DASH },
-      { header: 'Approved Remarks', accessor: (r) => pick(r, 'approved_remarks') || DASH },
+      { header: 'Amount', accessor: (r) => (r.amount ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
+      {
+        header: 'Pay Amount',
+        accessor: (r) => {
+          const p = getRowPayAmount(r);
+          return p !== null ? `₹ ${p.toLocaleString('en-IN')}` : DASH;
+        },
+      },
+      {
+        header: 'Balance Amount',
+        accessor: (r) => {
+          const b = getRowBalanceAmount(r);
+          return b !== null ? `₹ ${b.toLocaleString('en-IN')}` : DASH;
+        },
+      },
+      { header: 'Pay Date', accessor: (r) => fmtDate(getRowPayDate(r)) },
+      { header: 'Pay Remarks', accessor: (r) => getRowPayRemarks(r) || DASH },
       { header: 'Pay Status', accessor: (r) => payLabel(r) },
     ],
-    []
+    [getRowDistrict, getRowSiteName]
   );
 
   return (
@@ -535,8 +692,8 @@ export function Kashmir_Expenses_ViewPayments() {
               label="Payment Complete"
               value={Number(details.complete || 0).toLocaleString('en-IN')}
               sub="Complete"
-              active={statusFilter === 'paid'}
-              onClick={() => setStatus('paid')}
+              active={statusFilter === 'complete'}
+              onClick={() => setStatus('complete')}
               icon={svgIcon(
                 <>
                   <circle cx="12" cy="12" r="9" />
@@ -549,8 +706,8 @@ export function Kashmir_Expenses_ViewPayments() {
               label="Payment Partially"
               value={Number(details.partially || 0).toLocaleString('en-IN')}
               sub="Partially"
-              active={statusFilter === 'partial'}
-              onClick={() => setStatus('partial')}
+              active={statusFilter === 'partially'}
+              onClick={() => setStatus('partially')}
               icon={svgIcon(
                 <>
                   <circle cx="12" cy="12" r="9" />
@@ -589,36 +746,17 @@ export function Kashmir_Expenses_ViewPayments() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                {expenseTypes.length > 0 && (
-                  <select
-                    id="type_filter"
-                    className="ax-input ax-input--sm"
-                    style={{ width: 150, height: 32, fontSize: 'var(--ax-text-xs)', textTransform: 'capitalize' }}
-                    value={typeFilter}
-                    onChange={(e) => {
-                      setTypeFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    aria-label="Filter by type"
-                  >
-                    <option value="all">All Types</option>
-                    {expenseTypes.map((t) => (
-                      <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>
-                    ))}
-                  </select>
-                )}
-
                 <select
                   id="status_filter"
                   className="ax-input ax-input--sm"
-                  style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={statusFilter}
                   onChange={(e) => setStatus(e.target.value as PayFilter)}
                   aria-label="Filter by pay status"
                 >
                   <option value="all">All Status</option>
-                  <option value="paid">Paid</option>
-                  <option value="partial">Partial</option>
+                  <option value="complete">Complete</option>
+                  <option value="partially">Partially</option>
                   <option value="pending">Pending</option>
                 </select>
 
@@ -636,7 +774,7 @@ export function Kashmir_Expenses_ViewPayments() {
                 <SearchInput
                   value={search}
                   onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search site, purpose, vendor…"
+                  placeholder="Search date, district, site, purpose…"
                   size="sm"
                   ariaLabel="Search payments"
                 />
@@ -654,25 +792,22 @@ export function Kashmir_Expenses_ViewPayments() {
           <div className="ax-table-wrap">
             <table
               className="ax-table ax-table--hover ula-table--wide"
-              style={{ whiteSpace: 'nowrap', minWidth: 1800 }}
+              style={{ whiteSpace: 'nowrap', minWidth: 1200 }}
             >
               <caption className="ax-visually-hidden">View Expenses Payment Records</caption>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col" style={{ width: 60 }}>S.No.</th>
                   <th className="ax-table__th" scope="col">Date</th>
-                  <th className="ax-table__th" scope="col">State</th>
-                  <th className="ax-table__th" scope="col">Project</th>
-                  <th className="ax-table__th" scope="col">Type</th>
-                  <th className="ax-table__th" scope="col">Site ID</th>
-                  <th className="ax-table__th" scope="col">Vendor ID</th>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Site Name</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Purpose</th>
                   <th className="ax-table__th" scope="col">Amount</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Invoice</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Claim Status</th>
-                  <th className="ax-table__th" scope="col">Approved Date</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Approved Remarks</th>
+                  <th className="ax-table__th" scope="col">Pay Amount</th>
+                  <th className="ax-table__th" scope="col">Balance Amount</th>
+                  <th className="ax-table__th" scope="col">Pay Date</th>
+                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Pay Remarks</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Pay Status</th>
                 </tr>
               </thead>
@@ -692,7 +827,7 @@ export function Kashmir_Expenses_ViewPayments() {
                         message={
                           hasFilters
                             ? 'No records match your filters or search. Try clearing your query.'
-                            : 'No approved expense payments found.'
+                            : 'No expense payments found.'
                         }
                         query={search}
                         onClear={hasFilters ? resetFilters : undefined}
@@ -702,98 +837,61 @@ export function Kashmir_Expenses_ViewPayments() {
                 )}
                 {!loading &&
                   paginated.map((r, idx) => {
-                    const k = payKey(r);
-                    const fileUrl = pick(r, 'file');
-                    const mediaUrl = fileUrl ? getKashmirMediaUrl(fileUrl) : null;
+                    const payAmt = getRowPayAmount(r);
+                    const balAmt = getRowBalanceAmount(r);
+                    const payDate = getRowPayDate(r);
+                    const payRemarks = getRowPayRemarks(r);
 
                     return (
                       <tr key={r.id || idx} className="ax-table__row">
-                        {/* S.No. */}
+                        {/* 1. S.No. */}
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
 
-                        {/* Date */}
-                        <td className="ax-table__td">{fmtDate(r.date)}</td>
+                        {/* 2. Date */}
+                        <td className="ax-table__td">{fmtDate(getRowDate(r))}</td>
 
-                        {/* State */}
-                        <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>
-                          {pick(r, 'state') || DASH}
-                        </td>
+                        {/* 3. District */}
+                        <td className="ax-table__td">{getRowDistrict(r)}</td>
 
-                        {/* Project */}
-                        <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
-                          {pick(r, 'project') || DASH}
-                        </td>
-
-                        {/* Type */}
-                        <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>
-                          {pick(r, 'type') || DASH}
-                        </td>
-
-                        {/* Site ID */}
+                        {/* 4. Site Name */}
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {pick(r, 'site_id') ? `${pick(r, 'site_id')}` : DASH}
+                          {getRowSiteName(r)}
                         </td>
 
-                        {/* Vendor ID */}
-                        <td className="ax-table__td">
-                          {pick(r, 'vendor_id') || DASH}
-                        </td>
-
-                        {/* Purpose */}
+                        {/* 5. Purpose */}
                         <td className="ax-table__td">{r.purpose || DASH}</td>
 
-                        {/* Amount */}
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{money(r.amount)}</td>
+                        {/* 6. Amount */}
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {r.amount ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : DASH}
+                        </td>
 
-                        {/* Remarks */}
+                        {/* 7. Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                          {pick(r, 'remarks') || DASH}
+                          {r.remarks || DASH}
                         </td>
 
-                        {/* Invoice File */}
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {mediaUrl ? (
-                            <a href={mediaUrl} target="_blank" rel="noopener noreferrer" title="View Invoice">
-                              <img
-                                src={mediaUrl}
-                                alt="Invoice"
-                                className="invoice-thumb"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).parentElement!.innerHTML =
-                                    '<span class="ax-badge ax-badge--soft ax-badge--primary" style="font-size:10px;cursor:pointer;">View File</span>';
-                                }}
-                              />
-                            </a>
-                          ) : (
-                            DASH
-                          )}
+                        {/* 8. Pay Amount */}
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {payAmt !== null ? `₹ ${payAmt.toLocaleString('en-IN')}` : DASH}
                         </td>
 
-                        {/* Claim Status */}
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {claimStatusBadge(r)}
+                        {/* 9. Balance Amount */}
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {balAmt !== null ? `₹ ${balAmt.toLocaleString('en-IN')}` : DASH}
                         </td>
 
-                        {/* Approved Date */}
-                        <td className="ax-table__td" style={{ fontSize: 12 }}>
-                          {fmtDateTime(pick(r, 'approved_date'))}
-                        </td>
+                        {/* 10. Pay Date */}
+                        <td className="ax-table__td">{fmtDate(payDate)}</td>
 
-                        {/* Approved Remarks */}
+                        {/* 11. Pay Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                          {pick(r, 'approved_remarks') || DASH}
+                          {payRemarks || DASH}
                         </td>
 
-                        {/* Pay Status */}
+                        {/* 12. Pay Status */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {k === 'paid' ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Paid</span>
-                          ) : k === 'partial' ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Partial</span>
-                          ) : (
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600 }}>Pending</span>
-                          )}
+                          <PayStatusBadge status={r.pay_status} />
                         </td>
                       </tr>
                     );

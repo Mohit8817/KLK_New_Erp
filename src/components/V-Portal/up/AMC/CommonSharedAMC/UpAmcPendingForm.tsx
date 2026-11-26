@@ -198,7 +198,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const preSelectedId = searchParams.get('site_id') || searchParams.get('id') || '';
+  const isEditMode = Boolean(searchParams.get('edit'));
+  const preSelectedId = searchParams.get('site_id') || searchParams.get('id') || (searchParams.get('edit') !== '1' && searchParams.get('edit') !== 'true' ? searchParams.get('edit') : '') || '';
 
   // ── Section 1: Site Selection States ──
   const [years, setYears] = useState<number[]>([]);
@@ -1323,7 +1324,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit AMC Report</span>
+                  <span className="ax-btn__label">{isEditMode ? 'Update AMC Report' : 'Submit AMC Report'}</span>
                 </>
               )}
             </button>

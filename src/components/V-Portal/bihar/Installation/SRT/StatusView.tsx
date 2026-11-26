@@ -1,12 +1,11 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   biharSrtInstallationService,
   getMediaUrl,
-  type SrtStatusDrillRow,
 } from '../../bihar-services/biharSrtInstallationService';
 import { BIHAR_DISTRICTS } from '../../../../Vendor-Management/bihar/bihar-types';
 import {
@@ -14,7 +13,7 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  KpiSkeleton,
+  usePagination,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
@@ -67,7 +66,11 @@ export const BIHAR_SRT_STATUS_CATALOG: SrtStatusMeta[] = [
   { key: 'inst-pay3-amount', label: 'Payment 3 Amount', category: 'payment', tone: 'cyan', sub: 'Stage 3 invoice disbursement total' },
 ];
 
-const CATEGORY_TABS: { key: SrtStatusCategory; label: string }[] = [
+const STATUS_META_MAP: Record<string, SrtStatusMeta> = Object.fromEntries(
+  BIHAR_SRT_STATUS_CATALOG.map((m) => [m.key, m])
+);
+
+export const CATEGORY_LABELS: { key: SrtStatusCategory; label: string }[] = [
   { key: 'all', label: 'All Sites' },
   { key: 'installation', label: 'Installation' },
   { key: 'inspection', label: 'Inspection & Verify' },
@@ -76,122 +79,173 @@ const CATEGORY_TABS: { key: SrtStatusCategory; label: string }[] = [
   { key: 'payment', label: 'Payment Stages' },
 ];
 
-/* ───────── UI Helpers ───────── */
+/* ───────── Helpers ───────── */
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info' | 'accent';
+
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+);
 
 const isInstalled = (r: any): boolean => {
   const s = String(r.site_inst_status ?? r.inst_status ?? r.installation_status ?? '').toLowerCase().trim();
   return s === '1' || s === 'complete' || s === 'completed' || s === 'installed';
 };
 
-const verifyState = (r: any): 'approved' | 'rejected' | 'pending' => {
+type VerifyState = 'approved' | 'rejected' | 'pending';
+
+const verifyState = (r: any): VerifyState => {
   const raw = String(r.inst_verify_status ?? r.verify_status ?? '').toLowerCase().trim();
   if (raw === '1' || raw === 'approved' || raw === 'approve') return 'approved';
   if (raw === '2' || raw === 'rejected' || raw === 'reject') return 'rejected';
   return 'pending';
 };
 
-const verifyLabel = (s: 'approved' | 'rejected' | 'pending') => {
-  if (s === 'approved') return 'Approved';
-  if (s === 'rejected') return 'Rejected';
+const verifyLabel = (s: VerifyState) => (s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : 'Pending');
+const verifyTone = (s: VerifyState): Tone => (s === 'approved' ? 'success' : s === 'rejected' ? 'danger' : 'warning');
+
+const getPaymentLabel = (r: any): string => {
+  if (Number(r.inst_pay3_status ?? 0) === 1) return 'Stage 3 Paid';
+  if (Number(r.inst_pay2_status ?? 0) === 1) return 'Stage 2 Paid';
+  if (Number(r.inst_pay1_status ?? 0) === 1) return 'Stage 1 Paid';
   return 'Pending';
 };
 
-const verifyTone = (s: 'approved' | 'rejected' | 'pending'): 'success' | 'danger' | 'warning' => {
-  if (s === 'approved') return 'success';
-  if (s === 'rejected') return 'danger';
-  return 'warning';
+const VerifyBadge = ({ row }: { row: any }) => {
+  const s = verifyState(row);
+  return <Badge tone={verifyTone(s)}>{verifyLabel(s)}</Badge>;
+};
+
+const InstallBadge = ({ row }: { row: any }) =>
+  isInstalled(row) ? <Badge tone="success">Installed</Badge> : <Badge tone="warning">Pending</Badge>;
+
+const InspectBadge = ({ row }: { row: any }) => {
+  const isInspect = Number(row.inpection_status ?? row.inspection_status ?? 0) === 1;
+  return isInspect ? <Badge tone="success">Complete</Badge> : <Badge tone="warning">Pending</Badge>;
+};
+
+const DocBadge = ({ row }: { row: any }) => {
+  const isDoc = Number(row.inst_doc_status ?? row.doc_status ?? 0) === 1;
+  return isDoc ? <Badge tone="success">Uploaded</Badge> : <Badge tone="warning">Pending</Badge>;
+};
+
+const ClaimBadge = ({ status }: { status: number }) => {
+  if (status === 2) return <Badge tone="success">Approved</Badge>;
+  if (status === 3) return <Badge tone="danger">Rejected</Badge>;
+  if (status === 1) return <Badge tone="info">Raised</Badge>;
+  return <Badge tone="neutral">Not Raised</Badge>;
+};
+
+const PaymentBadge = ({ row }: { row: any }) => {
+  if (Number(row.inst_pay3_status ?? 0) === 1) return <Badge tone="success">Stage 3 Paid</Badge>;
+  if (Number(row.inst_pay2_status ?? 0) === 1) return <Badge tone="info">Stage 2 Paid</Badge>;
+  if (Number(row.inst_pay1_status ?? 0) === 1) return <Badge tone="accent">Stage 1 Paid</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
 };
 
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
 
-/* ───────── Icons ───────── */
-const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
-    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+const rowImage = (r: any): string => {
+  const raw =
+    r.inst_gen_image ||
+    r.generation_image ||
+    r.site_image ||
+    r.rms_loger_image ||
+    r.panel_image ||
+    r.system_image ||
+    r.inverter_image ||
+    r.nm_sm_image ||
+    r.loger_image;
+  return raw ? getMediaUrl(raw) || '' : '';
+};
+
+const rowLabel = (r: any) => r.site_name || r.ca_no || `#${r.id}`;
+
+function resolveSrtInitialStatus(rawStatus: string | null, rawHash: string): string {
+  const hash = (rawHash || '').replace('#', '').toLowerCase().trim();
+  if (rawStatus && rawStatus !== 'total' && rawStatus !== 'total-sites') return rawStatus;
+  if (hash === 'pending' || hash === 'penidng') return 'inst-pending';
+  if (hash === 'completed' || hash === 'complete') return 'inst-complete';
+  if (hash === 'payment' || hash === 'pay') return 'inst-pay1';
+  if (rawStatus) return rawStatus;
+  return 'total';
+}
+
+/* ───────── Modal (portal to <body>, focus trap, Esc to close) ───────── */
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
   </svg>
 );
 
-const svgIcon = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: '100%', height: '100%' }}>{children}</svg>
-);
-
-const TONE: Record<string, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb, 37, 99, 235), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #0891b2) 14%, transparent)', fg: 'var(--ax-viz-cyan, #0891b2)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: 'var(--ax-viz-emerald, #10b981)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: 'var(--ax-viz-amber, #f59e0b)' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #7c3aed) 14%, transparent)', fg: 'var(--ax-viz-violet, #7c3aed)' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: 'var(--ax-viz-pink, #ec4899)' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: 'var(--ax-viz-red, #ef4444)' },
-};
-
-function KpiCard({ icon, tone, label, value, sub }: { icon: ReactNode; tone: string; label: string; value: ReactNode; sub: string }) {
-  const t = TONE[tone] || TONE.accent;
-  return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
-    </div>
-  );
-}
-
-/* ───────── Zoom Preview Modal ───────── */
-const ZOOM_STEPS = [1, 1.5, 2, 3];
-function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
-  const [zoomIdx, setZoomIdx] = useState(0);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const zoom = ZOOM_STEPS[zoomIdx];
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  dialogClass = '',
+  dialogStyle,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  dialogClass?: string;
+  dialogStyle?: CSSProperties;
+  children: ReactNode;
+}) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [open, onClose]);
 
+  if (!open) return null;
   return createPortal(
-    <div
-      className="ax-modal"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-    >
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        onClick={(e) => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', width: '100%', maxWidth: 860, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}
-      >
-        <div className="ax-modal__header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title || 'Site Evidence Preview'}</h4>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={onClose} aria-label="Close dialog">✕</button>
-        </div>
+    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`} style={dialogStyle}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
-        <div className="ax-modal__body" style={{ padding: 0, height: 'min(66vh, 600px)', overflow: 'auto', display: 'flex', background: 'var(--ax-surface-subtle, #f1f5f9)', position: 'relative' }}>
-          {status === 'loading' && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-              <span className="ax-spinner" /> Loading photo…
-            </div>
-          )}
-          {status === 'error' && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--ax-text-muted)' }}>
-              Photo could not be loaded. Try opening it in a new tab.
-            </div>
-          )}
+/* ───────── Image preview modal (zoom) ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <Modal open onClose={onClose} labelledBy="srtsv-preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="srtsv-preview-title">{title || 'Photo Preview'}</h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+      </div>
+
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        <div className="ula-m-stage">
+          {status === 'loading' && <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading photo…</div>}
+          {status === 'error' && <div className="ula-m-stage__msg">Photo could not be loaded. Try opening it in a new tab.</div>}
           <img
+            key={url}
             src={url}
             alt={title || 'Preview'}
             onLoad={() => setStatus('ready')}
@@ -206,32 +260,239 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
             }}
           />
         </div>
+      </div>
 
-        <div className="ax-modal__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0}>−</button>
-            <span style={{ minWidth: 44, textAlign: 'center', fontSize: 12, color: 'var(--ax-text-muted)' }}>{Math.round(zoom * 100)}%</span>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1}>+</button>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--secondary ax-btn--sm">Open Full Size ↗</a>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={onClose}>Close</button>
-          </div>
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div className="ula-m-zoom" role="group" aria-label="Zoom">
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+        </div>
+        <div className="ula-m-zoom">
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
 
-/* ───────── Stylesheet ───────── */
+/* ───────── Thumbnail (click to preview) ───────── */
+function SiteThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 34,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 0,
+        objectFit: 'cover',
+        cursor: 'zoom-in',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'block',
+        flexShrink: 0,
+      }}
+      onError={() => setFailed(true)}
+      onClick={() => onPreview(src, alt)}
+      title="Click to preview"
+    />
+  );
+}
+
+/* ───────── Action dropdown (menu rendered in <body> so table never clips it) ───────── */
+const MENU_W = 170;
+
+function RowActionDropdown({ onView, onPhoto }: { onView: () => void; onPhoto?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuH = onPhoto ? 76 : 40;
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < menuH + 8 && r.top > menuH + 8 ? r.top - menuH - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button type="button" ref={btnRef} className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn" onClick={toggle} aria-haspopup="menu" aria-expanded={open}>
+        <span>Action</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} aria-hidden="true">
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open && pos &&
+        createPortal(
+          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
+            <button type="button" className="ula-menu__item" role="menuitem" onClick={() => { setOpen(false); onView(); }}>
+              View Details
+            </button>
+            {onPhoto && (
+              <button type="button" className="ula-menu__item" role="menuitem" onClick={() => { setOpen(false); onPhoto(); }}>
+                View Photo
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
+
+/* ───────── Overlay CSS (modals + dropdown) ───────── */
+const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop { position: fixed; inset: 0; background: transparent; }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__dialog--md { max-width: 680px; }
+  .ax-modal__dialog--lg { max-width: 900px; }
+  .ax-modal__header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b);
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover { background: var(--ax-surface-hover, #e2e8f0); color: var(--ax-text-strong, #0f172a); }
+  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  }
+  .ax-modal img { border-radius: 0 !important; }
+
+  .ula-m-stage {
+    position: relative; display: flex; overflow: auto;
+    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
+  }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
+  .ula-m-info {
+    display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 12px; font-size: 12px;
+    background: var(--ax-surface-subtle, #f8fafc); border: 1px solid var(--ax-border, #e2e8f0);
+  }
+  .ula-m-info span { color: var(--ax-text-muted, #64748b); }
+  .ula-m-info b { color: var(--ax-text-strong, #0f172a); font-weight: 600; }
+
+  .ula-action-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed; z-index: 99999; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
+    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
+    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
+    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
+
+  @media (max-width: 560px) {
+    .ula-m-grid { grid-template-columns: 1fr; }
+    .ula-m-stage { height: 56vh; }
+  }
+`;
+
+/* ───────── Responsive page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
-  .solar-erp-page .srt-pagination-left {
+  .solar-erp-page .ula-pagination-left {
     width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
-  .solar-erp-page .srt-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+  .solar-erp-page img { border-radius: 0 !important; }
+
+  .solar-erp-page .asw-cards-row {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px); margin-bottom: var(--ax-space-5, 20px);
+  }
+  @media (max-width: 992px) { .solar-erp-page .asw-cards-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 520px) { .solar-erp-page .asw-cards-row { grid-template-columns: 1fr; } }
 
   .solar-erp-page .ax-card__header {
     display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
@@ -241,111 +502,19 @@ const PAGE_CSS = `
   .solar-erp-page .ax-card__eyebrow,
   .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
   .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
   .solar-erp-page .ax-card__actions {
     flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
     justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
   }
   .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
   .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 180px; max-width: 240px; }
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 200px; max-width: 240px; }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
   .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
   .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
-
-  /* ── Status Pills & Category Tabs ── */
-  .srt-cat-tabs {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: thin;
-    border-bottom: 1px solid var(--ax-border, #e2e8f0);
-    margin-bottom: 12px;
-  }
-  .srt-cat-tab-btn {
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    border: none;
-    background: transparent;
-    color: var(--ax-text-muted, #64748b);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-  }
-  .srt-cat-tab-btn:hover {
-    color: var(--ax-accent, #2563eb);
-  }
-  .srt-cat-tab-btn.active {
-    color: var(--ax-accent, #2563eb);
-    border-bottom-color: var(--ax-accent, #2563eb);
-    font-weight: 700;
-  }
-
-  .srt-status-pills {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 4px 0 10px 0;
-    scrollbar-width: thin;
-  }
-  .srt-pill-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    background: var(--ax-surface, #ffffff);
-    border: 1px solid var(--ax-border, #cbd5e1);
-    color: var(--ax-text, #334155);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .srt-pill-btn:hover {
-    border-color: var(--ax-accent, #2563eb);
-    color: var(--ax-accent, #2563eb);
-    background: rgba(37, 99, 235, 0.04);
-  }
-  .srt-pill-btn.active {
-    background: var(--ax-accent, #2563eb);
-    border-color: var(--ax-accent, #2563eb);
-    color: #ffffff;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-  }
-
-  /* ── Modal Styling ── */
-  .ax-modal {
-    position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-  }
-  .ax-modal__backdrop {
-    position: absolute; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);
-  }
-  .ax-modal__dialog {
-    position: relative; z-index: 1; background: var(--ax-bg-surface, #ffffff); border-radius: 14px;
-    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); border: 1px solid var(--ax-border, #e2e8f0);
-    width: 100%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
-  }
-  .ax-modal__header {
-    padding: 16px 20px; border-bottom: 1px solid var(--ax-border, #e2e8f0); display: flex;
-    justify-content: space-between; align-items: center; background: var(--ax-bg-subtle, #f8fafc);
-  }
-  .ax-modal__close {
-    border: none; background: transparent; cursor: pointer; font-size: 18px; color: var(--ax-text-muted, #64748b);
-    display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px;
-  }
-  .ax-modal__close:hover { background: var(--ax-border, #e2e8f0); color: var(--ax-text-strong, #0f172a); }
-  .ax-modal__body { padding: 20px; overflow-y: auto; }
-  .ax-modal__footer {
-    padding: 12px 20px; border-top: 1px solid var(--ax-border, #e2e8f0); display: flex; justify-content: flex-end;
-    background: var(--ax-bg-subtle, #f8fafc); gap: 10px;
-  }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
@@ -356,56 +525,109 @@ const PAGE_CSS = `
   @media (max-width: 760px) {
     .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
     .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
-    .solar-erp-page .ax-card__actions { width: 100%; justify-content: stretch; margin-left: 0; }
-    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
+    .solar-erp-page .ax-card__title { font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md); }
+    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
+    .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; width: 100%; justify-content: flex-start; gap: 8px; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
+  }
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 28px; padding: 0 6px !important; }
   }
 `;
 
-function resolveSrtInitialStatus(rawStatus: string | null, rawHash: string): string {
-  const hash = (rawHash || '').replace('#', '').toLowerCase().trim();
-  if (rawStatus && rawStatus !== 'total') {
-    return rawStatus;
-  }
-  if (hash === 'pending' || hash === 'penidng') return 'inst-pending';
-  if (hash === 'completed' || hash === 'complete') return 'inst-complete';
-  if (hash === 'payment' || hash === 'pay') return 'inst-pay1';
-  if (rawStatus) return rawStatus;
-  return 'total';
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+const centerCell = { textAlign: 'center', padding: 24 } as const;
+const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
+
+/* ───────── KPI card (identical to SSL status view) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb, 37, 99, 235), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #0891b2) 14%, transparent)', fg: 'var(--ax-viz-cyan, #0891b2)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: 'var(--ax-viz-emerald, #10b981)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: 'var(--ax-viz-amber, #f59e0b)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #7c3aed) 14%, transparent)', fg: 'var(--ax-viz-violet, #7c3aed)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: 'var(--ax-viz-pink, #ec4899)' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: 'var(--ax-viz-red, #ef4444)' },
+};
+
+function KpiCard({ icon, tone, label, value, sub }: { icon: ReactNode; tone: KpiTone; label: string; value: ReactNode; sub: string }) {
+  const t = TONE[tone] || TONE.accent;
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+    </div>
+  );
 }
 
+const svgIcon = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+
+const COLUMN_HEADERS = [
+  'Sr. No.',
+  'Site Name',
+  'District',
+  'Block',
+  'Village / Location',
+  'CA Number',
+  'Consumer Name',
+  'Contact No.',
+  'Capacity (kW)',
+  'Plant Photo',
+  'Installation Status',
+  'Inspection Status',
+  'Verify Status',
+  'Doc Status',
+  'Claim Status',
+  'Payment Status',
+  'Action',
+];
+
 export function Bihar_Installation_SRT_StatusView() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const queryStatus = searchParams.get('status');
   const initialDistrict = searchParams.get('district') || 'all';
-  const initialStatus = resolveSrtInitialStatus(queryStatus, window.location.hash);
 
-  const [currentStatus, setCurrentStatus] = useState<string>(initialStatus);
+  const [currentStatus, setCurrentStatus] = useState<string>(() => resolveSrtInitialStatus(queryStatus, window.location.hash));
   const [selectedDistrict, setSelectedDistrict] = useState<string>(initialDistrict);
-  const [activeCategory, setActiveCategory] = useState<SrtStatusCategory>('all');
+  const [verifyFilter, setVerifyFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
+  const [search, setSearch] = useState<string>('');
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
 
-  // Search & Pagination
-  const [search, setSearch] = useState<string>('');
-  const [verifyFilter, setVerifyFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(15);
+  const [detailItem, setDetailItem] = useState<any | null>(null);
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
 
-  // Selected site for details modal & photo preview
-  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
-
-  // Find meta for current status
+  // Meta for current status
   const currentMeta = useMemo(() => {
     return (
-      BIHAR_SRT_STATUS_CATALOG.find((s) => s.key === currentStatus) || {
+      STATUS_META_MAP[currentStatus] || {
         key: currentStatus,
         label: currentStatus.replace(/[-_]/g, ' ').toUpperCase(),
         category: 'all' as SrtStatusCategory,
@@ -415,37 +637,7 @@ export function Bihar_Installation_SRT_StatusView() {
     );
   }, [currentStatus]);
 
-  // Keep category in sync with status
-  useEffect(() => {
-    if (currentMeta?.category && activeCategory !== currentMeta.category && activeCategory === 'all') {
-      setActiveCategory(currentMeta.category);
-    }
-  }, [currentMeta, activeCategory]);
-
-  // Sync state from URL query params and hash
-  useEffect(() => {
-    const s = searchParams.get('status');
-    const d = searchParams.get('district');
-    const h = window.location.hash;
-    const resolved = resolveSrtInitialStatus(s, h);
-    if (resolved && resolved !== currentStatus) setCurrentStatus(resolved);
-    if (d && d !== selectedDistrict) setSelectedDistrict(d);
-  }, [searchParams]);
-
-  // Listen to hashchange in window
-  useEffect(() => {
-    const onHashChange = () => {
-      const h = window.location.hash;
-      const resolved = resolveSrtInitialStatus(searchParams.get('status'), h);
-      if (resolved && resolved !== currentStatus) {
-        setCurrentStatus(resolved);
-      }
-    };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, [currentStatus, searchParams]);
-
-  // Load Status Data from API 13 & 14
+  // Load Status Data from API
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
@@ -471,69 +663,72 @@ export function Bihar_Installation_SRT_StatusView() {
     loadData();
   }, [loadData]);
 
-  // Status selection handler
-  const handleSelectStatus = (statusKey: string) => {
+  // Sync state from URL query params
+  useEffect(() => {
+    const s = searchParams.get('status');
+    const d = searchParams.get('district');
+    const resolved = resolveSrtInitialStatus(s, window.location.hash);
+    if (resolved && resolved !== currentStatus) setCurrentStatus(resolved);
+    if (d && d !== selectedDistrict) setSelectedDistrict(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Hash change sync
+  useEffect(() => {
+    const onHashChange = () => {
+      const resolved = resolveSrtInitialStatus(searchParams.get('status'), window.location.hash);
+      if (resolved && resolved !== currentStatus) setCurrentStatus(resolved);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [currentStatus, searchParams]);
+
+  const handleStatusChange = (statusKey: string) => {
     setCurrentStatus(statusKey);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('status', statusKey);
+    const next = new URLSearchParams(searchParams);
+    next.set('status', statusKey);
     if (selectedDistrict && selectedDistrict !== 'all') {
-      nextParams.set('district', selectedDistrict);
+      next.set('district', selectedDistrict);
     } else {
-      nextParams.delete('district');
+      next.delete('district');
     }
-    setSearchParams(nextParams);
-
-    // Keep URL hash aligned: #pending for pending, #completed for complete
-    if (statusKey === 'inst-pending') {
-      window.location.hash = 'pending';
-    } else if (statusKey === 'inst-complete') {
-      window.location.hash = 'completed';
-    } else if (statusKey.startsWith('inst-pay')) {
-      window.location.hash = 'payment';
-    }
-
-    setCurrentPage(1);
+    setSearchParams(next);
+    if (statusKey === 'inst-pending') window.location.hash = 'pending';
+    else if (statusKey === 'inst-complete') window.location.hash = 'completed';
+    else if (statusKey.startsWith('inst-pay')) window.location.hash = 'payment';
   };
 
-  // District selection handler
-  const handleSelectDistrict = (district: string) => {
-    setSelectedDistrict(district);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('status', currentStatus);
-    if (district && district !== 'all') {
-      nextParams.set('district', district);
-    } else {
-      nextParams.delete('district');
-    }
-    setSearchParams(nextParams);
-    setCurrentPage(1);
+  const handleDistrictChange = (d: string) => {
+    setSelectedDistrict(d);
+    const next = new URLSearchParams(searchParams);
+    next.set('status', currentStatus);
+    if (d && d !== 'all') next.set('district', d);
+    else next.delete('district');
+    setSearchParams(next);
   };
 
-  // Derived KPI metrics
+  const isAllDistricts = !selectedDistrict || selectedDistrict === 'all' || selectedDistrict === 'All';
+
+  // Derived metrics
   const summary = useMemo(() => {
     const total = items.length;
     const installed = items.filter(isInstalled).length;
     const vApp = items.filter((r) => verifyState(r) === 'approved').length;
     const vRej = items.filter((r) => verifyState(r) === 'rejected').length;
     const vPend = items.filter((r) => verifyState(r) === 'pending').length;
-    return { total, installed, vApp, vRej, vPend };
+    const paid = items.filter((r) => Number(r.inst_pay1_status ?? 0) === 1 || Number(r.inst_pay2_status ?? 0) === 1 || Number(r.inst_pay3_status ?? 0) === 1).length;
+    return { total, installed, vApp, vRej, vPend, paid };
   }, [items]);
 
-  // District options
-  const districtOptions = useMemo(() => {
+  // Districts list
+  const districts = useMemo(() => {
     const set = new Set<string>();
     items.forEach((r) => r.district && set.add(String(r.district).trim()));
     BIHAR_DISTRICTS.forEach((d) => set.add(d));
     return Array.from(set).sort();
   }, [items]);
 
-  // Filtered statuses for active category tab
-  const categoryStatuses = useMemo(() => {
-    if (activeCategory === 'all') return BIHAR_SRT_STATUS_CATALOG;
-    return BIHAR_SRT_STATUS_CATALOG.filter((s) => s.category === activeCategory);
-  }, [activeCategory]);
-
-  // Client-side search and verify filter
+  // Filtered rows
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((r) => {
@@ -544,483 +739,391 @@ export function Bihar_Installation_SRT_StatusView() {
         r.district,
         r.block,
         r.village,
+        r.location,
         r.ca_no,
         r.contact_no,
         r.consumer_name,
         r.beneficiary_name,
-        r.installer_name,
+        r.sanction_load,
       ].some((v) => String(v ?? '').toLowerCase().includes(q));
     });
   }, [items, search, verifyFilter]);
 
-  // Paginated list
-  const paged = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
+  const {
+    currentPage,
+    pageSize,
+    setPage,
+    setPageSize,
+    totalItems,
+    paginatedData,
+  } = usePagination({ data: filtered, initialPageSize: 25 });
 
-  const hasFilters = !!search || verifyFilter !== 'all';
-  const clearFilters = () => {
+  const hasFilters = Boolean(search || verifyFilter !== 'all' || (!isAllDistricts && selectedDistrict !== 'all'));
+  const resetFilters = () => {
     setSearch('');
     setVerifyFilter('all');
-    setCurrentPage(1);
+    setSelectedDistrict('all');
+    const next = new URLSearchParams(searchParams);
+    next.set('status', currentStatus);
+    next.delete('district');
+    setSearchParams(next);
   };
 
-  // Export Columns definition
+  const openPreview = (url: string, title: string) => setPreview({ url, title });
+  const closePreview = () => setPreview(null);
+
+  // Export
   const exportCols: ExportColumn<any>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
-      { header: 'Site Name', accessor: (r) => r.site_name || `Site #${r.id}` },
+      { header: 'Site Name', accessor: (r) => rowLabel(r) },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Block', accessor: (r) => r.block || DASH },
-      { header: 'Consumer Name', accessor: (r) => r.consumer_name || r.beneficiary_name || DASH },
-      { header: 'Contact No', accessor: (r) => r.contact_no || DASH },
+      { header: 'Village / Location', accessor: (r) => r.village || r.location || DASH },
       { header: 'CA Number', accessor: (r) => r.ca_no || DASH },
-      { header: 'Capacity / Load', accessor: (r) => (r.sanction_load ? `${r.sanction_load} kW` : DASH) },
+      { header: 'Consumer Name', accessor: (r) => r.consumer_name || r.beneficiary_name || DASH },
+      { header: 'Contact No.', accessor: (r) => r.contact_no || DASH },
+      { header: 'Capacity (kW)', accessor: (r) => (r.sanction_load ? `${r.sanction_load} kW` : DASH) },
       { header: 'Installation Status', accessor: (r) => (isInstalled(r) ? 'Installed' : 'Pending') },
       { header: 'Inspection Status', accessor: (r) => (Number(r.inpection_status ?? r.inspection_status ?? 0) === 1 ? 'Complete' : 'Pending') },
-      { header: 'Verification Status', accessor: (r) => verifyLabel(verifyState(r)) },
+      { header: 'Verify Status', accessor: (r) => verifyLabel(verifyState(r)) },
       { header: 'Doc Status', accessor: (r) => (Number(r.inst_doc_status ?? r.doc_status ?? 0) === 1 ? 'Uploaded' : 'Pending') },
       { header: 'Claim Status', accessor: (r) => (Number(r.inst_claim_status ?? r.claim_status ?? 0) === 1 ? 'Raised' : 'Not Raised') },
-      { header: 'Payment Stage', accessor: (r) => (Number(r.inst_pay3_status ?? 0) === 1 ? 'Stage 3 Paid' : Number(r.inst_pay2_status ?? 0) === 1 ? 'Stage 2 Paid' : Number(r.inst_pay1_status ?? 0) === 1 ? 'Stage 1 Paid' : 'Pending') },
+      { header: 'Payment Status', accessor: (r) => getPaymentLabel(r) },
     ],
     []
   );
 
-  const pageTitle = useMemo(() => {
-    let t = `Bihar SRT Sites: ${currentMeta.label}`;
-    if (selectedDistrict && selectedDistrict !== 'all') t += ` (${selectedDistrict})`;
-    return t;
-  }, [currentMeta, selectedDistrict]);
-
-  const handleCopy = () => copyTableDataToClipboard(filtered, exportCols);
-  const handleCsv = () => exportDataToCSV(`Bihar_SRT_${currentStatus}`, filtered, exportCols);
-  const handleExcel = () => exportDataToExcel(`Bihar_SRT_${currentStatus}`, filtered, exportCols);
-  const handlePdf = () => printTableData(pageTitle, filtered, exportCols);
+  const pageTitle = `Bihar SRT Sites: ${currentMeta.label}${!isAllDistricts ? ` (${selectedDistrict})` : ''}`;
+  const fileBase = `Bihar_SRT_${currentStatus}`;
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
-      {/* Header */}
+      {/* ── Page Head (Matching Bihar SSL Installation Data exactly) ── */}
       <PageHead
-        title={pageTitle}
-        subtitle={`Live Bihar solar rooftop sites drilling on status "${currentStatus}" via GET /bihar/srt/installation/view-dashboard-data/${currentStatus}`}
+        title="Bihar SRT Installation Data"
+        subtitle={`Viewing ${currentMeta.label}${!isAllDistricts ? ` in ${selectedDistrict}` : ''} — Master register of solar rooftop installations, verification, claims and payment status · Updated ${fmtTime(updatedAt)}`}
         breadcrumbs={[
-          { label: 'V-Portal', to: '/v-portal' },
-          { label: 'Bihar SRT Dashboard', to: '/v/bihar/vendor-srt-installation-dashboard' },
-          { label: 'Status View', active: true },
+          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Bihar' },
+          { label: 'Installation' },
+          { label: 'SRT' },
+          { label: 'Dashboard', href: '/v/bihar/vendor-srt-installation-dashboard' },
+          { label: currentMeta.label },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 8 }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              {ICON_REFRESH} Refresh
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4 }}>
+                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+              </svg>
+              Refresh
             </button>
-            <Link to="/v/bihar/vendor-srt-installation-dashboard" className="ax-btn ax-btn--primary ax-btn--sm">
-              ← Back to Dashboard
+            <Link to="/v/bihar/vendor-srt-installation-dashboard" className="ax-btn ax-btn--secondary ax-btn--sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4 }}>
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              Back to Dashboard
+            </Link>
+            <Link to="/v/bihar/installation/srt/view-installation" className="ax-btn ax-btn--primary ax-btn--sm">
+              <span className="ax-btn__label">View Installations</span>
             </Link>
           </div>
         }
       />
 
-      <div className="ax-dash-grid">
-        {/* KPI Summary Cards */}
-        {loading && items.length === 0 ? (
-          <div className="ax-col--12" style={{ marginBottom: 12 }}>
-            <KpiSkeleton count={4} />
-          </div>
-        ) : (
-          <>
-            <KpiCard
-              icon={svgIcon(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />)}
-              tone={currentMeta.tone}
-              label={currentMeta.label}
-              value={summary.total.toLocaleString('en-IN')}
-              sub={`Total records for status "${currentStatus}"`}
-            />
-            <KpiCard
-              icon={svgIcon(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>)}
-              tone="emerald"
-              label="Installed Complete"
-              value={summary.installed.toLocaleString('en-IN')}
-              sub={`${summary.total > 0 ? Math.round((summary.installed / summary.total) * 100) : 0}% of current filtered`}
-            />
-            <KpiCard
-              icon={svgIcon(<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />)}
-              tone="cyan"
-              label="BREDA Approved"
-              value={summary.vApp.toLocaleString('en-IN')}
-              sub={`${summary.vPend} pending · ${summary.vRej} rejected`}
-            />
-            <KpiCard
-              icon={svgIcon(<><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></>)}
-              tone="violet"
-              label="Filtered District"
-              value={selectedDistrict && selectedDistrict !== 'all' ? selectedDistrict : 'All Districts'}
-              sub={`Showing data updated at ${fmtTime(updatedAt)}`}
-            />
-          </>
-        )}
+      {errorMsg && (
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">Error</div>
+          <div className="ax-alert__text">{errorMsg}</div>
+        </div>
+      )}
 
-        {/* Status Selection and Table Container */}
-        <div className="ax-card ax-col--12">
-          {/* Category Tabs */}
-          <div className="srt-cat-tabs" role="tablist">
-            {CATEGORY_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={activeCategory === tab.key}
-                className={`srt-cat-tab-btn ${activeCategory === tab.key ? 'active' : ''}`}
-                onClick={() => setActiveCategory(tab.key)}
+      {/* ── Top Metric KPI Cards (4 in 1 row) ── */}
+      <div className="asw-cards-row">
+        <KpiCard
+          tone={currentMeta.tone}
+          label={`${currentMeta.label} Total`}
+          value={summary.total.toLocaleString('en-IN')}
+          sub={!isAllDistricts ? `Filtered in ${selectedDistrict}` : 'Across all Bihar districts'}
+          icon={svgIcon(<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>)}
+        />
+        <KpiCard
+          tone="emerald"
+          label="Installed Plants"
+          value={summary.installed.toLocaleString('en-IN')}
+          sub={`${summary.total > 0 ? Math.round((summary.installed / summary.total) * 100) : 0}% of current list`}
+          icon={svgIcon(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+        />
+        <KpiCard
+          tone="cyan"
+          label="Verify Approved"
+          value={summary.vApp.toLocaleString('en-IN')}
+          sub={`${summary.vPend} audit pending`}
+          icon={svgIcon(<><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 15" /></>)}
+        />
+        <KpiCard
+          tone="violet"
+          label="Payment Settled"
+          value={summary.paid.toLocaleString('en-IN')}
+          sub={`${summary.vRej} audit rejected`}
+          icon={svgIcon(<><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>)}
+        />
+      </div>
+
+      {/* ── Main Table Card ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT Installations">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">{pageTitle}</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{items.length}</span> sites
+              {' '}· Status: <b>{currentMeta.label}</b>
+              {' '}· Approved <b className="ax-num">{summary.vApp}</b> · Pending <b className="ax-num">{summary.vPend}</b> · Rejected <b className="ax-num">{summary.vRej}</b>
+            </p>
+          </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              {/* Status Category Grouped Switcher */}
+              <select
+                id="srtsv_status_category_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 190, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={currentStatus}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                aria-label="Status category"
               >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Status Pills */}
-          <div className="srt-status-pills" role="region" aria-label="Status Pills">
-            {categoryStatuses.map((st) => {
-              const isActive = currentStatus === st.key;
-              return (
-                <button
-                  key={st.key}
-                  type="button"
-                  className={`srt-pill-btn ${isActive ? 'active' : ''}`}
-                  onClick={() => handleSelectStatus(st.key)}
-                  title={st.sub}
-                >
-                  <span>{st.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Card Header with District Filter, Search & Export */}
-          <div className="ax-card__header" style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14 }}>
-            <div className="ax-card__titles">
-              <h3 className="ax-card__title" style={{ fontSize: 16 }}>
-                {currentMeta.label} Records
-                <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ marginLeft: 8 }}>
-                  {filtered.length.toLocaleString('en-IN')}
-                </span>
-              </h3>
-              <p className="ax-card__subtitle" style={{ fontSize: 12 }}>
-                {currentMeta.sub} · Endpoint: <code style={{ fontSize: 11 }}>/bihar/srt/installation/view-dashboard-data/{currentStatus}</code>
-              </p>
-            </div>
-
-            <div className="ax-card__actions">
-              <div className="ax-cluster">
-                {/* District Filter Dropdown */}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <label htmlFor="srt-district-filter" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-muted)' }}>
-                    District:
-                  </label>
-                  <select
-                    id="srt-district-filter"
-                    className="ax-input ax-input--sm"
-                    style={{ height: 32, fontSize: 12, minWidth: 130 }}
-                    value={selectedDistrict}
-                    onChange={(e) => handleSelectDistrict(e.target.value)}
-                  >
-                    <option value="all">All Districts</option>
-                    {districtOptions.map((d) => (
-                      <option key={d} value={d}>{d}</option>
+                {CATEGORY_LABELS.map((cat) => (
+                  <optgroup key={cat.key} label={cat.label}>
+                    {BIHAR_SRT_STATUS_CATALOG.filter((s) => s.category === cat.key).map((sm) => (
+                      <option key={sm.key} value={sm.key}>{sm.label}</option>
                     ))}
-                  </select>
-                </div>
+                  </optgroup>
+                ))}
+                {!STATUS_META_MAP[currentStatus] && <option value={currentStatus}>{currentMeta.label}</option>}
+              </select>
 
-                {/* Verification Filter */}
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ height: 32, fontSize: 12, minWidth: 120 }}
-                  value={verifyFilter}
-                  onChange={(e) => {
-                    setVerifyFilter(e.target.value as any);
-                    setCurrentPage(1);
-                  }}
-                  aria-label="Filter by verification"
-                >
-                  <option value="all">All Verify</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+              {/* District Filter */}
+              <select
+                id="srtsv_district_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={isAllDistricts ? 'all' : selectedDistrict}
+                onChange={(e) => handleDistrictChange(e.target.value)}
+                aria-label="Filter by district"
+              >
+                <option value="all">All Districts ({districts.length})</option>
+                {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
 
-                {/* Search */}
-                <SearchInput
-                  value={search}
-                  onChange={(val) => {
-                    setSearch(val);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Search Site Name, CA No, District…"
-                />
+              {/* Verify Status Filter */}
+              <select
+                id="srtsv_verify_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={verifyFilter}
+                onChange={(e) => setVerifyFilter(e.target.value as typeof verifyFilter)}
+                aria-label="Filter by verify status"
+              >
+                <option value="all">All Status</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
 
-                {/* Clear filters button */}
-                {hasFilters && (
-                  <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={clearFilters}>
-                    Clear
-                  </button>
-                )}
+              {hasFilters && (
+                <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={resetFilters} style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}>
+                  Reset
+                </button>
+              )}
 
-                {/* Export Toolbar */}
-                <TableExportToolbar
-                  onCopy={handleCopy}
-                  onExportCSV={handleCsv}
-                  onExportExcel={handleExcel}
-                  onExportPDF={handlePdf}
-                />
-              </div>
-            </div>
-          </div>
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search site, CA no, consumer…"
+                size="sm"
+                ariaLabel="Search solar rooftop sites"
+              />
 
-          {/* Error Message */}
-          {errorMsg && (
-            <div style={{ margin: 16, padding: '10px 14px', borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', fontSize: 13 }}>
-              <b>Error:</b> {errorMsg}
-            </div>
-          )}
-
-          {/* Table */}
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 1600 }}>
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th" scope="col">Sr. No.</th>
-                  <th className="ax-table__th" scope="col">Site Name</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col">Block</th>
-                  <th className="ax-table__th" scope="col">Capacity (kW)</th>
-                  <th className="ax-table__th" scope="col">Consumer Name</th>
-                  <th className="ax-table__th" scope="col">Contact No</th>
-                  <th className="ax-table__th" scope="col">CA Number</th>
-                  <th className="ax-table__th" scope="col">Installation Status</th>
-                  <th className="ax-table__th" scope="col">Inspection</th>
-                  <th className="ax-table__th" scope="col">Verification</th>
-                  <th className="ax-table__th" scope="col">Doc Status</th>
-                  <th className="ax-table__th" scope="col">Payment Stage</th>
-                  <th className="ax-table__th" scope="col">Photo</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody aria-busy={loading}>
-                {loading && items.length === 0 && (
-                  <tr>
-                    <td colSpan={15} style={{ textAlign: 'center', padding: 32 }}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading Bihar SRT sites from server…
-                    </td>
-                  </tr>
-                )}
-                {!loading && filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={15} style={{ padding: 0 }}>
-                      <TableEmptyState
-                        title="No records found"
-                        message={
-                          hasFilters
-                            ? 'No SRT sites match your query. Try clearing filters.'
-                            : `No solar rooftop sites currently found under status "${currentStatus}".`
-                        }
-                      />
-                    </td>
-                  </tr>
-                )}
-                {paged.map((r, idx) => {
-                  const serialNo = (currentPage - 1) * pageSize + idx + 1;
-                  const vState = verifyState(r);
-                  const isInst = isInstalled(r);
-                  const imgUrl = getMediaUrl(r.inst_gen_image || r.generation_image || r.site_image || r.rms_loger_image);
-                  const isInspect = Number(r.inpection_status ?? r.inspection_status ?? 0) === 1;
-                  const isDoc = Number(r.inst_doc_status ?? r.doc_status ?? 0) === 1;
-
-                  return (
-                    <tr key={r.id || idx} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{serialNo}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-accent)' }}>
-                        {r.site_name || `Site #${r.id}`}
-                      </td>
-                      <td className="ax-table__td">{txt(r.district)}</td>
-                      <td className="ax-table__td">{txt(r.block)}</td>
-                      <td className="ax-table__td ax-num">
-                        {r.sanction_load ? `${r.sanction_load} kW` : DASH}
-                      </td>
-                      <td className="ax-table__td" style={{ fontWeight: 500 }}>
-                        {txt(r.consumer_name || r.beneficiary_name)}
-                      </td>
-                      <td className="ax-table__td ax-num">{txt(r.contact_no)}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
-                        {txt(r.ca_no)}
-                      </td>
-                      <td className="ax-table__td">
-                        {isInst ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success">Installed</span>
-                        ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
-                        )}
-                      </td>
-                      <td className="ax-table__td">
-                        {isInspect ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
-                        ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
-                        )}
-                      </td>
-                      <td className="ax-table__td">
-                        <span className={`ax-badge ax-badge--soft ax-badge--${verifyTone(vState)}`}>
-                          {verifyLabel(vState)}
-                        </span>
-                      </td>
-                      <td className="ax-table__td">
-                        {isDoc ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success">Uploaded</span>
-                        ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
-                        )}
-                      </td>
-                      <td className="ax-table__td">
-                        {Number(r.inst_pay3_status ?? 0) === 1 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success">Stage 3 Paid</span>
-                        ) : Number(r.inst_pay2_status ?? 0) === 1 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--info">Stage 2 Paid</span>
-                        ) : Number(r.inst_pay1_status ?? 0) === 1 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--accent">Stage 1 Paid</span>
-                        ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--neutral">Payment Pending</span>
-                        )}
-                      </td>
-                      <td className="ax-table__td">
-                        {imgUrl ? (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            style={{ padding: '2px 6px', height: 26, fontSize: 11 }}
-                            onClick={() => setPreviewImage({ url: imgUrl, title: `Site: ${r.site_name || r.id}` })}
-                          >
-                            📷 View
-                          </button>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)', fontSize: 12 }}>—</span>
-                        )}
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--secondary ax-btn--sm"
-                          style={{ padding: '2px 8px', height: 26, fontSize: 11 }}
-                          onClick={() => setSelectedRecord(r)}
-                        >
-                          Details
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer & Pagination */}
-          <div className="ax-card__footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '1px solid var(--ax-border, #e2e8f0)', flexWrap: 'wrap', gap: 10 }}>
-            <div className="srt-pagination-left">
-              <Pagination
-                currentPage={currentPage}
-                totalItems={filtered.length}
-                pageSize={pageSize}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={(ps) => {
-                  setPageSize(ps);
-                  setCurrentPage(1);
-                }}
+              <TableExportToolbar
+                onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
+                onExportCSV={() => exportDataToCSV(fileBase, filtered, exportCols)}
+                onExportExcel={() => exportDataToExcel(fileBase, filtered, exportCols)}
+                onExportPDF={() => printTableData(pageTitle, filtered, exportCols)}
               />
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Details Modal */}
-      {selectedRecord && (
-        <div className="ax-modal" role="dialog" aria-modal="true" onClick={() => setSelectedRecord(null)}>
-          <div className="ax-modal__backdrop" />
-          <div className="ax-modal__dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="ax-modal__header">
-              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                Site Details: {selectedRecord.site_name || `Site #${selectedRecord.id}`}
-              </h4>
-              <button type="button" className="ax-modal__close" onClick={() => setSelectedRecord(null)}>✕</button>
-            </div>
-            <div className="ax-modal__body">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>District</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{txt(selectedRecord.district)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Block</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{txt(selectedRecord.block)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Consumer Name</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{txt(selectedRecord.consumer_name || selectedRecord.beneficiary_name)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>CA Number</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{txt(selectedRecord.ca_no)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Contact No</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{txt(selectedRecord.contact_no)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Capacity / Load</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{selectedRecord.sanction_load ? `${selectedRecord.sanction_load} kW` : DASH}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Installation Status</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{isInstalled(selectedRecord) ? 'Installed' : 'Pending'}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Inspection Status</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{Number(selectedRecord.inpection_status ?? selectedRecord.inspection_status ?? 0) === 1 ? 'Complete' : 'Pending'}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>BREDA Verification</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{verifyLabel(verifyState(selectedRecord))}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Doc Status</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{Number(selectedRecord.inst_doc_status ?? selectedRecord.doc_status ?? 0) === 1 ? 'Uploaded' : 'Pending'}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Claim Status</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-                    {Number(selectedRecord.inst_claim_status ?? selectedRecord.claim_status ?? 0) === 1 ? 'Raised' : 'Not Raised'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Created Date</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{txt(selectedRecord.created_at)}</div>
-                </div>
-              </div>
-            </div>
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--primary" onClick={() => setSelectedRecord(null)}>Close</button>
-            </div>
+        <div className="ax-table-wrap">
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1750 }}>
+            <caption className="ax-visually-hidden">Bihar SRT Installation Data</caption>
+            <thead className="ax-table__head">
+              <tr>
+                {COLUMN_HEADERS.map((h) => (
+                  <th key={h} className="ax-table__th" scope="col" style={h === 'Action' ? { textAlign: 'center' } : undefined}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
+                <tr>
+                  <td className="ax-table__td" colSpan={COLUMN_HEADERS.length} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading Bihar SRT records from server…
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td className="ax-table__td" colSpan={COLUMN_HEADERS.length} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title="No solar rooftop sites found"
+                      message={
+                        hasFilters
+                          ? 'No records match your filters or search. Try clearing your query.'
+                          : `There are currently no records in status "${currentMeta.label}".`
+                      }
+                      onClear={hasFilters ? resetFilters : undefined}
+                      clearLabel="Clear filters"
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                paginatedData.map((row, index) => {
+                  const img = rowImage(row);
+                  const label = rowLabel(row);
+
+                  return (
+                    <tr key={row.id || index} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-accent)' }}>{label}</td>
+                      <td className="ax-table__td"><b>{txt(row.district)}</b></td>
+                      <td className="ax-table__td">{txt(row.block)}</td>
+                      <td className="ax-table__td">{txt(row.village || row.location)}</td>
+                      <td className="ax-table__td" style={monoCell}>{txt(row.ca_no)}</td>
+                      <td className="ax-table__td">
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{txt(row.consumer_name || row.beneficiary_name)}</span>
+                      </td>
+                      <td className="ax-table__td" style={monoCell}>{txt(row.contact_no)}</td>
+                      <td className="ax-table__td ax-num">{row.sanction_load ? `${row.sanction_load} kW` : DASH}</td>
+
+                      {/* Photo thumbnail */}
+                      <td className="ax-table__td">
+                        <SiteThumbnail src={img} alt={`Site ${label} - Photo`} onPreview={openPreview} />
+                      </td>
+
+                      {/* Status badges */}
+                      <td className="ax-table__td"><InstallBadge row={row} /></td>
+                      <td className="ax-table__td"><InspectBadge row={row} /></td>
+                      <td className="ax-table__td"><VerifyBadge row={row} /></td>
+                      <td className="ax-table__td"><DocBadge row={row} /></td>
+                      <td className="ax-table__td"><ClaimBadge status={Number(row.inst_claim_status ?? row.claim_status ?? 0)} /></td>
+                      <td className="ax-table__td"><PaymentBadge row={row} /></td>
+
+                      {/* Action */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <RowActionDropdown
+                          onView={() => setDetailItem(row)}
+                          onPhoto={img ? () => openPreview(img, `Site ${label} - Photo`) : undefined}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Footer / Pagination ── */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              setPage={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Image Preview Modal */}
-      {previewImage && (
-        <ImagePreviewModal
-          url={previewImage.url}
-          title={previewImage.title}
-          onClose={() => setPreviewImage(null)}
-        />
-      )}
+      {/* ── Photo Preview Modal ── */}
+      {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Detail View Modal ── */}
+      <Modal open={!!detailItem} onClose={() => setDetailItem(null)} labelledBy="srtsv-detail-title" dialogClass="ax-modal__dialog--md">
+        {detailItem && (
+          <div>
+            <div className="ax-modal__header">
+              <div>
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} id="srtsv-detail-title">
+                  SRT Plant Record {rowLabel(detailItem)}
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                  {detailItem.district ? `District: ${detailItem.district} · ` : ''}State: Bihar
+                </p>
+              </div>
+              <button type="button" className="ax-modal__close" onClick={() => setDetailItem(null)} aria-label="Close dialog">
+                {X_ICON}
+              </button>
+            </div>
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="ula-m-grid">
+                <div className="ula-m-info"><span>Site Name:</span> <b>{txt(detailItem.site_name)}</b></div>
+                <div className="ula-m-info"><span>District:</span> <b>{txt(detailItem.district)}</b></div>
+                <div className="ula-m-info"><span>Block:</span> <b>{txt(detailItem.block)}</b></div>
+                <div className="ula-m-info"><span>Village / Loc:</span> <b>{txt(detailItem.village || detailItem.location)}</b></div>
+                <div className="ula-m-info"><span>CA Number:</span> <b>{txt(detailItem.ca_no)}</b></div>
+                <div className="ula-m-info"><span>Consumer Name:</span> <b>{txt(detailItem.consumer_name || detailItem.beneficiary_name)}</b></div>
+                <div className="ula-m-info"><span>Contact No:</span> <b>{txt(detailItem.contact_no)}</b></div>
+                <div className="ula-m-info"><span>Capacity:</span> <b>{detailItem.sanction_load ? `${detailItem.sanction_load} kW` : DASH}</b></div>
+                <div className="ula-m-info"><span>Installation:</span> <b>{isInstalled(detailItem) ? 'Installed' : 'Pending'}</b></div>
+                <div className="ula-m-info"><span>Inspection:</span> <b>{Number(detailItem.inpection_status ?? detailItem.inspection_status ?? 0) === 1 ? 'Complete' : 'Pending'}</b></div>
+                <div className="ula-m-info"><span>BREDA Verification:</span> <b>{verifyLabel(verifyState(detailItem))}</b></div>
+                <div className="ula-m-info"><span>Doc Status:</span> <b>{Number(detailItem.inst_doc_status ?? detailItem.doc_status ?? 0) === 1 ? 'Uploaded' : 'Pending'}</b></div>
+                <div className="ula-m-info">
+                  <span>Claim Status:</span>
+                  <b>{Number(detailItem.inst_claim_status ?? detailItem.claim_status ?? 0) === 1 ? 'Raised' : 'Not Raised'}</b>
+                </div>
+                <div className="ula-m-info"><span>Payment:</span> <b>{getPaymentLabel(detailItem)}</b></div>
+              </div>
+
+              {/* Photo */}
+              {(() => {
+                const img = rowImage(detailItem);
+                return (
+                  <div style={{ border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 6, padding: 6, textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 4 }}>Plant Photo</div>
+                    {img ? (
+                      <img
+                        src={img}
+                        alt="Plant photo"
+                        style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 0, border: '1px solid var(--ax-border, #e2e8f0)', cursor: 'zoom-in' }}
+                        onClick={() => openPreview(img, `Site ${rowLabel(detailItem)} - Photo`)}
+                      />
+                    ) : (
+                      <div style={{ height: 110, background: 'var(--ax-surface-subtle, #f8fafc)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)', fontSize: 11 }}>
+                        N/A
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="ax-modal__footer">
+              <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setDetailItem(null)}>Close</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

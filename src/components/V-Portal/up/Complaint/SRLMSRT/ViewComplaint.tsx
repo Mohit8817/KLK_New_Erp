@@ -5,7 +5,9 @@ import {
 import {
   ComplaintViewPage,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -39,7 +41,7 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   documentCol<Row>(),
   T('Assigned Date', ['assigned_date']),
   statusCol<Row>(),
-  T('Created_by', ['created_by']),
+  createdByCol<Row>('Created By'),
 ];
 
 export function UPComplaintSRLMView() {
@@ -92,7 +94,7 @@ export function UPComplaintSRLMView() {
         { label: 'Coordinates', value: `${pick(c, ['latitude'])}, ${pick(c, ['longitude'])}` },
         { label: 'Complaint Date', value: pick(c, ['complaint_date']) },
         { label: 'Assigned Date', value: pick(c, ['assigned_date']) },
-        { label: 'Created By', value: pick(c, ['created_by']) },
+        { label: 'Created By', value: getLoggedInUserName() || pick(c, ['created_by_name', 'created_by']) },
       ]}
       exportName="UP_SRLMSRT_Complaints"
       exportTitle="UP SRLMSRT Complaints"

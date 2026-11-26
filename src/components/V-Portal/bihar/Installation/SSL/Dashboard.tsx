@@ -49,13 +49,19 @@ interface SslSummary {
 interface DistrictRow {
   district: string;
   total_light: number;
+  total_assigned?: number;
   inst_complete: number;
   inst_pending: number;
   verify_approved: number;
   verify_pending?: number;
   verify_reject?: number;
+  cms_approve_pending?: number;
+  cms_pending?: number;
   claim_raised: number;
+  claim_approved?: number;
+  claim_reject?: number;
   payment_done: number;
+  payment_pending?: number;
 }
 
 /* ───────── Helpers ───────── */
@@ -66,7 +72,6 @@ const n = (v: unknown) => Number(v ?? 0) || 0;
 const pad = (x: number) => String(x).padStart(2, '0');
 const fmtDate = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const fmtMonth = (s: string) => {
   const [y, m] = String(s || '').split('-');
   const mi = Number(m);
@@ -139,7 +144,7 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrapper {
     width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ax-table { min-width: 850px; }
+  .solar-erp-page .ax-table { min-width: 1450px; }
   .solar-erp-page .ssl-table--sm { min-width: 540px; }
   .solar-erp-page .ax-welcome__lede { max-width: 820px; }
 
@@ -331,7 +336,6 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' } as const;
-const AVATAR_COLORS = [LIGHT_BLUE, LIGHT_CYAN, LIGHT_VIOLET, LIGHT_AMBER, '#db2777'];
 
 export function Bihar_Installation_SSL_Dashboard() {
   const navigate = useNavigate();
@@ -459,18 +463,48 @@ export function Bihar_Installation_SSL_Dashboard() {
     const sum = (pick: (d: DistrictRow) => unknown) => filteredDistricts.reduce((a, d) => a + n(pick(d)), 0);
     const hasVP = filteredDistricts.some((d) => d.verify_pending !== undefined);
     const hasVR = filteredDistricts.some((d) => d.verify_reject !== undefined);
+    const hasTA = filteredDistricts.some((d) => d.total_assigned !== undefined);
+    const hasCMS = filteredDistricts.some((d) => d.cms_approve_pending !== undefined || (d as any).cms_pending !== undefined);
+    const hasCA = filteredDistricts.some((d) => d.claim_approved !== undefined);
+    const hasCR = filteredDistricts.some((d) => d.claim_reject !== undefined);
+    const hasPP = filteredDistricts.some((d) => d.payment_pending !== undefined);
     return {
       ...rawSsl,
       site_count: sum((d) => d.total_light),
+      site_assigned: hasTA ? sum((d) => d.total_assigned ?? d.total_light) : rawSsl.site_assigned,
       complete: sum((d) => d.inst_complete),
       pending: sum((d) => d.inst_pending),
       verify_approved: sum((d) => d.verify_approved),
       verify_pending: hasVP ? sum((d) => d.verify_pending) : rawSsl.verify_pending,
       verify_reject: hasVR ? sum((d) => d.verify_reject) : rawSsl.verify_reject,
+      cms_upload_pending: hasCMS ? sum((d) => d.cms_approve_pending ?? (d as any).cms_pending) : rawSsl.cms_upload_pending,
       claim_raised: sum((d) => d.claim_raised),
+      claim_verify_approved: hasCA ? sum((d) => d.claim_approved) : rawSsl.claim_verify_approved,
+      claim_verify_reject: hasCR ? sum((d) => d.claim_reject) : rawSsl.claim_verify_reject,
       inst_pay_done: sum((d) => d.payment_done),
+      inst_pay_pending: hasPP ? sum((d) => d.payment_pending) : rawSsl.inst_pay_pending,
     };
   }, [filtersActive, rawSsl, filteredDistricts]);
+
+  // Aggregate totals for the district summary table
+  const districtTotalRow = useMemo(() => {
+    const sum = (pick: (d: DistrictRow) => unknown) => filteredDistricts.reduce((a, d) => a + n(pick(d)), 0);
+    return {
+      total_light: sum((d) => d.total_light),
+      total_assigned: sum((d) => d.total_assigned ?? d.total_light),
+      inst_complete: sum((d) => d.inst_complete),
+      inst_pending: sum((d) => d.inst_pending),
+      verify_approved: sum((d) => d.verify_approved),
+      verify_pending: sum((d) => d.verify_pending),
+      verify_reject: sum((d) => d.verify_reject),
+      cms_approve_pending: sum((d) => d.cms_approve_pending ?? (d as any).cms_pending),
+      claim_raised: sum((d) => d.claim_raised),
+      claim_approved: sum((d) => d.claim_approved),
+      claim_reject: sum((d) => d.claim_reject),
+      payment_done: sum((d) => d.payment_done),
+      payment_pending: sum((d) => d.payment_pending),
+    };
+  }, [filteredDistricts]);
 
   // Table search & pagination
   const deferredQuery = useDeferredValue(tableQuery);
@@ -534,23 +568,30 @@ export function Bihar_Installation_SSL_Dashboard() {
 
   /* ───────── Export ───────── */
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(() => [
+    { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : 1) },
     { header: 'District', accessor: (r) => r.district || '' },
-    { header: 'Allocated Lights', accessor: (r) => n(r.total_light) },
-    { header: 'Installed Lights', accessor: (r) => n(r.inst_complete) },
-    { header: 'Install Pending', accessor: (r) => n(r.inst_pending) },
+    { header: 'Total Light', accessor: (r) => n(r.total_light) },
+    { header: 'Total Assigned', accessor: (r) => n(r.total_assigned ?? r.total_light) },
+    { header: 'Total Installed', accessor: (r) => n(r.inst_complete) },
+    { header: 'Pending Installation', accessor: (r) => n(r.inst_pending) },
     { header: 'Verify Approved', accessor: (r) => n(r.verify_approved) },
+    { header: 'Verify Pending', accessor: (r) => n(r.verify_pending) },
+    { header: 'Verify Reject', accessor: (r) => n(r.verify_reject) },
+    { header: 'CMS Pending', accessor: (r) => n(r.cms_approve_pending ?? (r as any).cms_pending) },
     { header: 'Claim Raised', accessor: (r) => n(r.claim_raised) },
+    { header: 'Claim Approved', accessor: (r) => n(r.claim_approved) },
+    { header: 'Claim Reject', accessor: (r) => n(r.claim_reject) },
     { header: 'Payment Done', accessor: (r) => n(r.payment_done) },
-    { header: 'Completion %', accessor: (r) => `${pctOf(n(r.inst_complete), n(r.total_light))}%` },
+    { header: 'Payment Pending', accessor: (r) => n(r.payment_pending) },
   ], []);
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileBase = 'Bihar_SSL_District_Overview';
   const fileTitle = 'Bihar SSL District-Wise Installation Performance';
 
-  const getExportValue = <T,>(row: T, column: ExportColumn<T>) =>
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index?: number) =>
     typeof column.accessor === 'function'
-      ? (column.accessor as any)(row)
+      ? (column.accessor as any)(row, index)
       : (row as Record<string, unknown>)[column.accessor as string];
 
   const escapeExportValue = (value: unknown) => String(value ?? '');
@@ -571,7 +612,7 @@ export function Bihar_Installation_SSL_Dashboard() {
     if (!list.length || !columns.length) return;
     const out = [
       columns.map((c) => c.header),
-      ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
@@ -581,7 +622,7 @@ export function Bihar_Installation_SSL_Dashboard() {
     if (!list.length || !columns.length) return;
     const t = [
       columns.map((c) => c.header).join('\t'),
-      ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(t);
@@ -601,14 +642,14 @@ export function Bihar_Installation_SSL_Dashboard() {
 
   const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
     downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
   };
 
   const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
     if (!list.length || !columns.length) return;
-    const body = list.map((row) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c)))));
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
     const w = window.open('', '_blank', 'width=1200,height=800');
     if (!w) return;
     w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
@@ -1211,8 +1252,8 @@ export function Bihar_Installation_SSL_Dashboard() {
           </div>
         </section>
 
-        {/* 8. District Wise Detailed Table (8) */}
-        <section className="ax-card ax-col--8" role="region" aria-label="District wise summary table">
+        {/* 8. District Wise Detailed Table (12) */}
+        <section className="ax-card ax-col--12" role="region" aria-label="District wise summary table">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
@@ -1241,17 +1282,25 @@ export function Bihar_Installation_SSL_Dashboard() {
             <table className="ax-table ax-table--hover">
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Claim Raised</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Done</th>
+                  <th className="ax-table__th" style={{ width: 60, textAlign: 'center' }} scope="col">Sr. No.</th>
+                  <th className="ax-table__th" style={{ minWidth: 140 }} scope="col">District</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 95 }} scope="col">Total Light</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 105 }} scope="col">Total Assigned</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 105 }} scope="col">Total Installed</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 135 }} scope="col">Pending Installation</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 115 }} scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 105 }} scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 100 }} scope="col">Verify Reject</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 100 }} scope="col">CMS Pending</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 100 }} scope="col">Claim Raised</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 110 }} scope="col">Claim Approved</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 100 }} scope="col">Claim Reject</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 105 }} scope="col">Payment Done</th>
+                  <th className="ax-table__th ax-table__th--num" style={{ minWidth: 115 }} scope="col">Payment Pending</th>
                 </tr>
               </thead>
               <tbody>
-                {pagedDistricts.map((d) => (
+                {pagedDistricts.map((d, idx) => (
                   <tr
                     key={d.district}
                     className="ax-table__row"
@@ -1261,33 +1310,51 @@ export function Bihar_Installation_SSL_Dashboard() {
                     onKeyDown={onActivate(() => openStatusView('installed-light', d.district, 'completed'))}
                     style={{ cursor: 'pointer' }}
                   >
+                    <td className="ax-table__td" style={{ textAlign: 'center', color: 'var(--ax-text-muted)', fontWeight: 500 }}>
+                      {(currentPage - 1) * pageSize + idx + 1}
+                    </td>
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
                       <b>{d.district}</b>
                     </td>
                     {cell(undefined, n(d.total_light), `View all allocated lights in ${d.district}`, 'total-light', d.district)}
+                    {cell('var(--ax-accent, #2563eb)', n(d.total_assigned ?? d.total_light), `View assigned lights in ${d.district}`, 'assign-light', d.district)}
                     {cell('var(--ax-viz-emerald, #10b981)', n(d.inst_complete), `View installed lights in ${d.district}`, 'installed-light', d.district, 'completed')}
-                    {cell('var(--ax-viz-amber, #f59e0b)', n(d.inst_pending), `View pending lights in ${d.district}`, 'not-installed-light', d.district, 'pending')}
-                    {cell('var(--ax-viz-cyan, #0891b2)', n(d.verify_approved), `View verified lights in ${d.district}`, 'verify-light', d.district)}
-                    {cell('var(--ax-viz-violet, #7c3aed)', n(d.claim_raised), `View claim raised lights in ${d.district}`, 'claim-raised', d.district)}
+                    {cell('var(--ax-viz-amber, #f59e0b)', n(d.inst_pending), `View pending installation lights in ${d.district}`, 'not-installed-light', d.district, 'pending')}
+                    {cell('var(--ax-viz-emerald, #10b981)', n(d.verify_approved), `View verified approved lights in ${d.district}`, 'verify-light', d.district)}
+                    {cell('var(--ax-viz-amber, #f59e0b)', n(d.verify_pending), `View verification pending lights in ${d.district}`, 'verify-pending-light', d.district, 'pending')}
+                    {cell('var(--ax-viz-red, #ef4444)', n(d.verify_reject), `View verification rejected lights in ${d.district}`, 'verify-reject-light', d.district)}
+                    {cell('var(--ax-viz-violet, #7c3aed)', n(d.cms_approve_pending ?? (d as any).cms_pending), `View CMS pending lights in ${d.district}`, 'cms-upload-pending', d.district, 'pending')}
+                    {cell('var(--ax-viz-cyan, #0891b2)', n(d.claim_raised), `View claim raised lights in ${d.district}`, 'claim-raised', d.district)}
+                    {cell('var(--ax-viz-emerald, #10b981)', n(d.claim_approved), `View claim approved lights in ${d.district}`, 'claim-verify-approved', d.district)}
+                    {cell('var(--ax-viz-red, #ef4444)', n(d.claim_reject), `View claim rejected lights in ${d.district}`, 'claim-verify-reject', d.district)}
                     {cell('var(--ax-viz-emerald, #10b981)', n(d.payment_done), `View paid lights in ${d.district}`, 'pay-done', d.district, 'payment')}
+                    {cell('var(--ax-viz-red, #ef4444)', n(d.payment_pending), `View payment pending lights in ${d.district}`, 'pay-pending', d.district, 'payment')}
                   </tr>
                 ))}
                 {!loading && pagedDistricts.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={7} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                    <td className="ax-table__td" colSpan={15} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
                       {apiError ? 'Could not load districts from server.' : 'No districts match the filter criteria.'}
                     </td>
                   </tr>
                 )}
                 {pagedDistricts.length > 0 && (
                   <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
+                    <td className="ax-table__td" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>Σ</td>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total ({filteredDistricts.length} Districts)</td>
-                    {cell(undefined, ssl.site_count, 'View all allocated lights', 'total-light')}
-                    {cell('var(--ax-viz-emerald, #10b981)', ssl.complete, 'View installed lights', 'installed-light', undefined, 'completed')}
-                    {cell('var(--ax-viz-amber, #f59e0b)', ssl.pending, 'View pending lights', 'not-installed-light', undefined, 'pending')}
-                    {cell('var(--ax-viz-cyan, #0891b2)', ssl.verify_approved, 'View verified lights', 'verify-light')}
-                    {cell('var(--ax-viz-violet, #7c3aed)', ssl.claim_raised, 'View claim raised lights', 'claim-raised')}
-                    {cell('var(--ax-viz-emerald, #10b981)', ssl.inst_pay_done, 'View paid lights', 'pay-done', undefined, 'payment')}
+                    {cell(undefined, districtTotalRow.total_light, 'View all allocated lights', 'total-light')}
+                    {cell('var(--ax-accent, #2563eb)', districtTotalRow.total_assigned, 'View all assigned lights', 'assign-light')}
+                    {cell('var(--ax-viz-emerald, #10b981)', districtTotalRow.inst_complete, 'View installed lights', 'installed-light', undefined, 'completed')}
+                    {cell('var(--ax-viz-amber, #f59e0b)', districtTotalRow.inst_pending, 'View pending lights', 'not-installed-light', undefined, 'pending')}
+                    {cell('var(--ax-viz-emerald, #10b981)', districtTotalRow.verify_approved, 'View verified lights', 'verify-light')}
+                    {cell('var(--ax-viz-amber, #f59e0b)', districtTotalRow.verify_pending, 'View verification pending lights', 'verify-pending-light')}
+                    {cell('var(--ax-viz-red, #ef4444)', districtTotalRow.verify_reject, 'View verification rejected lights', 'verify-reject-light')}
+                    {cell('var(--ax-viz-violet, #7c3aed)', districtTotalRow.cms_approve_pending, 'View CMS pending lights', 'cms-upload-pending')}
+                    {cell('var(--ax-viz-cyan, #0891b2)', districtTotalRow.claim_raised, 'View claim raised lights', 'claim-raised')}
+                    {cell('var(--ax-viz-emerald, #10b981)', districtTotalRow.claim_approved, 'View claim approved lights', 'claim-verify-approved')}
+                    {cell('var(--ax-viz-red, #ef4444)', districtTotalRow.claim_reject, 'View claim rejected lights', 'claim-verify-reject')}
+                    {cell('var(--ax-viz-emerald, #10b981)', districtTotalRow.payment_done, 'View paid lights', 'pay-done', undefined, 'payment')}
+                    {cell('var(--ax-viz-red, #ef4444)', districtTotalRow.payment_pending, 'View payment pending lights', 'pay-pending', undefined, 'payment')}
                   </tr>
                 )}
               </tbody>
@@ -1306,119 +1373,6 @@ export function Bihar_Installation_SSL_Dashboard() {
                 pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
-          </div>
-        </section>
-
-        {/* 9. District Quick Access (4) */}
-        <section className="ax-card ax-col--4" role="region" aria-label="District Status & Quick Navigation">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">District Operations</span>
-              <h2 className="ax-card__title">District Quick Access</h2>
-              <p className="ax-card__subtitle">Installation progress by district</p>
-            </div>
-          </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <div>
-              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
-                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>Top Execution Districts</span>
-                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{dash(ssl.complete)} Installed</span>
-              </div>
-              <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
-                {chartDistricts.slice(0, 8).map((d) => (
-                  <button
-                    key={d.district}
-                    type="button"
-                    className="ax-cluster"
-                    onClick={() => openStatusView('installed-light', d.district, 'completed')}
-                    style={{ width: '100%', justifyContent: 'space-between', fontSize: 'var(--ax-text-xs)', border: 0, background: 'transparent', padding: '6px 0', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)' }}
-                  >
-                    <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
-                    <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
-                      {num(n(d.inst_complete))} / {num(n(d.total_light))} ({pctOf(n(d.inst_complete), n(d.total_light) || 1)}%)
-                    </b>
-                  </button>
-                ))}
-                {districtwise.length === 0 && (
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data returned by server.'}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-4)' }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Quick Module Actions
-              </span>
-              <Link to="/v/bihar/installation/ssl/status-view?status=installed-light#completed" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Status Register</span>
-                <span>→</span>
-              </Link>
-              <Link to="/v/bihar/installation/ssl/status-view?status=not-installed-light#pending" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Pending Installations</span>
-                <span>→</span>
-              </Link>
-              <Link to="/v/ssl/view-ssl-complete-site" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>View Installations</span>
-                <span>→</span>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* 10. Today's Installation Activity */}
-        <section className="ax-card ax-col--12" role="region" aria-label="Today's installations">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Site Operations · Live {todayLabel}</span>
-              <h2 className="ax-card__title">Today&apos;s Installation Activity</h2>
-              <p className="ax-card__subtitle">{num(todayTotal)} street lights installed today across {today.length} execution partner{today.length === 1 ? '' : 's'}</p>
-            </div>
-            <div className="ax-card__actions">
-              <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{today.length} Active Today</span>
-            </div>
-          </div>
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ssl-table--sm" style={{ minWidth: 540 }}>
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th" scope="col">Sr.</th>
-                  <th className="ax-table__th" scope="col">Installation Partner</th>
-                  <th className="ax-table__th" scope="col">Role</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Today Installed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {today.length === 0 ? (
-                  <tr>
-                    <td className="ax-table__td" colSpan={4} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
-                      {loading ? 'Loading…' : 'No installations reported today yet.'}
-                    </td>
-                  </tr>
-                ) : (
-                  today.map((t, idx) => {
-                    const name = t.name || `Partner Team #${t.inst_vendor || idx + 1}`;
-                    const c = AVATAR_COLORS[idx % AVATAR_COLORS.length];
-                    return (
-                      <tr key={idx} className="ax-table__row">
-                        <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{idx + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                          <span className="ax-cluster" style={{ gap: 8, flexWrap: 'nowrap' }}>
-                            <span className="ax-avatar ax-avatar--sm" style={{ background: `color-mix(in oklab, ${c} 22%, transparent)`, color: c, fontWeight: 600 }}>{initials(name)}</span>
-                            {name}
-                          </span>
-                        </td>
-                        <td className="ax-table__td"><span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">Installation Partner</span></td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 700 }}>
-                          +{num(n(t.today_install))} Lights
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
           </div>
         </section>
       </div>

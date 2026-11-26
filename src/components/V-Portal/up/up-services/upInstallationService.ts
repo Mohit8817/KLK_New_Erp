@@ -409,10 +409,21 @@ export interface UpRescoSiteDetail {
 
 export interface UpRescoClaimItem {
   id: number;
+  vendor_id?: number;
+  project?: string;
+  type?: string;
+  state?: string;
   date?: string;
   claim?: string;
   sites?: number | string;
+  site_id?: string | number | number[];
   amount?: number | string;
+  payment_type?: number;
+  purpose?: number;
+  claim_status?: number;
+  pay_status?: number;
+  file?: string;
+  invoice?: string;
   remarks?: string;
   status?: number;
   payment_amount?: number | string;
@@ -420,7 +431,24 @@ export interface UpRescoClaimItem {
   payment_date?: string;
   payment_remarks?: string;
   payment_status?: number;
+  allpayment?: Array<{
+    id: number;
+    claim_id: number;
+    amount?: number | string;
+    balance?: number | string;
+    date?: string;
+    pay_remarks?: string;
+  }>;
+  vendors?: { id?: number; name?: string };
+  site_details?: Array<{ id: number; site_name?: string; state?: string; district?: string; address?: string }>;
   [key: string]: any;
+}
+
+export interface UpRescoClaimData {
+  payments: UpRescoClaimItem[];
+  pay1: any[];
+  pay2: any[];
+  pay3: any[];
 }
 
 export interface UpRescoInstalledSiteItem {
@@ -861,17 +889,66 @@ export interface UpKusumCInstalledSiteItem {
   [key: string]: any;
 }
 
+export interface UpKusumCInstallPaymentBreakdown {
+  id: number;
+  claim_id?: number | string;
+  amount: number | string;
+  balance: number | string;
+  date?: string;
+  status?: number;
+  payment_by?: number | string;
+  pay_remarks?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
+
+export interface UpKusumCSiteDetail {
+  id: number;
+  f_farmer_name?: string;
+  district?: string;
+  [key: string]: any;
+}
+
 export interface UpKusumCClaimPaymentItem {
   id: number;
+  company_id?: string;
+  vendor_id?: string | number;
+  date?: string;
+  state?: string;
   project?: string;
   type?: string;
-  state?: string;
-  amount: number | string;
-  site_id: string; // e.g. "[701,702]"
+  site_id: string; // e.g. "[\"3030\"]" or "[701,702]"
   file?: string;
+  amount: number | string;
+  total_amount?: number | string | null;
+  purpose?: string | null;
   remarks?: string;
-  claim_status: number;
-  created_by?: number;
+  payment_type?: string | null;
+  grand_total?: number | string | null;
+  claim_status: number; // 1 = Raised (Pending), 2 = Approved, 3 = Rejected
+  approved_date?: string | null;
+  approved_by?: string | null;
+  approved_remarks?: string | null;
+  pay_status?: number; // 0 = Pending, 1 = Complete, 2 = Partially
+  created_by?: number | string;
+  updated_by?: number | string | null;
+  created_at?: string;
+  updated_at?: string;
+  site_details?: UpKusumCSiteDetail[];
+  allpayment?: UpKusumCInstallPaymentBreakdown[];
+  // Fallbacks / legacy computed fields
+  pay_amount?: number | string;
+  payment_amount?: number | string;
+  paid_amount?: number | string;
+  balance_amount?: number | string;
+  payment_balance?: number | string;
+  pay_date?: string;
+  payment_date?: string;
+  paid_date?: string;
+  pay_remarks?: string;
+  payment_remarks?: string;
+  [key: string]: any;
 }
 
 export interface UpKusumCDashboardCounts {
@@ -1752,8 +1829,10 @@ class UpInstallationService {
     return `${getBaseUrl()}/up/resco-billing-pdf/${billId}`;
   }
 
-  /** Resco Claim Helper: List claims */
-  async getRescoClaims(): Promise<UpRescoClaimItem[]> {
+  /** Resco Claim Helper: Get full claim data (payments, pay1, pay2, pay3)
+   * API 1: GET /up/resco/installation/view-claim
+   */
+  async getRescoClaimData(): Promise<UpRescoClaimData> {
     const endpoints = [
       'up/resco/installation/view-claim',
       'up/resco/view-claim',
@@ -1763,21 +1842,36 @@ class UpInstallationService {
     for (const ep of endpoints) {
       try {
         const res = await apiRequest(ep);
-        if (Array.isArray(res.data)) return res.data;
-        if (Array.isArray(res.data?.payments)) return res.data.payments;
-        if (Array.isArray(res.payments)) return res.payments;
+        if (res) {
+          const d = res.data && typeof res.data === 'object' && !Array.isArray(res.data) ? res.data : res;
+          const payments = Array.isArray(d.payments) ? d.payments : (Array.isArray(res.data) ? res.data : []);
+          const pay1 = Array.isArray(d.pay1) ? d.pay1 : [];
+          const pay2 = Array.isArray(d.pay2) ? d.pay2 : [];
+          const pay3 = Array.isArray(d.pay3) ? d.pay3 : [];
+          if (payments.length > 0 || pay1.length > 0 || pay2.length > 0 || pay3.length > 0 || res.status) {
+            return { payments, pay1, pay2, pay3 };
+          }
+        }
       } catch {
         // try next endpoint
       }
     }
-    return [];
+    return { payments: [], pay1: [], pay2: [], pay3: [] };
   }
 
-  /** Resco Claim Helper: Submit claim */
-  async storeRescoClaim(fd: FormData): Promise<{ status: boolean; message?: string; errors?: any }> {
+  /** Resco Claim Helper: List claims */
+  async getRescoClaims(): Promise<UpRescoClaimItem[]> {
+    const data = await this.getRescoClaimData();
+    return data.payments;
+  }
+
+  /** Resco Claim Helper: Submit claim
+   * API 2: POST /up/resco/installation/add-claim
+   */
+  async storeRescoClaim(fd: FormData): Promise<{ status: boolean; message?: string; errors?: any; data?: any }> {
     const endpoints = [
-      'up/resco/installation/claim-store',
       'up/resco/installation/add-claim',
+      'up/resco/installation/claim-store',
       'up/resco/claim-store',
       'up/resco/installation-claim-store',
     ];
@@ -1790,7 +1884,7 @@ class UpInstallationService {
           isMultipart: true,
         });
         if (res.status !== false && res.success !== false) {
-          return { status: true, message: res.message || 'Payment claim submitted successfully!' };
+          return { status: true, message: res.message || 'Claim raised successfully.', data: res.data };
         }
         if (res.errors && typeof res.errors === 'object') {
           const errMsg = Object.values(res.errors).flat().join(' ');
@@ -1808,6 +1902,73 @@ class UpInstallationService {
       }
     }
     return { status: false, message: lastError?.message || 'Failed to submit claim' };
+  }
+
+  /** Resco Claim Helper: Update claim
+   * API 3: POST /up/resco/installation/update-claim
+   */
+  async updateRescoClaim(fd: FormData): Promise<{ status: boolean; message?: string; errors?: any; data?: any }> {
+    const endpoints = [
+      'up/resco/installation/update-claim',
+      'up/resco/update-claim',
+      'up/resco/installation-update-claim',
+    ];
+    let lastError: any = null;
+    for (const ep of endpoints) {
+      try {
+        const res = await apiRequest(ep, {
+          method: 'POST',
+          body: fd,
+          isMultipart: true,
+        });
+        if (res.status !== false && res.success !== false) {
+          return { status: true, message: res.message || 'Claim updated successfully.', data: res.data };
+        }
+        if (res.errors && typeof res.errors === 'object') {
+          const errMsg = Object.values(res.errors).flat().join(' ');
+          return { status: false, message: errMsg || res.message || 'Validation failed.', errors: res.errors };
+        }
+        if (res.message && !String(res.message).toLowerCase().includes('not found') && !String(res.message).includes('404')) {
+          lastError = res;
+        }
+      } catch (err: any) {
+        lastError = err;
+        if (err?.status === 422 || err?.errors || err?.message?.toLowerCase().includes('validation')) {
+          const errMsg = err?.errors ? Object.values(err.errors).flat().join(', ') : err?.message;
+          return { status: false, message: errMsg || 'Validation failed.' };
+        }
+      }
+    }
+    return { status: false, message: lastError?.message || 'Failed to update claim' };
+  }
+
+  /** Resco Claim Helper: Fetch claim details for edit
+   * API 4: GET /up/resco/installation/fetch-site-claim
+   */
+  async fetchRescoClaimDetails(id: number | string): Promise<{ status: boolean; message?: string; claims?: any; sites?: any[] }> {
+    const endpoints = [
+      `up/resco/installation/fetch-site-claim?id=${encodeURIComponent(id)}`,
+      `up/resco/fetch-site-claim?id=${encodeURIComponent(id)}`,
+      `up/resco/installation/fetch-claim?id=${encodeURIComponent(id)}`,
+    ];
+    let lastError: any = null;
+    for (const ep of endpoints) {
+      try {
+        const res = await apiRequest(ep);
+        if (res.status !== false && res.success !== false) {
+          return {
+            status: true,
+            message: res.message,
+            claims: res.claims || res.data?.claims || res.data,
+            sites: Array.isArray(res.sites) ? res.sites : (Array.isArray(res.data?.sites) ? res.data.sites : []),
+          };
+        }
+        lastError = res;
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+    return { status: false, message: lastError?.message || 'Failed to fetch claim details' };
   }
 
   /** Resco 17: Dashboard summary */
@@ -1953,12 +2114,15 @@ class UpInstallationService {
   }
 
   /** Kusum-C 10: Site dropdown list (uses success flag) */
-  async getKusumCAvailableSites(): Promise<{ id: number; f_farmer_name: string }[]> {
+  async getKusumCAvailableSites(): Promise<{ id: number; f_farmer_name: string; [key: string]: any }[]> {
     const res = await apiRequest('up/kusumc/installation/fetch-site');
-    if (Array.isArray(res.data)) return res.data;
-    if (Array.isArray(res.data?.data)) return res.data.data;
-    if (Array.isArray(res.sites)) return res.sites;
-    if (Array.isArray((res as any).data?.sites)) return (res as any).data.sites;
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.data)) return res.data.data;
+    if (Array.isArray(res?.data?.sites)) return res.data.sites;
+    if (Array.isArray(res?.data?.site)) return res.data.site;
+    if (Array.isArray(res?.sites)) return res.sites;
+    if (Array.isArray(res?.site)) return res.site;
     return [];
   }
 

@@ -150,29 +150,81 @@ export interface JammuSwpModule {
 
 export interface JammuSwpInstalledSiteItem {
   id: number;
+  company_id?: string;
   state?: string;
   district?: string;
   tehsil?: string;
   block?: string;
   village?: string;
   post?: string;
-  f_farmer_name?: string;
-  work_order?: string;
+  f_pin?: string;
   volume?: string;
+  lot_no?: string;
+  f_customer_no?: string;
+  work_order?: string;
+  work_order_date?: string;
+  f_app_no?: string;
+  f_farmer_name?: string;
+  farmer_name?: string;
+  beneficiary_name?: string;
+  f_father_name?: string;
+  contact_number?: string;
+  contact_no?: string;
+  adhaar_number?: string;
+  f_invoice?: string;
+  f_invoice_date?: string;
+  p_pump_capacity?: string;
+  pump_capacity?: string;
+  p_pump_type?: string;
+  pump_type?: string;
+  p_pump_subtype?: string;
+  p_pump_head?: string;
+  pump_head?: string;
+  water_source?: string;
+  total_dynamic_head?: string;
+  borewell_depth?: string;
+  water_delivery_output?: string;
+  panel_capacity?: string;
+  c_contractor_name?: string;
+  c_firm?: string;
+  c_contact?: string;
+  c_email?: string;
+  s_survey_done?: string;
+  s_latitude?: string;
+  s_longitude?: string;
+  s_recieved?: string;
+  s_date?: string;
   vfd_no?: string | null;
   mt_motor_no?: string | null;
+  mt_motor_make?: string | null;
   mt_pump_no?: string | null;
+  mt_controller_no?: string | null;
+  mt_controller_make?: string | null;
+  mt_rmsid?: string | null;
+  mt_imei?: string | null;
+  mt_module_watt?: string | null;
+  mt_module_make?: string | null;
+  inst_vendor?: number | string;
+  inst_assigned_by?: string;
+  inst_assigned_id?: number;
+  inst_assign_date?: string;
+  inst_deadline?: string;
+  inst_accept?: number;
   module_image?: string | null;
   vfd_image?: string | null;
   running_water_image?: string | null;
   pole_image?: string | null;
   inst_status?: number;
   inst_verify_status?: number; // 0 = pending, 1 = approved, 2 = reject
+  inst_verify_by?: string | null;
+  inst_verify_date?: string | null;
   inst_verify_remarks?: string | null;
   inst_doc?: string | null;
   inst_doc_date?: string | null;
   inst_doc_status?: number; // 0 = pending, 1 = submitted, 2 = approved
   inst_doc_remarks?: string | null;
+  inst_doc_verify_by?: string | null;
+  inst_doc_verify_date?: string | null;
   inst_doc_verify_remarks?: string | null;
   inst_claim_status?: number; // 0 = not raised, 1 = raised, 2 = approved
   inst_pay_status?: number; // 0 = pending, 1 = done, 2 = partially
@@ -182,8 +234,12 @@ export interface JammuSwpInstalledSiteItem {
   inst_date?: string | null;
   created_at?: string;
   updated_at?: string;
+  jammu_modulee?: JammuSwpModule[];
   jammuModulee?: JammuSwpModule[];
   jammu_modules?: JammuSwpModule[];
+  vendor_name?: string;
+  vendor?: string;
+  [key: string]: any;
 }
 
 export interface JammuSwpInstallDetailSummary {
@@ -197,6 +253,9 @@ export interface JammuSwpInstallDetailSummary {
 
 export interface JammuSwpInstallViewData {
   loginId?: number;
+  loginName?: string;
+  state?: string;
+  vendor?: JammuSwpVendorMeta['vendor'];
   assign?: number;
   install_detail: JammuSwpInstallDetailSummary;
   sites: JammuSwpInstalledSiteItem[];
@@ -495,18 +554,31 @@ export const jammuSwpService = {
     }
 
     const d = json.data || {};
-    const sites = Array.isArray(d.sites) ? d.sites : [];
+    const vendor = d.vendor || {};
+    const vendorName = vendor.name || vendor.vendor_name || d.loginName || '';
+    const rawSites = Array.isArray(d.sites) ? d.sites : [];
+    const sites: JammuSwpInstalledSiteItem[] = rawSites.map((site: any) => ({
+      ...site,
+      vendor_name: site.vendor_name || vendorName || site.c_firm || (site.inst_vendor ? `Vendor #${site.inst_vendor}` : ''),
+      vendor: site.vendor || vendorName || site.c_firm || (site.inst_vendor ? `Vendor #${site.inst_vendor}` : ''),
+      jammu_modulee: site.jammu_modulee || site.jammuModulee || site.jammu_modules || [],
+      jammuModulee: site.jammu_modulee || site.jammuModulee || site.jammu_modules || [],
+    }));
+
     const install_detail: JammuSwpInstallDetailSummary = d.install_detail || {
-      total: Number(d.assign || 0),
-      complete: 0,
+      total: Number(d.assign || sites.length || 0),
+      complete: sites.length,
       pending: 0,
       verify_approved: 0,
-      verify_pending: 0,
+      verify_pending: sites.length,
       verify_reject: 0,
     };
 
     return {
       loginId: d.loginId,
+      loginName: d.loginName,
+      state: d.state,
+      vendor: d.vendor,
       assign: Number(d.assign || 0),
       install_detail,
       sites,

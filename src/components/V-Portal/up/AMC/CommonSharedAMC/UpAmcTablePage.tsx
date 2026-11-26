@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { resolveUpMediaUrl } from '../../up-services';
@@ -44,6 +44,23 @@ export const amcStatusKey = (row: unknown): 'completed' | 'pending' | 'verified'
   const s = String(r.amc_status ?? r.status ?? '').trim();
   if (s === '1' || s.toLowerCase() === 'completed') return 'completed';
   return 'pending';
+};
+
+/**
+ * Returns true if the AMC record's verification status is approved / verified.
+ * When approved, editing is strictly locked / hidden per business rules.
+ */
+export const isAmcVerifyApproved = (row: unknown): boolean => {
+  const r = asRec(row);
+  const v = String(
+    r.verify_status ??
+      r.amcverify_status ??
+      r.inst_verify_status ??
+      r.verification_status ??
+      r.verifyStatus ??
+      ''
+  ).trim().toLowerCase();
+  return v === '1' || v === 'approved' || v === 'verified';
 };
 
 export const AmcStatusBadge = ({ row }: { row: unknown }) => {
@@ -342,15 +359,19 @@ export function DocThumb({
 
 /* ───────── Row action dropdown ───────── */
 const MENU_W = 180;
-const MENU_H = 84;
+const MENU_H = 118;
 
 function RowActionDropdown({
   docUrl,
   onView,
+  canEdit,
+  onEdit,
   extraAction,
 }: {
-  docUrl: string;
+  docUrl?: string | null;
   onView: () => void;
+  canEdit?: boolean;
+  onEdit?: () => void;
   extraAction?: { label: string; onClick: () => void };
 }) {
   const [open, setOpen] = useState(false);
@@ -435,6 +456,19 @@ function RowActionDropdown({
             >
               View Details
             </button>
+            {canEdit && onEdit && (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+              >
+                Edit Report
+              </button>
+            )}
             {extraAction && (
               <button
                 type="button"
@@ -623,6 +657,8 @@ export interface UpAmcViewProps<T extends object> {
   breadcrumbs: { label: string; href?: string }[];
   addLink?: string;
   addLabel?: string;
+  editLink?: string | ((row: T) => string);
+  onEdit?: (row: T) => void;
   cardTitle: string;
   searchPlaceholder?: string;
   loadingText?: string;
@@ -646,6 +682,8 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
     breadcrumbs,
     addLink,
     addLabel = 'Pending AMC',
+    editLink,
+    onEdit,
     cardTitle,
     loadingText = 'Loading AMC records…',
     emptyMessage = 'No AMC records found.',
@@ -660,6 +698,7 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
     filterStatus,
   } = props;
 
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<T[]>([]);
@@ -747,6 +786,37 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
     setSelectedStatus('All');
     setPage(1);
   };
+
+  /**
+   * Edit is allowed only when verification status is NOT approved.
+   * If verify status is approved, the Edit button is completely hidden.
+   */
+  const canEdit = useCallback(
+    (row: T): boolean => {
+      if (isAmcVerifyApproved(row)) return false;
+      return Boolean(onEdit || editLink || addLink);
+    },
+    [onEdit, editLink, addLink]
+  );
+
+  const handleEdit = useCallback(
+    (row: T) => {
+      if (onEdit) {
+        onEdit(row);
+        return;
+      }
+      const editTarget = typeof editLink === 'function' ? editLink(row) : editLink;
+      const base = editTarget || addLink;
+      if (!base) return;
+      const r = asRec(row);
+      const siteId = r.site_id ?? r.ssl_id ?? r.siteId ?? r.id ?? '';
+      const recordId = r.id ?? r.report_id ?? r.assignment_id ?? siteId;
+      const sep = base.includes('?') ? '&' : '?';
+      const url = `${base}${sep}site_id=${encodeURIComponent(siteId)}&id=${encodeURIComponent(recordId)}&edit=1`;
+      navigate(url);
+    },
+    [onEdit, editLink, addLink, navigate]
+  );
 
   const exportCols: ExportColumn<T>[] = useMemo(
     () => [
@@ -928,7 +998,46 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
                           </td>
                         ))}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <RowActionDropdown docUrl={docUrlOf(row)} onView={() => setDetailRow(row)} />
+                          <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                            <RowActionDropdown
+                              docUrl={docUrlOf(row)}
+                              onView={() => setDetailRow(row)}
+                              canEdit={canEdit(row)}
+                              onEdit={() => handleEdit(row)}
+                            />
+                            {canEdit(row) && (
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '4px 10px',
+                                  height: 30,
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                }}
+                                onClick={() => handleEdit(row)}
+                                title="Edit AMC report"
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={1.75}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  style={{ width: 13, height: 13 }}
+                                  aria-hidden="true"
+                                >
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span>Edit</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1036,7 +1145,34 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
               })()}
             </div>
 
-            <div className="ax-modal__footer">
+            <div className="ax-modal__footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+              {canEdit(detailRow) && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  onClick={() => {
+                    const row = detailRow;
+                    closeDetail();
+                    handleEdit(row);
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.75}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ width: 13, height: 13 }}
+                    aria-hidden="true"
+                  >
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  <span>Edit AMC Report</span>
+                </button>
+              )}
               <button type="button" className="ax-btn ax-btn--primary" onClick={closeDetail}>Close</button>
             </div>
           </>

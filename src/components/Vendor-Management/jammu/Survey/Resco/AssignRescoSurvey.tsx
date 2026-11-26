@@ -610,7 +610,8 @@ export function AssignRescoSurvey() {
         title="Jammu RESCO Assign Survey"
         subtitle="Allocate rooftop solar feasibility surveys to registered vendors across Jammu & Kashmir districts and government departments."
         breadcrumbs={[
-          { label: 'Home', href: '/vendor-management' },
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'Resco Survey', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'Assign Survey' },

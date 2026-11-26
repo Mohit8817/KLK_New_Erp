@@ -883,11 +883,14 @@ export function VerifySurvey() {
         title="Welcome to, Jammu RESCO Survey"
         subtitle="Review vendor submitted rooftop solar survey feasibility reports, shadow photos, and verify sites"
         breadcrumbs={[
-          { label: 'Home', href: '/vendor-management' },
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'Resco Survey', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'Verify Survey' },
         ]}
+
+        
       />
 
       {/* Status Feedback Banners */}

@@ -702,7 +702,8 @@ export function AssignedSurveyVendor() {
         title="JK Resco Assigned Site Vendor"
         subtitle="The field labels marked with * are input fields."
         breadcrumbs={[
-          { label: 'Home', href: '/vendor-management' },
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Jammu', href: '/vendor-management/jammu/survey/resco/dashboard' },
           { label: 'JK Resco Assigned Vendor', href: '/vendor-management/jammu/survey/resco/assigned-vendor' },
           { label: 'Site Feasibility Report' },

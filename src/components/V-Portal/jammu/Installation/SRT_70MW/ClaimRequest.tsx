@@ -596,17 +596,20 @@ const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as cons
 function RowActionDropdown({
   onViewData,
   onSubmitDoc,
+  showSubmitDoc = true,
 }: {
   onViewData: () => void;
   onSubmitDoc: () => void;
+  showSubmitDoc?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const canSubmitDoc = Boolean(showSubmitDoc && onSubmitDoc);
   const MENU_W = 160;
-  const MENU_H = 2 * 36 + 12;
+  const MENU_H = (canSubmitDoc ? 2 : 1) * 36 + 12;
 
   const toggle = () => {
     if (open) {
@@ -705,23 +708,25 @@ function RowActionDropdown({
               </svg>
               <span>View Data</span>
             </button>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onSubmitDoc();
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#16a34a' }}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="18" x2="12" y2="12" />
-                <polyline points="9 15 12 12 15 15" />
-              </svg>
-              <span>Submit Doc</span>
-            </button>
+            {canSubmitDoc && (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onSubmitDoc();
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#16a34a' }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <polyline points="9 15 12 12 15 15" />
+                </svg>
+                <span>Submit Doc</span>
+              </button>
+            )}
           </div>,
           document.body
         )}
@@ -892,6 +897,13 @@ export function ClaimRequest() {
   const docFileRef = useRef<HTMLInputElement>(null);
 
   const handleOpenDocModal = useCallback((claim: JammuClaimItem) => {
+    const isDocApproved =
+      Number(claim.inst_doc_submit ?? (claim as any).document_status ?? 0) === 2 ||
+      String(claim.inst_doc_submit).toLowerCase() === 'approved';
+    if (isDocApproved) {
+      setToastMsg({ type: 'danger', text: `Document for "${claim.site_name}" is already approved.` });
+      return;
+    }
     setDocModalSite(claim);
     setDocFile(null);
     setDocDate(new Date().toISOString().slice(0, 10));
@@ -1431,6 +1443,7 @@ export function ClaimRequest() {
                     row.inst_doc || (row as any).document || (row as any).doc_file || row.inst_verify_file || row.cr_doc || row.iv_curv_doc
                   );
                   const dStatus = Number(row.inst_doc_submit ?? (row as any).document_status ?? 0);
+                  const isDocApproved = dStatus === 2 || String(row.inst_doc_submit).toLowerCase() === 'approved';
                   const isApproved = Number(row.inst_claim_status) === 2;
                   const stateDisplay = row.state ? String(row.state).charAt(0).toUpperCase() + String(row.state).slice(1) : 'Jammu & Kashmir';
                   const claimAmt = row.inst_claim_amount ?? (row as any).claim_amount;
@@ -1562,6 +1575,7 @@ export function ClaimRequest() {
                         <RowActionDropdown
                           onViewData={() => setSelectedDetailSite(row)}
                           onSubmitDoc={() => handleOpenDocModal(row)}
+                          showSubmitDoc={!isDocApproved}
                         />
                       </td>
                     </tr>

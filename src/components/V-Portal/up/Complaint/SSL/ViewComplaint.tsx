@@ -6,7 +6,9 @@ import {
   ComplaintViewPage,
   DASH,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -113,7 +115,7 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   T('Close Date', ['close_date', 'manual_close_date']),
   T('Resolved By', ['resolved_by']),
   T('Remarks', ['remarks'], { clamp: true }),
-  T('Created By', ['created_by']),
+  createdByCol<Row>('Created By'),
 ];
 
 export function UP_Complaint_SSL_ViewComplaint() {
@@ -209,7 +211,7 @@ export function UP_Complaint_SSL_ViewComplaint() {
         { label: 'Close Beneficiary Contact', value: pick(r, ['close_beneficiary_contact']) },
         { label: 'Close SMS', value: formatYesNo(pick(r, ['close_sms'])) },
         { label: 'Remarks', value: pick(r, ['remarks']) },
-        { label: 'Created By', value: pick(r, ['created_by']) },
+        { label: 'Created By', value: getLoggedInUserName() || pick(r, ['created_by_name', 'created_by']) },
         { label: 'Created At', value: formatDateTime(pick(r, ['created_at'])) },
       ]}
       exportName="UP_Vendor_SSL_Complaints"

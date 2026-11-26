@@ -5,7 +5,9 @@ import {
 import {
   ComplaintViewPage,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -30,7 +32,7 @@ const COLUMNS: ComplaintColumn<UpOffgridComplaintItem>[] = [
   documentCol<UpOffgridComplaintItem>(),
   T('Assigned Date', ['assigned_date']),
   statusCol<UpOffgridComplaintItem>(),
-  T('Created By', ['created_by']),
+  createdByCol<UpOffgridComplaintItem>('Created By'),
 ];
 
 export function UPComplaintOffgridView() {
@@ -77,7 +79,7 @@ export function UPComplaintOffgridView() {
         { label: 'Contractor Name', value: pick(c, ['contractor_name']) },
         { label: 'Complaint Date', value: pick(c, ['complaint_date']) },
         { label: 'Assigned Date', value: pick(c, ['assigned_date']) },
-        { label: 'Created By', value: pick(c, ['created_by']) },
+        { label: 'Created By', value: getLoggedInUserName() || pick(c, ['created_by_name', 'created_by']) },
       ]}
       exportName="UP_Offgrid_Complaints"
       exportTitle="UP Off Grid Complaints"

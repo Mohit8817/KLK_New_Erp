@@ -240,7 +240,7 @@ function CloseModal<T extends object>({
       { label: 'Order No', value: pick(item, ['wo_no', 'work_order_no', 'order_no']) },
       {
         label: 'Created By',
-        value: pick(item, ['created_by', 'complaint_raised_by'], logged.name || DASH),
+        value: logged.name || pick(item, ['created_by_name', 'created_by', 'complaint_raised_by'], DASH),
       },
       { label: 'Complaint No', value: pick(item, ['complaint_id', 'id']) },
       {

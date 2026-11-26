@@ -5,7 +5,9 @@ import {
 import {
   ComplaintViewPage,
   StatusBadge,
+  createdByCol,
   documentCol,
+  getLoggedInUserName,
   pick,
   statusCol,
   textCol,
@@ -37,6 +39,7 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   documentCol<Row>(),
   T('Assigned Date', ['assigned_date']),
   statusCol<Row>(),
+  createdByCol<Row>('Created By'),
 ];
 
 export function UPComplaintPPView() {
@@ -86,6 +89,7 @@ export function UPComplaintPPView() {
         { label: 'Installation Date', value: pick(c, ['installation_date']) },
         { label: 'Complaint Date', value: pick(c, ['complaint_date']) },
         { label: 'Assigned Date', value: pick(c, ['assigned_date']) },
+        { label: 'Created By', value: getLoggedInUserName() || pick(c, ['created_by_name', 'created_by']) },
         { label: 'Address', value: pick(c, ['address']) },
       ]}
       exportName="UP_Powerpack_Complaints"

@@ -128,10 +128,13 @@ export function Kashmir_Expenses_RequestExpenses() {
         const list: any[] = await (kashmirSrtService as any).getExpenseCreateSites();
         if (active && Array.isArray(list)) {
           setSites(
-            list.map((s) => ({
-              value: String(s.id),
-              label: `${s.site_name || s.name || 'Site'}${s.uid || s.site_code ? ` (${s.site_code})` : ''}`,
-            }))
+            list.map((s) => {
+              const name = (typeof s.site_name === 'object' ? s.site_name?.site_name || s.site_name?.name : s.site_name) || s.name || 'Site';
+              return {
+                value: String(s.id),
+                label: `${name}${s.uid || s.site_code ? ` (${s.site_code})` : ''}`,
+              };
+            })
           );
         }
       } catch (err) {
@@ -171,10 +174,13 @@ export function Kashmir_Expenses_RequestExpenses() {
         const siteList = (res as any)?.srt70mw || (res as any)?.sites;
         if (Array.isArray(siteList) && siteList.length > 0) {
           setSites(
-            siteList.map((s: any) => ({
-              value: String(s.id),
-              label: `${s.site_name || s.name || 'Site'}${s.uid || s.site_code ? ` (${s.site_code})` : ''}`,
-            }))
+            siteList.map((s: any) => {
+              const name = (typeof s.site_name === 'object' ? s.site_name?.site_name || s.site_name?.name : s.site_name) || s.name || 'Site';
+              return {
+                value: String(s.id),
+                label: `${name}${s.uid || s.site_code ? ` (${s.site_code})` : ''}`,
+              };
+            })
           );
         }
       } catch (err: any) {
