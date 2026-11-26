@@ -182,6 +182,28 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
+
+  /* Row action button + menu (Exact UP Resco Installation pattern) */
+  .ula-action-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed; z-index: 99999; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
+    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
+    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
+    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible {
+    background: var(--ax-surface-subtle, #f1f5f9) !important;
+    outline: none;
+  }
 `;
 
 /* ───────── Overlay CSS (modals & modern fields matching Assam SWP reference) ───────── */
@@ -381,6 +403,213 @@ function Modal({
       </div>
     </div>,
     document.body
+  );
+}
+
+/* ───────── Row Action Dropdown (Matching UP Resco Installation pattern) ───────── */
+const MENU_W = 180;
+
+function RowActionDropdown({
+  onViewDetails,
+  onEditClaim,
+  canEdit = true,
+  invoiceUrl,
+}: {
+  onViewDetails: () => void;
+  onEditClaim: () => void;
+  canEdit?: boolean;
+  invoiceUrl?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const totalItems = 2 + (invoiceUrl ? 1 : 0);
+  const MENU_H = totalItems * 36 + 12;
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={btnRef}
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span>Action</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: MENU_W,
+              zIndex: 99999,
+            }}
+          >
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onViewDetails();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 14, height: 14, color: '#059669', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View Details</span>
+            </button>
+
+            {canEdit ? (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onEditClaim();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#2563eb', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit Claim</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                disabled
+                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                title="Claim has been approved. Action is locked."
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span style={{ color: '#94a3b8' }}>Edit Claim (Locked)</span>
+              </button>
+            )}
+
+            {invoiceUrl && (
+              <a
+                href={invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#0284c7', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span>View Invoice ↗</span>
+              </a>
+            )}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
@@ -758,14 +987,21 @@ export function UP_Installation_KusumC_ViewPayment() {
     setAddSubmitting(true);
     setAddError(null);
     try {
+      const cleanSiteIds = addSelectedSites
+        .map((id) => Number(id))
+        .filter((num) => !isNaN(num) && num > 0);
+
+      if (cleanSiteIds.length === 0) {
+        setAddError('Please select at least one valid eligible installation site.');
+        setAddSubmitting(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append('amount', addAmount.trim());
-      addSelectedSites.forEach((id) => {
+      cleanSiteIds.forEach((id) => {
         formData.append('site_id[]', String(id));
       });
-      if (addSelectedSites.length === 1) {
-        formData.append('site_id', String(addSelectedSites[0]));
-      }
       formData.append('file', addFile);
       formData.append('invoice', addFile);
       formData.append('remarks', addRemarks.trim());
@@ -783,9 +1019,13 @@ export function UP_Installation_KusumC_ViewPayment() {
           loadData();
         }, 1500);
       } else {
-        const errMsg =
-          res.message ||
-          (res.errors ? Object.values(res.errors).flat().join(', ') : 'Failed to raise payment claim.');
+        const fieldErrors =
+          res.errors && typeof res.errors === 'object'
+            ? Object.values(res.errors).flat().filter(Boolean).join(', ')
+            : '';
+        const errMsg = fieldErrors
+          ? `${res.message ? `${res.message}: ` : ''}${fieldErrors}`
+          : res.message || 'Failed to raise payment claim.';
         setAddError(errMsg);
       }
     } catch (err: any) {
@@ -842,8 +1082,12 @@ export function UP_Installation_KusumC_ViewPayment() {
       sitesToSend = [editClaim.site_id as any];
     }
 
-    if (sitesToSend.length === 0) {
-      setEditError('Please select at least one site.');
+    const cleanSitesToSend = sitesToSend
+      .map((id) => Number(id))
+      .filter((num) => !isNaN(num) && num > 0);
+
+    if (cleanSitesToSend.length === 0) {
+      setEditError('Please select at least one valid site.');
       return;
     }
     if (!editRemarks.trim()) {
@@ -858,12 +1102,9 @@ export function UP_Installation_KusumC_ViewPayment() {
       formData.append('update_id', String(editClaim.id));
       formData.append('id', String(editClaim.id));
       formData.append('amount', editAmount.trim());
-      sitesToSend.forEach((sid) => {
+      cleanSitesToSend.forEach((sid) => {
         formData.append('site_id[]', String(sid));
       });
-      if (sitesToSend.length === 1) {
-        formData.append('site_id', String(sitesToSend[0]));
-      }
       if (editFile) {
         formData.append('file', editFile);
         formData.append('invoice', editFile);
@@ -883,9 +1124,13 @@ export function UP_Installation_KusumC_ViewPayment() {
           loadData();
         }, 1500);
       } else {
-        const errMsg =
-          res.message ||
-          (res.errors ? Object.values(res.errors).flat().join(', ') : 'Failed to update payment claim.');
+        const fieldErrors =
+          res.errors && typeof res.errors === 'object'
+            ? Object.values(res.errors).flat().filter(Boolean).join(', ')
+            : '';
+        const errMsg = fieldErrors
+          ? `${res.message ? `${res.message}: ` : ''}${fieldErrors}`
+          : res.message || 'Failed to update payment claim.';
         setEditError(errMsg);
       }
     } catch (err: any) {
@@ -1293,7 +1538,7 @@ export function UP_Installation_KusumC_ViewPayment() {
                     scope="col"
                     style={
                       h === 'Action'
-                        ? { textAlign: 'right' }
+                        ? { textAlign: 'center', width: 110 }
                         : h === 'Amount' || h === 'Payment Amount' || h === 'Payment Balance'
                         ? { textAlign: 'right' }
                         : h === 'Claim Status' || h === 'Payment Status' || h === 'Invoice'
@@ -1438,73 +1683,13 @@ export function UP_Installation_KusumC_ViewPayment() {
                       </td>
 
                       {/* 13. Action */}
-                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
-                        <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                          {(c.claim_status === 2 || getAllPayments(c).length > 0 || c.pay_status) && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              onClick={() => setViewingPaymentClaim(c)}
-                              title="View Payment Breakdown & History"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '4px 8px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                color: 'var(--asw-primary, #0369a1)',
-                                border: '1px solid #bae6fd',
-                                background: '#f0f9ff',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="16" x2="12" y2="12" />
-                                <line x1="12" y1="8" x2="12.01" y2="8" />
-                              </svg>
-                              Details
-                            </button>
-                          )}
-
-                          {c.claim_status === 2 ? (
-                            <button
-                              type="button"
-                              disabled
-                              title="Claim has been approved and payment settled. Action is locked."
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                background: '#f1f5f9',
-                                color: '#94a3b8',
-                                border: '1px solid #cbd5e1',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: 'not-allowed',
-                              }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                              </svg>
-                              Locked
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => openEditModal(c)}
-                            >
-                              Edit Claim
-                            </button>
-                          )}
-                        </div>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <RowActionDropdown
+                          canEdit={c.claim_status !== 2}
+                          invoiceUrl={invoiceUrl}
+                          onViewDetails={() => setViewingPaymentClaim(c)}
+                          onEditClaim={() => openEditModal(c)}
+                        />
                       </td>
                     </tr>
                   );

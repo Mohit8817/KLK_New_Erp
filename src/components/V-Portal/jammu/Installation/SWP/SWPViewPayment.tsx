@@ -516,13 +516,12 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
+const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
 // Requested headers for SWP Installation Payment (Exact 13 columns)
 const PAYMENT_HEADERS = [
   'Sr. No.',
-  'Vendor',
   'State',
-  'District',
   'Beneficiary Name',
   'Application No.',
   'Status',
@@ -844,9 +843,7 @@ export function SWPViewPayment() {
   const exportCols: ExportColumn<JammuSwpClaimItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'Vendor', accessor: (r: any) => txt(r, 'vendor_name') || txt(r, 'vendor') || DASH },
       { header: 'State', accessor: (r: any) => r.state || 'Jammu' },
-      { header: 'District', accessor: (r: any) => txt(r, 'district') || DASH },
       { header: 'Beneficiary Name', accessor: (r: any) => r.f_farmer_name || txt(r, 'beneficiary_name') || fmtSites(r.site_id) || DASH },
       { header: 'Application No.', accessor: (r: any) => txt(r, 'application_no') || txt(r, 'app_no') || String(r.id) },
       { header: 'Status', accessor: (r: any) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending') },
@@ -1138,9 +1135,8 @@ export function SWPViewPayment() {
                   return (
                     <tr key={row.id} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row, 'vendor_name') || txt(row, 'vendor') || DASH}</td>
                       <td className="ax-table__td">{row.state || 'Jammu'}</td>
-                      <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
+       
                       <td className="ax-table__td" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                           {row.f_farmer_name || txt(row, 'beneficiary_name') || fmtSites(row.site_id) || DASH}
@@ -1299,12 +1295,7 @@ export function SWPViewPayment() {
                 disabled={submittingClaim}
                 required
               >
-                <option value="">-- Select --</option>
-                {claimableSites.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.f_farmer_name} {s.district ? `(${s.district})` : ''}
-                  </option>
-                ))}
+               
               </select>
               {claimableSites.length === 0 && (
                 <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 2 }}>
