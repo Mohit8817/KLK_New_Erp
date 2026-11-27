@@ -520,7 +520,7 @@ export function GoaSRTAMCVerifySite() {
   // Export Columns matching exact 33 fields
   const exportCols: ExportColumn<GoaAmcVerifyViewRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'AMC Type', accessor: (r) => (r.amc ? `AMC ${r.amc}` : '—') },
       { header: 'State', accessor: (r) => (r.srtdata?.state || r.state || 'Goa').toUpperCase() },
       { header: 'District', accessor: (r) => r.srtdata?.district || r.district || '—' },

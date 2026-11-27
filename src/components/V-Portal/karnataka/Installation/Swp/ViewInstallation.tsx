@@ -20,12 +20,6 @@ import {
 } from '../../../../../common';
 
 /* ── Base URLs for media assets ── */
-const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/+$/, '');
-
-const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
-
 function getKarnatakaSwpInstallationImageCandidates(path?: string | null): string[] {
   return getKarnatakaMediaCandidates(path);
 }
@@ -1328,7 +1322,7 @@ export function KarnatakaViewInstallation() {
 
   // Export columns
   const exportCols: ExportColumn<InstalledSiteItem>[] = useMemo(() => [
-    { header: 'Sr. No.', accessor: (_r: InstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+    { header: 'Sr. No.', accessor: (_r: InstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
     { header: 'State', accessor: (r) => txt(r, 'state') || 'Karnataka' },
     { header: 'District', accessor: (r) => txt(r, 'district') },
     { header: 'Block / Village', accessor: (r) => `${txt(r, 'block') || txt(r, 'tehsil') || txt(r, 'f_tehsil')} / ${txt(r, 'village') || txt(r, 'f_village')}` },
@@ -1403,17 +1397,17 @@ export function KarnatakaViewInstallation() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
@@ -1657,7 +1651,6 @@ export function KarnatakaViewInstallation() {
                   const structureImg = row.structure_image || row.structure_photo;
                   const waterImg = row.running_water_image || row.running_water_photo;
                   const foundationImg = row.foundation_image || row.foundation_photo;
-                  const ser = fmtSerials(row.module_serial_no || row.module_serials);
                   const parsedSerials = parseModuleSerials(row.module_serial_no || row.module_serials);
                   const blockText = txt(row, 'block') || txt(row, 'tehsil') || txt(row, 'f_tehsil');
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);

@@ -36,7 +36,7 @@ const VerifyBadge = ({ value, raw }: { value?: number | string; raw?: any }) => 
   return <Badge tone="warning">Pending</Badge>;
 };
 
-const DocBadge = ({ status, docUrl }: { status?: number | string; docUrl?: string | null }) => {
+const DocBadge = ({ status }: { status?: number | string; docUrl?: string | null }) => {
   const s = Number(status ?? 0);
   const r = String(status ?? '').toLowerCase().trim();
   if (s === 2 || r === 'approved' || r === 'ok') return <Badge tone="success">Approved</Badge>;
@@ -51,12 +51,6 @@ const ClaimBadge = ({ status }: { status?: number | string }) => {
   if (s === 2) return <Badge tone="success">Approved</Badge>;
   if (s === 3) return <Badge tone="danger">Reject</Badge>;
   return <Badge tone="neutral">Not Applicable</Badge>;
-};
-
-const PaymentBadge = ({ status }: { status?: number | string }) => {
-  const s = Number(status ?? 0);
-  if (s === 2 || s === 1) return <Badge tone="success">Paid</Badge>;
-  return <Badge tone="warning">Pending</Badge>;
 };
 
 const txt = (row: UpKusumCInstalledSiteItem, key: string): string => {
@@ -524,7 +518,6 @@ function ModuleSerialsModal({
   serials,
   siteTitle,
   farmerName,
-  siteId,
   pumpCapacity,
   district,
   onClose,
@@ -1411,7 +1404,7 @@ export function UP_Installation_KusumC_StatusView() {
 
   // Export columns (exact match with table structure)
   const exportCols: ExportColumn<UpKusumCInstalledSiteItem>[] = useMemo(() => [
-    { header: 'Sr. No.', accessor: (_r: UpKusumCInstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+    { header: 'Sr. No.', accessor: (_r: UpKusumCInstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
     { header: 'State', accessor: (r) => getStateName(r).toUpperCase() || 'UP' },
     { header: 'District', accessor: (r) => getDistrict(r) },
     { header: 'Block / Village', accessor: (r) => getBlockVillage(r) },
@@ -1486,17 +1479,17 @@ export function UP_Installation_KusumC_StatusView() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

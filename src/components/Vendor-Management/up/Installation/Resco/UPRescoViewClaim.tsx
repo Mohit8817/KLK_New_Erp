@@ -554,22 +554,34 @@ export function UPRescoViewClaim() {
       return setErrorMsg('Please select a valid status.');
     }
 
+    const statusNum = parseInt(actionStatus, 10);
+    const resolvedStatus = (statusNum === 3 ? 3 : statusNum === 1 ? 1 : 2) as 1 | 2 | 3;
+    const defaultRemark = resolvedStatus === 3 ? 'Claim Rejected' : resolvedStatus === 1 ? 'Claim Pending' : 'Claim Approved';
+    const finalRemarks = (actionRemarks.trim() || defaultRemark).trim();
+
     setSubmittingAction(true);
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const statusNum = parseInt(actionStatus, 10);
-      const fn = (upRescoAdminService as any).approveClaim || upRescoAdminService.verifyClaimStatus;
-      const res = await fn.call(upRescoAdminService, {
+      const res = await upRescoAdminService.verifyClaimStatus({
         id: selectedClaimForAction.id,
-        status: (statusNum === 3 ? 3 : 2) as 2 | 3,
-        remarks: actionRemarks.trim() || undefined,
+        claim_id: selectedClaimForAction.id,
+        status: resolvedStatus,
+        claim_status: resolvedStatus,
+        verify_status: resolvedStatus,
+        remarks: finalRemarks,
+        approved_remarks: finalRemarks,
+        verify_remarks: finalRemarks,
+        claim_remarks: finalRemarks,
+        vendor_id: selectedClaimForAction.vendor_id,
+        company_id: selectedClaimForAction.company_id,
+        pay_type: selectedClaimForAction.pay_type,
       });
 
       const updatedClaim: UpRescoClaimRecord = {
         ...selectedClaimForAction,
-        claim_status: statusNum,
-        approved_remarks: actionRemarks.trim(),
+        claim_status: resolvedStatus,
+        approved_remarks: finalRemarks,
         approved_date: new Date().toISOString(),
       };
 
@@ -579,19 +591,19 @@ export function UPRescoViewClaim() {
       setSummary((prev) => {
         const oldStatus = Number(selectedClaimForAction.claim_status);
         const next = { ...prev };
-        if (oldStatus === 1 && statusNum === 2) {
+        if (oldStatus === 1 && resolvedStatus === 2) {
           next.claim_pending = Math.max(0, (next.claim_pending || 0) - 1);
           next.claim_approved = (next.claim_approved || 0) + 1;
-        } else if (oldStatus === 1 && statusNum === 3) {
+        } else if (oldStatus === 1 && resolvedStatus === 3) {
           next.claim_pending = Math.max(0, (next.claim_pending || 0) - 1);
           next.claim_reject = (next.claim_reject || 0) + 1;
-        } else if (oldStatus === 2 && statusNum === 3) {
+        } else if (oldStatus === 2 && resolvedStatus === 3) {
           next.claim_approved = Math.max(0, (next.claim_approved || 0) - 1);
           next.claim_reject = (next.claim_reject || 0) + 1;
-        } else if (oldStatus === 3 && statusNum === 2) {
+        } else if (oldStatus === 3 && resolvedStatus === 2) {
           next.claim_reject = Math.max(0, (next.claim_reject || 0) - 1);
           next.claim_approved = (next.claim_approved || 0) + 1;
-        } else if (oldStatus !== 1 && statusNum === 1) {
+        } else if (oldStatus !== 1 && resolvedStatus === 1) {
           if (oldStatus === 2) next.claim_approved = Math.max(0, (next.claim_approved || 0) - 1);
           if (oldStatus === 3) next.claim_reject = Math.max(0, (next.claim_reject || 0) - 1);
           next.claim_pending = (next.claim_pending || 0) + 1;
@@ -1107,8 +1119,9 @@ export function UPRescoViewClaim() {
                             type="button"
                             onClick={() => {
                               setSelectedClaimForAction(row);
-                              setActionStatus(String(row.claim_status === 1 ? '2' : row.claim_status || '2'));
-                              setActionRemarks(row.approved_remarks || '');
+                              const initialSt = String(row.claim_status === 1 ? '2' : row.claim_status || '2');
+                              setActionStatus(initialSt);
+                              setActionRemarks(row.approved_remarks || (initialSt === '3' ? 'Claim Rejected' : 'Claim Approved'));
                             }}
                             className="ax-btn ax-btn--primary ax-btn--sm"
                             style={{
@@ -1197,7 +1210,24 @@ export function UPRescoViewClaim() {
             </label>
             <select
               value={actionStatus}
-              onChange={(e) => setActionStatus(e.target.value)}
+              onChange={(e) => {
+                const nextSt = e.target.value;
+                setActionStatus(nextSt);
+                if (
+                  !actionRemarks ||
+                  actionRemarks === 'Claim Approved' ||
+                  actionRemarks === 'Claim Rejected' ||
+                  actionRemarks === 'Claim Pending'
+                ) {
+                  setActionRemarks(
+                    nextSt === '3'
+                      ? 'Claim Rejected'
+                      : nextSt === '1'
+                      ? 'Claim Pending'
+                      : 'Claim Approved'
+                  );
+                }
+              }}
               required
               className="ax-select"
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
@@ -1211,15 +1241,16 @@ export function UPRescoViewClaim() {
 
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-              Verification Remarks
+              Verification Remarks <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <textarea
               rows={3}
               value={actionRemarks}
               onChange={(e) => setActionRemarks(e.target.value)}
-              placeholder="Enter finance verification remarks..."
+              placeholder="Enter finance verification remarks (e.g. Approved for disbursement)..."
               className="ax-textarea"
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+              required
             />
           </div>
         </form>

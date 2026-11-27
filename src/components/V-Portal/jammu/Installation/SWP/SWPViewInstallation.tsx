@@ -96,12 +96,6 @@ const PaymentStatusBadge = ({ status }: { status?: number }) => {
   return <Badge tone="warning">Pending</Badge>;
 };
 
-const txt = (row: any, key: string): string => {
-  const v = row?.[key];
-  if (v === null || v === undefined || v === '') return '';
-  return String(v);
-};
-
 const getVendorName = (r: any, payload?: JammuSwpInstallViewData | null) =>
   r?.vendor_name || r?.vendor || payload?.vendor?.name || payload?.loginName || r?.c_firm || (r?.inst_vendor ? `Vendor #${r.inst_vendor}` : DASH);
 
@@ -133,18 +127,6 @@ const getPumpCapacity = (r: any) =>
 
 const getPumpHead = (r: any) =>
   r?.p_pump_head || r?.pump_head || r?.head || DASH;
-
-const getWaterSource = (r: any) =>
-  r?.water_source || r?.p_water_source || r?.source || r?.s_source || r?.p_pump_subtype || DASH;
-
-const getTDH = (r: any) =>
-  r?.total_dynamic_head || r?.tdh || r?.dynamic_head || r?.p_pump_head || DASH;
-
-const getBorewellDepth = (r: any) =>
-  r?.borewell_depth || r?.depth || r?.b_depth || r?.bore_depth || DASH;
-
-const getWaterDelivery = (r: any) =>
-  r?.water_delivery_output || r?.discharge || r?.water_output || DASH;
 
 const getPanelCapacity = (r: any) =>
   r?.mt_module_watt || r?.panel_capacity || r?.module_capacity || DASH;
@@ -514,6 +496,25 @@ const OVERLAY_CSS = `
     width: 32px; height: 32px; border-radius: 8px;
     background: #dcfce7; display: flex; align-items: center; justify-content: center;
   }
+
+  /* Row action button + menu (matching View Bihar ULA Installation pattern) */
+  .ula-action-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed; z-index: 99999; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
+    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
+    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
+    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
 `;
 
 /* ───────── Responsive Page CSS ───────── */
@@ -654,6 +655,278 @@ const HEADERS_24 = [
   'Payment Status',
   'Action',
 ];
+
+/* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ──
+   Matching pattern from View Bihar ULA Installation */
+const MENU_W = 195;
+
+function RowActionDropdown({
+  site,
+  onViewDetails,
+  onEdit,
+  onOpenDoc,
+}: {
+  site: JammuSwpInstalledSiteItem;
+  onViewDetails: () => void;
+  onEdit: () => void;
+  onOpenDoc: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const isVerifyApproved = Number(site.inst_verify_status) === 1;
+  const isHocSubmitted =
+    Number(site.inst_doc_status) === 1 || Number(site.inst_doc_status) === 2 || Boolean(site.inst_doc);
+  const docUrl = resolveJammuSwpMediaUrl(site.inst_doc);
+  const canEdit = !isVerifyApproved;
+  const isLocked = !canEdit;
+
+  const totalItems = 1 + (canEdit ? 1 : 0) + 1 + (docUrl ? 1 : 0) + (isLocked ? 1 : 0);
+  const estimatedH = totalItems * 36 + 12;
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < estimatedH + 8 && r.top > estimatedH + 8 ? r.top - estimatedH - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={btnRef}
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={isLocked ? 'Approved — Editing is locked' : undefined}
+      >
+        <span>Action</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{ top: pos.top, left: pos.left, width: MENU_W }}
+          >
+            {/* View Details */}
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onViewDetails();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 14, height: 14, color: '#059669', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View Details</span>
+            </button>
+
+            {/* Edit Installation */}
+            {canEdit ? (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#2563eb', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit Installation</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                disabled
+                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                title="Installation is verified & approved. Editing is locked."
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span style={{ color: '#94a3b8' }}>Edit (Locked)</span>
+              </button>
+            )}
+
+            {/* Submit HOC */}
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onOpenDoc();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 14, height: 14, color: '#d97706', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              <span>{isHocSubmitted ? 'Re-upload HOC' : 'Submit HOC'}</span>
+            </button>
+
+            {/* View HOC Document */}
+            {docUrl && (
+              <a
+                href={docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#0284c7', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span>View HOC Document ↗</span>
+              </a>
+            )}
+
+            {/* Locked footer banner if approved */}
+            {isLocked && (
+              <div
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: 'var(--ax-text-muted, #64748b)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)',
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>Editing Locked (Approved)</span>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
 
 export function SWPViewInstallation() {
   const [dataPayload, setDataPayload] = useState<JammuSwpInstallViewData | null>(null);
@@ -1344,12 +1617,6 @@ export function SWPViewInstallation() {
               )}
               {!loading &&
                 paginatedData.map((row, index) => {
-                  const siteLabel = row.f_farmer_name || `Site ${row.id}`;
-                  const isVerifyApproved = Number(row.inst_verify_status) === 1;
-                  const isHocSubmitted = Number(row.inst_doc_status) === 1 || Number(row.inst_doc_status) === 2 || Boolean(row.inst_doc);
-                  const canSubmitHoc = isVerifyApproved && !isHocSubmitted;
-                  const docUrl = resolveJammuSwpMediaUrl(row.inst_doc);
-
                   return (
                     <tr key={row.id} className="ax-table__row">
                       {/* 1. Sr. No. */}
@@ -1510,38 +1777,12 @@ export function SWPViewInstallation() {
 
                       {/* 24. Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            onClick={() => handleOpenDetailModal(row)}
-                            title="View full site installation specifications"
-                            style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                          >
-                            View
-                          </button>
-                          {canSubmitHoc && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ height: 26, fontSize: 11.5, padding: '0 8px' }}
-                              onClick={() => handleOpenDocModal(row)}
-                              title="Upload certified HOC photo"
-                            >
-                              Submit HOC
-                            </button>
-                          )}
-                          {!isVerifyApproved && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              onClick={() => handleOpenEdit(row.id)}
-                              title="Edit installation details"
-                            >
-                              Edit
-                            </button>
-                          )}
-                        </div>
+                        <RowActionDropdown
+                          site={row}
+                          onViewDetails={() => handleOpenDetailModal(row)}
+                          onEdit={() => handleOpenEdit(row.id)}
+                          onOpenDoc={() => handleOpenDocModal(row)}
+                        />
                       </td>
                     </tr>
                   );

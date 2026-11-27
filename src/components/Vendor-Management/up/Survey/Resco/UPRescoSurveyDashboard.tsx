@@ -23,9 +23,7 @@ const LIGHT_BLUE = '#2563eb';
 const LIGHT_GREEN = '#10b981';
 const LIGHT_CYAN = '#0891b2';
 const LIGHT_AMBER = '#f59e0b';
-const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
-const LIGHT_PINK = '#ec4899';
 
 const num = (x: number | string | undefined | null) => {
   const n = Number(x);
@@ -610,7 +608,6 @@ export function UPRescoSurveyDashboard() {
   const pctPending = pctOf(detail.survey_pending, detail.total);
   const pctAssigned = pctOf(detail.assigned, detail.total);
   const pctVerifyApproved = pctOf(detail.survey_verify_complete, detail.survey_done || 1);
-  const pctVerifyPending = pctOf(detail.survey_verify_pending, detail.survey_done || 1);
 
   // Workflow Milestones
   const milestones = [

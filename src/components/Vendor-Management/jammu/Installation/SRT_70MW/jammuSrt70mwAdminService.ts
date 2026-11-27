@@ -1,6 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../../services/authService';
 import { resolveJammuMediaUrl, getJammuMediaCandidates } from '../../../../V-Portal/jammu/jammu-services/jammuSrt70mwService';
-import { JAMMU_VENDOR_API, buildCandidateUrls as buildCentralCandidateUrls } from '../../../Vendor_Management_APIS/Jammu_Vendor_API';
+import { JAMMU_VENDOR_API } from '../../../Vendor_Management_APIS/Jammu_Vendor_API';
 
 export { resolveJammuMediaUrl, getJammuMediaCandidates, JAMMU_VENDOR_API };
 

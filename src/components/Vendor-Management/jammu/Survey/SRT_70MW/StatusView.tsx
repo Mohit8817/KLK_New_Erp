@@ -22,10 +22,8 @@ import {
   centerCell,
   Modal,
   KpiCard,
-  MediaFileThumbnail,
   MediaLightbox,
   StatusFeedbackBanners,
-  fmtDate,
   fmtNum,
   DASH,
   copyRowsToClipboard,
@@ -136,8 +134,7 @@ export function StatusView() {
   }, [allRecords, activePill, districtParam, vendorParam, searchQuery]);
 
   // Pagination
-  const pagination = usePagination({
-    totalItems: filteredRecords.length,
+  const pagination = usePagination(filteredRecords, {
     initialPageSize: 10,
   });
 
@@ -422,7 +419,7 @@ export function StatusView() {
       {/* Site Technical Details Modal */}
       {detailRow && (
         <Modal
-          isOpen={Boolean(detailRow)}
+          open={Boolean(detailRow)}
           title={`Survey Site Technical Details #${detailRow.id}`}
           onClose={() => setDetailRow(null)}
           maxWidth={700}

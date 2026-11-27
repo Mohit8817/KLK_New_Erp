@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -9,7 +9,6 @@ import {
   resolveJammuMediaUrl,
   type JammuInstallationSummaryData,
   type JammuCompleteSiteItem,
-  type JammuPaymentSiteItem,
 } from '../../jammu-services';
 import {
   Pagination,
@@ -38,11 +37,12 @@ const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
   return <Badge tone="warning">Pending</Badge>;
 };
 
-const ClaimBadge = ({ status }: { status?: number }) => {
-  if (status === 2) return <Badge tone="success">Approved</Badge>;
-  if (status === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (status === 1) return <Badge tone="info">Raised</Badge>;
-  return <Badge tone="neutral">Not Raised</Badge>;
+const ClaimBadge = ({ status }: { status?: number | string }) => {
+  const s = Number(status ?? 0);
+  if (s === 2) return <Badge tone="success">Approved</Badge>;
+  if (s === 3) return <Badge tone="danger">Reject</Badge>;
+  if (s === 1) return <Badge tone="info">Claimed</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
 };
 
 const txt = (row: any, key: string): string => {
@@ -1469,8 +1469,6 @@ const COMMON_HEADERS = [
 ];
 
 export function InstallationDetails() {
-  const navigate = useNavigate();
-
   const [tab, setTab] = useState<'completed' | 'payment'>('completed');
   const [summaryData, setSummaryData] = useState<JammuInstallationSummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -1782,7 +1780,7 @@ export function InstallationDetails() {
   // Export Columns definition
   const exportCols: ExportColumn<any>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'State', accessor: () => 'Jammu & Kashmir' },
       { header: 'District', accessor: (r) => txt(r, 'district') },
       { header: 'Department', accessor: (r) => txt(r, 'dept_name') || txt(r, 'department') },
@@ -1817,14 +1815,13 @@ export function InstallationDetails() {
             },
             {
               header: 'Claim Status',
-              accessor: (r: any) =>
-                Number(r.inst_claim_status ?? r.claim_status) === 2
-                  ? 'Approved'
-                  : Number(r.inst_claim_status ?? r.claim_status) === 3
-                  ? 'Rejected'
-                  : Number(r.inst_claim_status ?? r.claim_status) === 1
-                  ? 'Raised'
-                  : 'Not Raised',
+              accessor: (r: any) => {
+                const s = Number(r.inst_claim_status ?? r.claim_status ?? 0);
+                if (s === 2) return 'Approved';
+                if (s === 3) return 'Reject';
+                if (s === 1) return 'Claimed';
+                return 'Pending';
+              },
             },
           ]
         : [
@@ -1867,7 +1864,7 @@ export function InstallationDetails() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -1877,7 +1874,7 @@ export function InstallationDetails() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
@@ -2581,34 +2578,9 @@ export function InstallationDetails() {
                             <VerifyBadge value={vStatus} raw={row.inst_verify_status ?? row.verify_status} />
                           </td>
                           <td className="ax-table__td" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {siteClaimRaised ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
-                                {cStatus === 2 ? (
-                                  <Badge tone="success">
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
-                                      <span>Approved</span>
-                                    </span>
-                                  </Badge>
-                                ) : cStatus === 3 ? (
-                                  <Badge tone="danger">
-                                    <span>Rejected</span>
-                                  </Badge>
-                                ) : (
-                                  <Badge tone="info">
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
-                                      <span>Claim Raised</span>
-                                    </span>
-                                  </Badge>
-                                )}
-                              </div>
-                            ) : isClaimDue ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                              <ClaimBadge status={cStatus} />
+                              {isClaimDue && (
                                 <button
                                   type="button"
                                   className="ax-btn ax-btn--primary ax-btn--xs"
@@ -2617,7 +2589,7 @@ export function InstallationDetails() {
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: 5,
-                                    padding: '4px 10px',
+                                    padding: '3px 8px',
                                     fontSize: 11,
                                     fontWeight: 600,
                                     lineHeight: 1.2,
@@ -2632,21 +2604,8 @@ export function InstallationDetails() {
                                   </svg>
                                   <span>Raise Claim</span>
                                 </button>
-                              </div>
-                            ) : vStatus === 2 || rawVerifyStr === '2' || rawVerifyStr === 'rejected' || rawVerifyStr === 'reject' ? (
-                              <Badge tone="danger">
-                                <span>Verify Rejected</span>
-                              </Badge>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-                                <Badge tone="neutral">
-                                  <span>Awaiting Approval</span>
-                                </Badge>
-                                <span style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
-                                  Claim unlocks after verify
-                                </span>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </td>
 
                           {/* Action: View Dossier + Locked/Edit Button */}

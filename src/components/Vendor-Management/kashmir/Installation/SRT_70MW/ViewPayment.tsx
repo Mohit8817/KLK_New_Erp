@@ -688,7 +688,7 @@ export function ViewPayment() {
 
   // Filtered payments
   const filteredPayments = useMemo(() => {
-    let list = activeList;
+    let list: Array<Payment80Item | Payment20Item> = activeList;
     if (selectedStatus !== 'All') {
       const isDoneRequired = selectedStatus === '1';
       list = list.filter((r: any) => {

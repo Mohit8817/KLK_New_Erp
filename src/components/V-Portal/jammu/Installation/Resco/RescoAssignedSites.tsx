@@ -14,7 +14,6 @@ import {
   SearchInput,
   TableExportToolbar,
   TableEmptyState,
-  type ExportColumn,
 } from '../../../../../common';
 import { useAuth } from '../../../../../context/AuthContext';
 import { authService } from '../../../../../services/authService';
@@ -481,23 +480,6 @@ export function RescoAssignedSites() {
     setStatusFilter('all');
     setPage(1);
   };
-
-  // Export Columns definition
-  const exportCols: ExportColumn<JammuRescoAssignedSiteItem>[] = useMemo(
-    () => [
-      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'Vendor', accessor: (r) => getVendorName(r) },
-      { header: 'Assign Date', accessor: (r) => formatDate(r.assign_date || r.created_at) },
-      { header: 'State', accessor: (r) => r.state || 'Jammu & Kashmir' },
-      { header: 'District', accessor: (r) => r.district || '—' },
-      { header: 'Site Name', accessor: (r) => r.site_name || '—' },
-      { header: 'Deadline', accessor: (r) => formatDate(r.inst_deadline) },
-      { header: 'Count', accessor: (r) => r.count ?? 1 },
-      { header: 'Remarks', accessor: (r) => r.remarks || r.remark || '—' },
-      { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Assigned') },
-    ],
-    [getVendorName]
-  );
 
   return (
     <div className="solar-erp-page">

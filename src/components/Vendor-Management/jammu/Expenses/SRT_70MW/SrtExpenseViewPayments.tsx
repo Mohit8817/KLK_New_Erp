@@ -706,7 +706,7 @@ export function SrtExpenseViewPayments() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuSrtExpensePaymentItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'S.No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => r.date },
       { header: 'Vendor', accessor: (r) => r.vendor },
       { header: 'District', accessor: (r) => r.district },

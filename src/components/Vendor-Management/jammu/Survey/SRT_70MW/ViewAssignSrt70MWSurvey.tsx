@@ -94,8 +94,7 @@ export function ViewAssignSrt70MWSurvey() {
   }, [batches, searchQuery]);
 
   // Pagination
-  const pagination = usePagination({
-    totalItems: filteredBatches.length,
+  const pagination = usePagination(filteredBatches, {
     initialPageSize: 10,
   });
 
@@ -346,7 +345,7 @@ export function ViewAssignSrt70MWSurvey() {
                           <MediaFileThumbnail
                             url={b.file}
                             title={`Batch #${b.id} Work Order`}
-                            onOpenLightbox={(url, title) => setLightbox({ url, title })}
+                            onClick={(url, title) => setLightbox({ url, title: title || `Batch #${b.id} Work Order` })}
                           />
                         ) : (
                           <span style={{ color: '#94a3b8', fontSize: 12 }}>{DASH}</span>
@@ -400,7 +399,7 @@ export function ViewAssignSrt70MWSurvey() {
       {/* Batch Sites Modal */}
       {selectedBatch && (
         <Modal
-          isOpen={Boolean(selectedBatch)}
+          open={Boolean(selectedBatch)}
           title={`Batch #${selectedBatch.id} Assigned Survey Sites (${getBatchSites(selectedBatch).length})`}
           onClose={() => setSelectedBatch(null)}
           maxWidth={640}

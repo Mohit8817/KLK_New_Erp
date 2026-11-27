@@ -335,7 +335,7 @@ export function BiharAMCSSLViewAssignLight() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -345,7 +345,7 @@ export function BiharAMCSSLViewAssignLight() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const text = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
     ].join('\n');
     try {
@@ -385,7 +385,7 @@ export function BiharAMCSSLViewAssignLight() {
 
   const toolbarColumns = exportCols.map((c, i) => ({
     key: `${c.header}-${i}`,
-    label: c.header,
+    label: c.header ?? c.label ?? '',
     visible: !hiddenColumns.includes(`${c.header}-${i}`),
   }));
   const activeCols = exportCols.filter((c, i) => !hiddenColumns.includes(`${c.header}-${i}`));

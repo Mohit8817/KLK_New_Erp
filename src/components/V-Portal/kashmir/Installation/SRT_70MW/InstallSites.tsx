@@ -228,6 +228,7 @@ export function Kashmir_Installation_InstallSites() {
   // UI state
   const [geoLocating, setGeoLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isSiteApproved, setIsSiteApproved] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [previewModalImg, setPreviewModalImg] = useState<{ url: string; title: string } | null>(null);
@@ -264,6 +265,20 @@ export function Kashmir_Installation_InstallSites() {
         const editData = await kashmirSrtService.getSiteUpdate(id);
         const srt = editData?.srt || {};
         const ven = editData?.ven || {};
+
+        const approved =
+          Number(srt.inst_verify_status) === 1 ||
+          String(srt.inst_verify_status).trim().toLowerCase() === 'approved' ||
+          Number(srt.verify_status) === 1 ||
+          String(srt.verify_status).trim().toLowerCase() === 'approved';
+
+        setIsSiteApproved(approved);
+        if (approved) {
+          setFeedback({
+            type: 'error',
+            message: 'This site installation has already been verified and approved. Editing is locked.',
+          });
+        }
 
         setSiteDetail({
           id: Number(id),
@@ -448,6 +463,14 @@ export function Kashmir_Installation_InstallSites() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFeedback(null);
+
+    if (isEditMode && isSiteApproved) {
+      setFeedback({
+        type: 'error',
+        message: 'This site installation has already been verified and approved. Editing is locked.',
+      });
+      return;
+    }
 
     if (!validateForm()) {
       setFeedback({ type: 'error', message: 'Please fix the highlighted errors before submitting.' });
@@ -1105,7 +1128,15 @@ export function Kashmir_Installation_InstallSites() {
             >
               <span className="ax-btn__label">Cancel</span>
             </button>
-            <button type="submit" disabled={submitting} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+            <button
+              type="submit"
+              disabled={submitting || (isEditMode && isSiteApproved)}
+              className="ax-btn ax-btn--primary"
+              style={{
+                minWidth: 200,
+                ...(isEditMode && isSiteApproved ? { opacity: 0.6, cursor: 'not-allowed' } : {}),
+              }}
+            >
               {submitting ? (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'kashmir-install-spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
@@ -1114,7 +1145,9 @@ export function Kashmir_Installation_InstallSites() {
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">{isEditMode ? 'Save Changes' : 'Submit Installation Details'}</span>
+                  <span className="ax-btn__label">
+                    {isEditMode ? (isSiteApproved ? 'Locked (Approved)' : 'Save Changes') : 'Submit Installation Details'}
+                  </span>
                 </>
               )}
             </button>

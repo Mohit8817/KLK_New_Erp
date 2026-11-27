@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef, useId, type FormEven
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { biharUlaInstallationService } from '../../bihar-services';
-import { SearchInput, TableEmptyState, Pagination } from '../../../../../common';
+import { TableEmptyState, Pagination } from '../../../../../common';
 
 // CSS for Unified Single-Card Layout with Floating Labels & Section Dividers
 // Matching Jammu SRT 70MW (AddJammuSRT70MWSingleCard.tsx)
@@ -667,7 +667,7 @@ export function Bihar_Installation_ULA_AddPayment() {
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
 
   // Search & Pagination
-  const [search, setSearch] = useState('');
+  const [search] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 

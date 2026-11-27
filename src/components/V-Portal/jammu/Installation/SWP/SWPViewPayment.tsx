@@ -4,10 +4,10 @@ import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   jammuSwpService,
-  getJammuSwpMediaCandidates,
   resolveJammuSwpMediaUrl,
   type JammuSwpClaimItem,
   type JammuSwpClaimableSite,
+  type JammuSwpInstallPaymentBreakdown,
 } from '../../jammu-services';
 import {
   Pagination,
@@ -29,29 +29,171 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
-const ClaimStatusBadge = ({ status }: { status?: number | string }) => {
+const fmtMoney = (val?: string | number) => {
+  const n = Number(val || 0);
+  return '₹ ' + n.toLocaleString('en-IN');
+};
+
+const fmtDate = (s?: string) => {
+  if (!s || s === 'NA' || s === 'null') return '—';
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch {}
+  return s.slice(0, 10);
+};
+
+const renderClaimStatusBadge = (status?: number | string) => {
   const s = Number(status ?? 0);
   if (s === 2) return <Badge tone="success">Approved</Badge>;
   if (s === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (s === 1) return <Badge tone="info">Raised (Pending Audit)</Badge>;
-  return <Badge tone="neutral">Not Raised</Badge>;
+  if (s === 1) return <Badge tone="warning">Raised (Pending)</Badge>;
+  return <Badge tone="neutral">Pending</Badge>;
 };
 
-const PaymentStatusBadge = ({ status }: { status?: number | string }) => {
-  const s = Number(status ?? 0);
-  if (s === 1 || String(status).toLowerCase() === 'paid' || String(status).toLowerCase() === 'done') {
-    return <Badge tone="success">Disbursed</Badge>;
+const renderPaymentStatusBadge = (status?: number | string | null) => {
+  const s = Number(status);
+  const str = String(status || '').toLowerCase();
+  if (s === 1 || str === 'paid' || str === 'done' || str === 'complete') {
+    return <Badge tone="success">Complete</Badge>;
   }
-  if (s === 2 || String(status).toLowerCase() === 'partial' || String(status).toLowerCase() === 'partially') {
-    return <Badge tone="info">Partially</Badge>;
+  if (s === 2 || str === 'partial' || str === 'partially') {
+    return <Badge tone="warning">Partially</Badge>;
   }
-  return <Badge tone="warning">Pending</Badge>;
+  return <Badge tone="neutral">Pending</Badge>;
 };
 
-const txt = (row: any, key: string): string => {
-  const v = row?.[key];
-  if (v === null || v === undefined || v === '') return '';
-  return String(v);
+const getAllPayments = (c: JammuSwpClaimItem): JammuSwpInstallPaymentBreakdown[] => {
+  if (Array.isArray(c.allpayment) && c.allpayment.length > 0) return c.allpayment;
+  if (Array.isArray(c.all_payments) && c.all_payments.length > 0) return c.all_payments;
+  if (Array.isArray(c.payments) && c.payments.length > 0) return c.payments;
+  return [];
+};
+
+const getPaymentAmount = (c: JammuSwpClaimItem): number | null => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    return list.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+  }
+  if (c.pay_amount !== undefined && c.pay_amount !== null && c.pay_amount !== '') {
+    return Number(c.pay_amount) || 0;
+  }
+  if (c.payment_amount !== undefined && c.payment_amount !== null && c.payment_amount !== '') {
+    return Number(c.payment_amount) || 0;
+  }
+  if (c.paid_amount !== undefined && c.paid_amount !== null && c.paid_amount !== '') {
+    return Number(c.paid_amount) || 0;
+  }
+  if (Number(c.pay_status) === 1) {
+    return Number(c.amount) || 0;
+  }
+  return null;
+};
+
+const getPaymentBalance = (c: JammuSwpClaimItem): number | null => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    const last = list[list.length - 1];
+    if (last.balance !== undefined && last.balance !== null && last.balance !== '') {
+      return Number(last.balance) || 0;
+    }
+    const total = Number(c.amount || 0);
+    const paid = list.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    return Math.max(0, total - paid);
+  }
+  if (c.balance_amount !== undefined && c.balance_amount !== null && c.balance_amount !== '') {
+    return Number(c.balance_amount) || 0;
+  }
+  if (c.payment_balance !== undefined && c.payment_balance !== null && c.payment_balance !== '') {
+    return Number(c.payment_balance) || 0;
+  }
+  if (Number(c.pay_status) === 1) {
+    return 0;
+  }
+  const total = Number(c.amount || 0);
+  const paid = getPaymentAmount(c);
+  if (paid !== null) {
+    return Math.max(0, total - paid);
+  }
+  if (Number(c.pay_status) === 0 || c.pay_status === null || c.pay_status === undefined) {
+    return total;
+  }
+  return null;
+};
+
+const getPaymentDate = (c: JammuSwpClaimItem): string => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    const last = list[list.length - 1];
+    if (last.date) return last.date;
+    if (last.created_at) return last.created_at.slice(0, 10);
+  }
+  return (
+    c.pay_date ||
+    c.payment_date ||
+    c.paid_date ||
+    (Number(c.pay_status) === 1 || Number(c.pay_status) === 2 ? (c.approved_date || '') : '') ||
+    ''
+  );
+};
+
+const getPaymentRemarks = (c: JammuSwpClaimItem): string => {
+  const list = getAllPayments(c);
+  if (list.length > 0) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const r = list[i].pay_remarks || list[i].remarks;
+      if (r && typeof r === 'string' && r.trim() !== '' && r !== '—') {
+        return r;
+      }
+    }
+  }
+  return c.pay_remarks || c.payment_remarks || c.approved_remarks || '—';
+};
+
+const parseSiteIds = (val?: any): (number | string)[] => {
+  if (val === null || val === undefined || val === '') return [];
+  if (typeof val === 'number') return [val];
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (typeof item === 'object' && item !== null && 'id' in item) return (item as any).id;
+        const n = Number(item);
+        return isNaN(n) ? String(item).trim() : n;
+      })
+      .filter((x) => x !== '' && x !== null && x !== undefined);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '[]') return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => {
+            if (typeof item === 'object' && item !== null && 'id' in item) return (item as any).id;
+            const n = Number(item);
+            return isNaN(n) ? String(item).trim() : n;
+          })
+          .filter((x) => x !== '' && x !== null && x !== undefined);
+      }
+      if (typeof parsed === 'number') return [parsed];
+    } catch {}
+    const parts = trimmed
+      .replace(/[\[\]"']/g, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return parts.map((p) => {
+        const n = Number(p);
+        return isNaN(n) ? p : n;
+      });
+    }
+    return [trimmed];
+  }
+  return [];
 };
 
 const fmtSites = (siteVal: any): string => {
@@ -74,13 +216,6 @@ const fmtSites = (siteVal: any): string => {
 };
 
 /* ───────── Modal Component ───────── */
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
-
 function Modal({
   open,
   onClose,
@@ -154,7 +289,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
     <Modal open onClose={onClose} labelledBy="claim-preview-title" dialogClass="ax-modal__dialog--lg">
       <div className="ax-modal__header">
         <h2 className="ax-modal__title" id="claim-preview-title">{title || 'Invoice Preview'}</h2>
-        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">✕</button>
       </div>
 
       <div className="ax-modal__body" style={{ padding: 0 }}>
@@ -195,61 +330,6 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
         </div>
       </div>
     </Modal>
-  );
-}
-
-/* ── Interactive Image Thumbnail ── */
-function InstallationThumbnail({
-  src,
-  alt,
-  onPreview,
-  size = 34,
-}: {
-  src?: string | null;
-  alt: string;
-  onPreview: (url: string, title: string) => void;
-  size?: number;
-}) {
-  const candidates = useMemo(() => getJammuSwpMediaCandidates(src), [src]);
-  const [candidateIdx, setCandidateIdx] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setCandidateIdx(0);
-    setFailed(false);
-  }, [src]);
-
-  if (!src || failed || candidateIdx >= candidates.length) {
-    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
-  }
-
-  const currentUrl = candidates[candidateIdx];
-
-  return (
-    <img
-      src={currentUrl}
-      alt={alt}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 0,
-        objectFit: 'cover',
-        cursor: 'zoom-in',
-        border: '1px solid var(--ax-border, #e2e8f0)',
-        background: 'var(--ax-surface-subtle, #f8fafc)',
-        display: 'block',
-        flexShrink: 0,
-      }}
-      onError={() => {
-        if (candidateIdx + 1 < candidates.length) {
-          setCandidateIdx((prev) => prev + 1);
-        } else {
-          setFailed(true);
-        }
-      }}
-      onClick={() => onPreview(currentUrl, alt)}
-      title="Click to preview invoice"
-    />
   );
 }
 
@@ -307,6 +387,213 @@ function KpiCard({
         {sub}
       </div>
     </div>
+  );
+}
+
+/* ───────── Row Action Dropdown ───────── */
+const MENU_W = 180;
+
+function RowActionDropdown({
+  onViewDetails,
+  onEditClaim,
+  canEdit = true,
+  invoiceUrl,
+}: {
+  onViewDetails: () => void;
+  onEditClaim: () => void;
+  canEdit?: boolean;
+  invoiceUrl?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const totalItems = 2 + (invoiceUrl ? 1 : 0);
+  const MENU_H = totalItems * 36 + 12;
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={btnRef}
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span>Action</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: MENU_W,
+              zIndex: 99999,
+            }}
+          >
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onViewDetails();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 14, height: 14, color: '#059669', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View Details</span>
+            </button>
+
+            {canEdit ? (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onEditClaim();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#2563eb', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit Claim</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                disabled
+                style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                title="Claim has been approved. Action is locked."
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span style={{ color: '#94a3b8' }}>Edit (Locked)</span>
+              </button>
+            )}
+
+            {invoiceUrl && (
+              <a
+                href={invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 14, height: 14, color: '#0284c7', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span>View Invoice ↗</span>
+              </a>
+            )}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
@@ -502,6 +789,47 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  .ula-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ula-menu {
+    background: #ffffff;
+    border: 1px solid var(--ax-border, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    min-width: 170px;
+  }
+  .ula-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+    color: var(--ax-text, #0f172a);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible {
+    background: var(--ax-surface-subtle, #f1f5f9) !important;
+    outline: none;
   }
 `;
 
@@ -516,26 +844,28 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
-const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
 // Requested headers for SWP Installation Payment (Exact 13 columns)
 const PAYMENT_HEADERS = [
-  'Sr. No.',
-  'State',
-  'Beneficiary Name',
-  'Application No.',
-  'Status',
-  'Survey Status',
-  'Payment Status',
-  'Payment Date',
+  'S.No.',
+  'Date',
+  'Sites',
+  'Invoice',
+  'Amount',
+  'Remarks',
+  'Claim Status',
   'Payment Amount',
+  'Payment Balance',
+  'Payment Date',
   'Payment Remarks',
+  'Payment Status',
   'Action',
 ];
 
 export function SWPViewPayment() {
   const [payments, setPayments] = useState<JammuSwpClaimItem[]>([]);
   const [claimableSites, setClaimableSites] = useState<JammuSwpClaimableSite[]>([]);
+  const [siteLabelMap, setSiteLabelMap] = useState<Map<number, { name: string; district?: string }>>(new Map());
   const [loading, setLoading] = useState<boolean>(true);
 
   // Filters
@@ -555,6 +885,9 @@ export function SWPViewPayment() {
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
+
+  // View Payment Details / Breakdown Modal State
+  const [viewingPaymentClaim, setViewingPaymentClaim] = useState<JammuSwpClaimItem | null>(null);
 
   // Add Payment Modal State (API 11)
   const [addModalOpen, setAddModalOpen] = useState<boolean>(false);
@@ -599,13 +932,83 @@ export function SWPViewPayment() {
     if (editFileRef.current) editFileRef.current.value = '';
   }, []);
 
-  // Load claims from API 10: GET jammu/swp/installation-claim
+  // Load claims from API 10 and map farmer names from sites / installed sites
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await jammuSwpService.getClaims();
-      setPayments(Array.isArray(data.payments) ? data.payments : []);
-      setClaimableSites(Array.isArray(data.sites) ? data.sites : []);
+      const [claimsRes, installedRes] = await Promise.allSettled([
+        jammuSwpService.getClaims(),
+        jammuSwpService.getInstalledSites(),
+      ]);
+
+      const claimsData = claimsRes.status === 'fulfilled' ? claimsRes.value : { payments: [], sites: [] };
+      const paymentsList: JammuSwpClaimItem[] = Array.isArray(claimsData.payments) ? claimsData.payments : [];
+      const directSites: JammuSwpClaimableSite[] = Array.isArray(claimsData.sites) ? claimsData.sites : [];
+
+      const labelsMap = new Map<number, { name: string; district?: string }>();
+      const seenSiteIds = new Set<number>();
+      const mergedClaimableSites: JammuSwpClaimableSite[] = [];
+
+      // 1. From direct claim sites
+      directSites.forEach((s) => {
+        if (s && s.id) {
+          const numId = Number(s.id);
+          const farmerName = s.f_farmer_name || (s as any).farmer_name || '';
+          const dist = s.district || '';
+          if (farmerName) {
+            labelsMap.set(numId, { name: farmerName, district: dist });
+          }
+          if (!seenSiteIds.has(numId)) {
+            seenSiteIds.add(numId);
+            mergedClaimableSites.push(s);
+          }
+        }
+      });
+
+      // 2. From payments' site_details
+      paymentsList.forEach((p) => {
+        const details = Array.isArray(p.site_details) ? p.site_details : [];
+        details.forEach((s: any) => {
+          if (s && s.id) {
+            const numId = Number(s.id);
+            const farmerName = s.f_farmer_name || s.farmer_name || s.name || '';
+            const dist = s.district || '';
+            if (farmerName) {
+              labelsMap.set(numId, { name: farmerName, district: dist });
+            }
+          }
+        });
+      });
+
+      // 3. From installed sites
+      if (installedRes.status === 'fulfilled' && Array.isArray(installedRes.value?.sites)) {
+        installedRes.value.sites.forEach((site) => {
+          if (site && site.id) {
+            const numId = Number(site.id);
+            const farmerName = site.f_farmer_name || site.farmer_name || site.beneficiary_name || '';
+            const dist = site.district || '';
+            if (farmerName) {
+              labelsMap.set(numId, { name: farmerName, district: dist });
+            }
+            const isClaimable =
+              Number(site.inst_doc_status) === 2 ||
+              (Number(site.inst_status) === 1 && Number(site.inst_claim_status) !== 2);
+            if (isClaimable && !seenSiteIds.has(numId)) {
+              seenSiteIds.add(numId);
+              mergedClaimableSites.push({
+                id: numId,
+                f_farmer_name: farmerName || `Site #${numId}`,
+                district: dist,
+                inst_doc_status: site.inst_doc_status,
+              });
+            }
+          }
+        });
+      }
+
+      setPayments(paymentsList);
+      setClaimableSites(mergedClaimableSites);
+      setSiteLabelMap(labelsMap);
     } catch (err: any) {
       console.error('[Jammu SWP Claims] load error:', err);
       setPayments([]);
@@ -619,6 +1022,43 @@ export function SWPViewPayment() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Helper to render Farmer Names for Sites column
+  const renderSiteFarmerNames = useCallback(
+    (c: JammuSwpClaimItem): string => {
+      // 1. From c.site_details array if present
+      const details = c.site_details;
+      if (Array.isArray(details) && details.length > 0) {
+        const names = details
+          .map((s: any) => s.f_farmer_name || s.farmer_name || s.name)
+          .filter((n: any) => typeof n === 'string' && n.trim() !== '');
+        if (names.length > 0) {
+          return names.join(', ');
+        }
+      }
+
+      // 2. From site_id mapped via siteLabelMap
+      const ids = parseSiteIds(c.site_id);
+      if (ids && ids.length > 0) {
+        const names = ids
+          .map((id) => {
+            const numId = Number(id);
+            const match = !isNaN(numId) ? siteLabelMap.get(numId) : undefined;
+            if (match?.name && isNaN(Number(match.name))) return match.name;
+            if (typeof id === 'string' && isNaN(Number(id))) return id;
+            return '';
+          })
+          .filter(Boolean);
+        if (names.length > 0) {
+          return names.join(', ');
+        }
+      }
+
+      // 3. Fallback to fmtSites(c.site_id)
+      return fmtSites(c.site_id);
+    },
+    [siteLabelMap]
+  );
 
   // Submit Add Payment Form (API 11: POST jammu/swp/installation-add-claim)
   const handleAddPaymentSubmit = async (e: FormEvent) => {
@@ -805,11 +1245,15 @@ export function SWPViewPayment() {
     if (q) {
       list = list.filter((p) => {
         const amtStr = String(p.amount || '');
-        const payAmtStr = String(p.payment_amount || '');
-        const balStr = String(p.payment_balance || '');
-        const sitesStr = fmtSites(p.site_id).toLowerCase();
+        const payAmt = getPaymentAmount(p);
+        const payAmtStr = payAmt !== null ? String(payAmt) : '';
+        const balAmt = getPaymentBalance(p);
+        const balStr = balAmt !== null ? String(balAmt) : '';
+        const sitesStr = renderSiteFarmerNames(p).toLowerCase();
         const remMatch = (p.remarks || '').toLowerCase().includes(q);
-        const payRemMatch = (p.payment_remarks || '').toLowerCase().includes(q);
+        const payRemMatch = getPaymentRemarks(p).toLowerCase().includes(q);
+        const dateStr = (p.date || p.created_at || '').toLowerCase();
+        const payDateStr = getPaymentDate(p).toLowerCase();
         return (
           String(p.id).includes(q) ||
           sitesStr.includes(q) ||
@@ -817,13 +1261,15 @@ export function SWPViewPayment() {
           payAmtStr.includes(q) ||
           balStr.includes(q) ||
           remMatch ||
-          payRemMatch
+          payRemMatch ||
+          dateStr.includes(q) ||
+          payDateStr.includes(q)
         );
       });
     }
 
     return list;
-  }, [payments, search, statusFilter]);
+  }, [payments, search, statusFilter, renderSiteFarmerNames]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filteredPayments, initialPageSize: 100 });
@@ -839,21 +1285,49 @@ export function SWPViewPayment() {
     setPage(1);
   };
 
-  // Export Columns definition (Exact columns)
+  // Export Columns definition (Exact 12 fields excluding Action)
   const exportCols: ExportColumn<JammuSwpClaimItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: (r: any) => r.state || 'Jammu' },
-      { header: 'Beneficiary Name', accessor: (r: any) => r.f_farmer_name || txt(r, 'beneficiary_name') || fmtSites(r.site_id) || DASH },
-      { header: 'Application No.', accessor: (r: any) => txt(r, 'application_no') || txt(r, 'app_no') || String(r.id) },
-      { header: 'Status', accessor: (r: any) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending') },
-      { header: 'Survey Status', accessor: (r: any) => (Number(r.survey_status ?? r.inst_verify_status) === 1 ? 'Completed' : 'Pending') },
-      { header: 'Payment Status', accessor: (r: any) => (Number(r.payment_status) === 1 || String(r.payment_status).toLowerCase() === 'paid' ? 'Disbursed' : 'Pending') },
-      { header: 'Payment Date', accessor: (r: any) => txt(r, 'payment_date') || DASH },
-      { header: 'Payment Amount', accessor: (r: any) => (r.payment_amount ? `₹ ${Number(r.payment_amount).toLocaleString('en-IN')}` : (r.amount ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : DASH)) },
-      { header: 'Payment Remarks', accessor: (r: any) => txt(r, 'payment_remarks') || txt(r, 'remarks') || DASH },
+      { header: 'S.No.', accessor: (_r: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Date', accessor: (r: JammuSwpClaimItem) => fmtDate(r.date || r.created_at) },
+      { header: 'Sites', accessor: (r: JammuSwpClaimItem) => renderSiteFarmerNames(r) },
+      { header: 'Invoice', accessor: (r: JammuSwpClaimItem) => (r.file ? resolveJammuSwpMediaUrl(r.file) : DASH) },
+      { header: 'Amount', accessor: (r: JammuSwpClaimItem) => (r.amount ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Remarks', accessor: (r: JammuSwpClaimItem) => r.remarks || DASH },
+      {
+        header: 'Claim Status',
+        accessor: (r: JammuSwpClaimItem) =>
+          Number(r.claim_status) === 2 ? 'Approved' : Number(r.claim_status) === 3 ? 'Rejected' : 'Raised (Pending)',
+      },
+      {
+        header: 'Payment Amount',
+        accessor: (r: JammuSwpClaimItem) => {
+          const p = getPaymentAmount(r);
+          return p !== null ? `₹ ${p.toLocaleString('en-IN')}` : DASH;
+        },
+      },
+      {
+        header: 'Payment Balance',
+        accessor: (r: JammuSwpClaimItem) => {
+          const b = getPaymentBalance(r);
+          return b !== null ? `₹ ${b.toLocaleString('en-IN')}` : DASH;
+        },
+      },
+      {
+        header: 'Payment Date',
+        accessor: (r: JammuSwpClaimItem) => {
+          const d = getPaymentDate(r);
+          return d ? fmtDate(d) : DASH;
+        },
+      },
+      { header: 'Payment Remarks', accessor: (r: JammuSwpClaimItem) => getPaymentRemarks(r) },
+      {
+        header: 'Payment Status',
+        accessor: (r: JammuSwpClaimItem) =>
+          Number(r.pay_status) === 1 ? 'Complete' : Number(r.pay_status) === 2 ? 'Partially' : 'Pending',
+      },
     ],
-    []
+    [renderSiteFarmerNames]
   );
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -966,13 +1440,13 @@ export function SWPViewPayment() {
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards ── */}
+      {/* ── Top Metric KPI Cards (4 cards in 1 row) ── */}
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
-          label="Total Claims"
+          label="Total Claims Raised"
           value={kpis.totalCount.toLocaleString('en-IN')}
-          sub="Payment claims registered"
+          sub={`${kpis.approvedCount} approved · ${kpis.pendingCount} pending`}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -983,13 +1457,13 @@ export function SWPViewPayment() {
 
         <KpiCard
           tone="emerald"
-          label="Claims Approved"
-          value={kpis.approvedCount.toLocaleString('en-IN')}
-          sub={`₹ ${kpis.approvedAmount.toLocaleString('en-IN')}`}
+          label="Total Claimed Amount"
+          value={fmtMoney(kpis.totalAmount)}
+          sub="Disbursement requests"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-              <path d="M9 12l2 2 4-4" />
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           }
         />
@@ -998,7 +1472,7 @@ export function SWPViewPayment() {
           tone="cyan"
           label="Pending Audit"
           value={kpis.pendingCount.toLocaleString('en-IN')}
-          sub={`₹ ${kpis.pendingAmount.toLocaleString('en-IN')}`}
+          sub={fmtMoney(kpis.pendingAmount)}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="9" />
@@ -1009,13 +1483,13 @@ export function SWPViewPayment() {
 
         <KpiCard
           tone="violet"
-          label="Total Amount"
-          value={`₹ ${kpis.totalAmount.toLocaleString('en-IN')}`}
-          sub={`${kpis.totalCount} claims submitted`}
+          label="Claims Approved"
+          value={kpis.approvedCount.toLocaleString('en-IN')}
+          sub={fmtMoney(kpis.approvedAmount)}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
             </svg>
           }
         />
@@ -1038,7 +1512,7 @@ export function SWPViewPayment() {
               <select
                 id="claim_status_filter"
                 className="ax-input ax-input--sm"
-                style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value);
@@ -1048,7 +1522,7 @@ export function SWPViewPayment() {
               >
                 <option value="all">All Status</option>
                 <option value="approved">Approved</option>
-                <option value="pending">Pending Audit</option>
+                <option value="pending">Raised (Pending)</option>
                 <option value="rejected">Rejected</option>
               </select>
 
@@ -1066,7 +1540,7 @@ export function SWPViewPayment() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search sites, amount, remarks…"
+                placeholder="Search date, farmer, amount, remarks…"
                 size="sm"
                 ariaLabel="Search payment claims"
               />
@@ -1081,12 +1555,12 @@ export function SWPViewPayment() {
           </div>
         </div>
 
-        {/* ── Table matching requested columns:
+        {/* ── Table matching exact 13 requested columns:
             S.No. | Date | Sites | Invoice | Amount | Remarks | Claim Status | Payment Amount | Payment Balance | Payment Date | Payment Remarks | Payment Status | Action ── */}
         <div className="ax-table-wrap">
           <table
             className="ax-table ax-table--hover ula-table--wide"
-            style={{ whiteSpace: 'nowrap', minWidth: 1500 }}
+            style={{ whiteSpace: 'nowrap', minWidth: 1550 }}
           >
             <caption className="ax-visually-hidden">SWP Installation Payment Ledger</caption>
             <thead className="ax-table__head">
@@ -1096,7 +1570,17 @@ export function SWPViewPayment() {
                     key={h}
                     className="ax-table__th"
                     scope="col"
-                    style={h === 'Action' ? { textAlign: 'center', width: 110 } : undefined}
+                    style={
+                      h === 'Action'
+                        ? { textAlign: 'center', width: 110 }
+                        : h === 'Amount' || h === 'Payment Amount' || h === 'Payment Balance'
+                        ? { textAlign: 'right' }
+                        : h === 'Claim Status' || h === 'Payment Status' || h === 'Invoice'
+                        ? { textAlign: 'center' }
+                        : h === 'S.No.'
+                        ? { width: 60 }
+                        : undefined
+                    }
                   >
                     {h}
                   </th>
@@ -1129,97 +1613,128 @@ export function SWPViewPayment() {
               )}
               {!loading &&
                 paginatedData.map((row, index) => {
-                  const invoiceUrl = resolveJammuSwpMediaUrl(row.file);
+                  const invoiceUrl = row.file ? resolveJammuSwpMediaUrl(row.file) : '';
                   const isApproved = Number(row.claim_status) === 2;
+                  const payAmt = getPaymentAmount(row);
+                  const balAmt = getPaymentBalance(row);
+                  const payDate = getPaymentDate(row);
+                  const payRemarks = getPaymentRemarks(row);
 
                   return (
                     <tr key={row.id} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td">{row.state || 'Jammu'}</td>
-       
-                      <td className="ax-table__td" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {row.f_farmer_name || txt(row, 'beneficiary_name') || fmtSites(row.site_id) || DASH}
-                        </span>
-                      </td>
-                      <td className="ax-table__td ax-num" style={monoCell}>
-                        {txt(row, 'application_no') || txt(row, 'app_no') || String(row.id)}
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Badge tone={Number(row.inst_status) === 1 ? 'success' : 'warning'}>
-                          {Number(row.inst_status) === 1 ? 'Installed' : 'Pending'}
-                        </Badge>
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Badge tone={Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'success' : 'neutral'}>
-                          {Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'Completed' : 'Pending'}
-                        </Badge>
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <PaymentStatusBadge status={row.payment_status} />
-                      </td>
-                      <td className="ax-table__td" style={{ fontSize: '12px' }}>
-                        {txt(row, 'payment_date') || DASH}
-                      </td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#16a34a' }}>
-                        {row.payment_amount ? `₹ ${Number(row.payment_amount).toLocaleString('en-IN')}` : (row.amount ? `₹ ${Number(row.amount).toLocaleString('en-IN')}` : DASH)}
-                      </td>
-                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'payment_remarks') || txt(row, 'remarks') || DASH}
+                      {/* 1. S.No. */}
+                      <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>
+                        {(currentPage - 1) * pageSize + index + 1}
                       </td>
 
-                      {/* Action */}
+                      {/* 2. Date */}
+                      <td className="ax-table__td">
+                        <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                          {fmtDate(row.date || row.created_at)}
+                        </div>
+                      </td>
+
+                      {/* 3. Sites */}
+                      <td className="ax-table__td" style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {renderSiteFarmerNames(row)}
+                        </span>
+                      </td>
+
+                      {/* 4. Invoice */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          {row.file && (
+                        {invoiceUrl ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <button
                               type="button"
                               className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ height: 26, fontSize: 11.5, padding: '0 6px', color: '#2563eb' }}
-                              onClick={() => openPreview(invoiceUrl, `Payment File #${row.id}`)}
-                              title="Inspect invoice document"
+                              style={{ color: '#2563eb', fontWeight: 600, padding: '2px 6px' }}
+                              onClick={() => openPreview(invoiceUrl, `Invoice Claim #${row.id}`)}
+                              title="Preview Invoice"
                             >
                               View
                             </button>
-                          )}
-                          {!isApproved ? (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ height: 26, fontSize: 11.5, padding: '0 8px' }}
-                              onClick={() => handleOpenEdit(row.id)}
-                              title="Edit claim details"
+                            <a
+                              href={invoiceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              style={{ color: '#0284c7', fontSize: 11, padding: '2px 4px' }}
+                              title="Open Invoice in new tab"
                             >
-                              Edit
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled
-                              title="Claim has been approved & payment settled. Action is locked."
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                background: '#f1f5f9',
-                                color: '#94a3b8',
-                                border: '1px solid #cbd5e1',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: 'not-allowed',
-                              }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                              </svg>
-                              Locked
-                            </button>
-                          )}
-                        </div>
+                              ↗
+                            </a>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)', fontSize: '12px' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 5. Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                        <strong style={{ fontSize: '14px', color: 'var(--asw-primary, #2563eb)' }}>
+                          {fmtMoney(row.amount)}
+                        </strong>
+                      </td>
+
+                      {/* 6. Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}>
+                        <span style={{ color: 'var(--ax-text-muted)' }}>
+                          {row.remarks || '—'}
+                        </span>
+                      </td>
+
+                      {/* 7. Claim Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {renderClaimStatusBadge(row.claim_status)}
+                      </td>
+
+                      {/* 8. Payment Amount */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {payAmt !== null ? (
+                          <div>
+                            <span style={{ color: 'var(--ax-text-strong)' }}>{fmtMoney(payAmt)}</span>
+                            {getAllPayments(row).length > 0 && (
+                              <div style={{ fontSize: '10px', color: 'var(--ax-text-muted)', fontWeight: 500 }}>
+                                {getAllPayments(row).length} {getAllPayments(row).length === 1 ? 'installment' : 'installments'}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+
+                      {/* 9. Payment Balance */}
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {balAmt !== null ? fmtMoney(balAmt) : '—'}
+                      </td>
+
+                      {/* 10. Payment Date */}
+                      <td className="ax-table__td" style={{ fontSize: '12px' }}>
+                        {payDate ? fmtDate(payDate) : '—'}
+                      </td>
+
+                      {/* 11. Payment Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: '12px' }}>
+                        <span style={{ color: 'var(--ax-text-muted)' }}>
+                          {payRemarks}
+                        </span>
+                      </td>
+
+                      {/* 12. Payment Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {renderPaymentStatusBadge(row.pay_status)}
+                      </td>
+
+                      {/* 13. Action */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <RowActionDropdown
+                          canEdit={!isApproved}
+                          invoiceUrl={invoiceUrl}
+                          onViewDetails={() => setViewingPaymentClaim(row)}
+                          onEditClaim={() => handleOpenEdit(row.id)}
+                        />
                       </td>
                     </tr>
                   );
@@ -1246,6 +1761,170 @@ export function SWPViewPayment() {
 
       {/* ── Invoice Lightbox Zoom Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Payment Details & Breakdown Modal ── */}
+      <Modal
+        open={!!viewingPaymentClaim}
+        onClose={() => setViewingPaymentClaim(null)}
+        labelledBy="payment-breakdown-title"
+        dialogClass="ax-modal__dialog--lg"
+      >
+        {viewingPaymentClaim && (
+          <div>
+            <div className="ax-modal__header">
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="payment-breakdown-title">
+                  Payment Details — Claim #{viewingPaymentClaim.id}
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Detailed breakdown of disbursements, approval records, and balance
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={() => setViewingPaymentClaim(null)}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Top Stat Cards */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Claim Amount</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--asw-primary, #2563eb)', marginTop: 4 }}>
+                    {fmtMoney(viewingPaymentClaim.amount)}
+                  </div>
+                </div>
+
+                <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Amount Paid</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#16a34a', marginTop: 4 }}>
+                    {fmtMoney(getPaymentAmount(viewingPaymentClaim) ?? 0)}
+                  </div>
+                </div>
+
+                <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>Remaining Balance</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#d97706', marginTop: 4 }}>
+                    {fmtMoney(getPaymentBalance(viewingPaymentClaim) ?? 0)}
+                  </div>
+                </div>
+
+                <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Payout Status</div>
+                  <div style={{ marginTop: 6 }}>
+                    {renderPaymentStatusBadge(viewingPaymentClaim.pay_status)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Administrative Approval Info */}
+              {(viewingPaymentClaim.approved_date || viewingPaymentClaim.approved_by || viewingPaymentClaim.approved_remarks) && (
+                <div style={{ padding: 14, borderRadius: 10, background: '#f1f5f9', border: '1px solid #cbd5e1' }}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: 13, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Administrative Approval
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, fontSize: 13 }}>
+                    {viewingPaymentClaim.approved_date && (
+                      <div>
+                        <span style={{ color: '#64748b' }}>Approved Date: </span>
+                        <strong>{fmtDate(viewingPaymentClaim.approved_date)}</strong>
+                      </div>
+                    )}
+                    {viewingPaymentClaim.approved_by && (
+                      <div>
+                        <span style={{ color: '#64748b' }}>Approved By: </span>
+                        <strong>User #{viewingPaymentClaim.approved_by}</strong>
+                      </div>
+                    )}
+                    {viewingPaymentClaim.approved_remarks && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <span style={{ color: '#64748b' }}>Approval Remarks: </span>
+                        <strong>{viewingPaymentClaim.approved_remarks}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sites Info */}
+              <div style={{ padding: 14, borderRadius: 10, background: '#ffffff', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Associated Site(s)
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+                  {renderSiteFarmerNames(viewingPaymentClaim)}
+                </div>
+              </div>
+
+              {/* Individual Payments / Installments Table */}
+              <div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                  Disbursement Transactions ({getAllPayments(viewingPaymentClaim).length})
+                </h4>
+                {getAllPayments(viewingPaymentClaim).length > 0 ? (
+                  <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>#</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Date</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Amount Paid</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Balance</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Remarks</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getAllPayments(viewingPaymentClaim).map((p, idx) => (
+                          <tr key={p.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '8px 12px', color: '#64748b' }}>#{idx + 1}</td>
+                            <td style={{ padding: '8px 12px', fontWeight: 500 }}>{fmtDate(p.date || p.created_at)}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
+                              {fmtMoney(p.amount)}
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#d97706' }}>
+                              {fmtMoney(p.balance)}
+                            </td>
+                            <td style={{ padding: '8px 12px', color: '#475569' }}>{p.pay_remarks || p.remarks || '—'}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                              <Badge tone="success">Settled</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: '16px', textAlign: 'center', background: '#f8fafc', borderRadius: 8, color: '#64748b', fontSize: 13 }}>
+                    No installment transactions recorded yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="ax-modal__footer">
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={() => setViewingPaymentClaim(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* ── Add Payment Modal (API 11) ── */}
       <Modal open={addModalOpen} onClose={closeAddModal} labelledBy="add-payment-title" dialogClass="ax-modal__dialog--md">
@@ -1295,11 +1974,16 @@ export function SWPViewPayment() {
                 disabled={submittingClaim}
                 required
               >
-               
+                <option value="">-- Select Eligible Site --</option>
+                {claimableSites.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.f_farmer_name || `Site #${s.id}`} {s.district ? `(${s.district})` : ''}
+                  </option>
+                ))}
               </select>
               {claimableSites.length === 0 && (
                 <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-                  ℹ️ Only verified installed sites with approved HOC document (status = 2) can be claimed.
+                  ℹ️ Only verified installed sites can be claimed.
                 </div>
               )}
             </div>

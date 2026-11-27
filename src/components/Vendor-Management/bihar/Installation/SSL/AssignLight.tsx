@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { biharAdminService } from '../../bihar-services/biharAdminService';
@@ -415,7 +415,6 @@ export function BiharSSLInstallationAssignLight() {
   const [vendorList, setVendorList] = useState<Array<{ id: number | string; name: string }>>([]);
   const [districtList, setDistrictList] = useState<string[]>([]);
   const [blockList, setBlockList] = useState<string[]>([]);
-  const [panchayatList, setPanchayatList] = useState<string[]>([]);
   const [loadingVendors, setLoadingVendors] = useState<boolean>(false);
   const [loadingDistricts, setLoadingDistricts] = useState<boolean>(false);
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);

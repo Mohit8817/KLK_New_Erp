@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -244,11 +244,6 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
-const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
-  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
-);
-
 const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
     <path d="M18 6l-12 12" />
@@ -412,7 +407,6 @@ function KpiCard({
 }
 
 export function KarnatakaMaterialDetails() {
-  const navigate = useNavigate();
 
   const [response, setResponse] = useState<ViewInstallSiteResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -513,7 +507,7 @@ export function KarnatakaMaterialDetails() {
   // Export Columns definition
   const exportCols: ExportColumn<InstalledSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: InstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: InstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Site ID', accessor: (r) => `${r.id}` },
       { header: 'Farmer Name', accessor: (r) => r.f_farmer_name || r.farmer_name || 'Farmer' },
       { header: 'Father Name', accessor: (r) => r.father_name || r.f_father_name || '—' },
@@ -558,17 +552,17 @@ export function KarnatakaMaterialDetails() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

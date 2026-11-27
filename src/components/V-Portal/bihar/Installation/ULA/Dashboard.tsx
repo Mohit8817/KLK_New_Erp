@@ -544,7 +544,6 @@ export function Bihar_Installation_ULA_Dashboard() {
   const todayTotal = today.reduce((a, t) => a + n(t.today_install), 0);
   const monthTotal = monthly.reduce((a, m) => a + n(m.monthly_installations), 0);
   const todayLabel = fmtDate(new Date());
-  const val = (s: string) => (loading && !data ? '…' : s);
 
   const spk = (pick: (d: DistrictRow) => number) => {
     const arr = districtwise.slice(0, 10).map(pick);
@@ -615,7 +614,7 @@ export function Bihar_Installation_ULA_Dashboard() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -625,7 +624,7 @@ export function Bihar_Installation_ULA_Dashboard() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
     ].join('\n');
     try {

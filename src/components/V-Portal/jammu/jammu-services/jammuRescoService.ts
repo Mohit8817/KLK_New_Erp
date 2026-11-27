@@ -614,7 +614,7 @@ class JammuRescoService {
    * 5. Fetch Installation Site Details
    * GET /jk/resco-installation-fetch-site-detail?id={id}&site_id={id}
    */
-  async getSiteDetails(siteId: number | string): Promise<JammuRescoSiteDetail | null> {
+  async getSiteDetails(siteId: number | string): Promise<JammuRescoInstallSiteDetail | null> {
     try {
       // 1. Query-based: GET /jk/resco-installation-fetch-site-detail?id={id}&site_id={id}
       const url1 = JAMMU_API.INSTALLATION.RESCO.FETCH_SITE_DETAILS(siteId);
@@ -753,7 +753,7 @@ class JammuRescoService {
    * 8. Installation Update Data
    * GET /jk/resco-install-site-update/{id}
    */
-  async getInstallationUpdateData(id: number | string): Promise<JammuRescoSiteDetail | null> {
+  async getInstallationUpdateData(id: number | string): Promise<JammuRescoInstallSiteDetail | null> {
     const res = await fetch(JAMMU_API.INSTALLATION.RESCO.INSTALL_UPDATE_DATA(id), {
       method: 'GET',
       headers: getAuthHeaders(),

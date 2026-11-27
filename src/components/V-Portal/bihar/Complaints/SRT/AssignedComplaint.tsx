@@ -29,7 +29,6 @@ type Row = BiharComplaintItem;
 type TabKey = 'open' | 'approved' | 'closed';
 
 interface Toast { id: number; msg: string; }
-let TID = 0;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const X = (
@@ -1509,7 +1508,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
     ],
     []
   );
-  const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
+  const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header ?? c.label ?? '')), [exportCols, hiddenCols]);
 
   const handleCopy = () => copyTableDataToClipboard(filtered, activeExportCols);
   const handleExportCSV = () => exportDataToCSV(`Bihar_SRT_Assigned_${activeTab}`, filtered, activeExportCols);

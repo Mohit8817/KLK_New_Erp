@@ -664,8 +664,6 @@ export interface JammuSrt70SurveyAssignRecord {
   [key: string]: any;
 }
 
-export type JKRescoSurveyRecord = JKRescoSurveyAssignRecord;
-
 export interface JammuSrt70SurveyViewAssignData {
   assign_surveys?: JammuSrt70SurveyAssignRecord[];
   srts?: JammuSrt70SurveyStats;
@@ -960,12 +958,12 @@ export const jammuSurveyAdminService = {
     const candidateUrls = [
       typeof (JAMMU_VENDOR_API as any).ADMIN_RESCO_SURVEY_APPROVAL_ASSIGN === 'function'
         ? (JAMMU_VENDOR_API as any).ADMIN_RESCO_SURVEY_APPROVAL_ASSIGN(id)
-        : `${ADMIN_BASE_URL}/jk/resco/survey/approval-assign/${encodeURIComponent(id)}`,
-      `${ADMIN_BASE_URL}/jammu/resco/survey/approval-assign/${encodeURIComponent(id)}`,
+        : `${ADMIN_API_URL}/jk/resco/survey/approval-assign/${encodeURIComponent(id)}`,
+      `${ADMIN_API_URL}/jammu/resco/survey/approval-assign/${encodeURIComponent(id)}`,
       typeof (JAMMU_VENDOR_API as any).ADMIN_RESCO_APPROVAL_ASSIGN === 'function'
         ? (JAMMU_VENDOR_API as any).ADMIN_RESCO_APPROVAL_ASSIGN(id)
-        : `${ADMIN_BASE_URL}/jk/resco/installation/approval-assign/${encodeURIComponent(id)}`,
-      `${ADMIN_BASE_URL}/jammu/resco/installation/approval-assign/${encodeURIComponent(id)}`,
+        : `${ADMIN_API_URL}/jk/resco/installation/approval-assign/${encodeURIComponent(id)}`,
+      `${ADMIN_API_URL}/jammu/resco/installation/approval-assign/${encodeURIComponent(id)}`,
     ];
 
     let lastError: any = null;
@@ -1043,8 +1041,9 @@ export const jammuSurveyAdminService = {
    */
   async fetchRescoSurveySiteDetail(srtId: string | number): Promise<JKRescoSurveyItem> {
     const url = JAMMU_VENDOR_API.ADMIN_RESCO_SURVEY_FETCH_SITE_DETAIL(srtId);
-    const res = await apiRequest<{ srt?: JKRescoSurveyItem }>(url, { method: 'GET' });
-    const detail = res.data?.srt || res.data || ({} as JKRescoSurveyItem);
+    const res = await apiRequest<{ srt?: JKRescoSurveyItem } | JKRescoSurveyItem>(url, { method: 'GET' });
+    const rawData = res.data as ({ srt?: JKRescoSurveyItem } & Partial<JKRescoSurveyItem>) | undefined;
+    const detail = rawData?.srt || (rawData as JKRescoSurveyItem | undefined) || ({} as JKRescoSurveyItem);
     return detail;
   },
 

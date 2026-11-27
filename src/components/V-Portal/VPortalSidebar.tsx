@@ -18,7 +18,7 @@ interface VPortalSubGroup {
 interface VPortalCategory {
   id: string;
   title: string;
-  icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints';
+  icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints' | 'reports' | 'users';
   subgroups: VPortalSubGroup[];
 }
 

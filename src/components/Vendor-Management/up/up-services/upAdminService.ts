@@ -1993,15 +1993,113 @@ class UpRescoAdminService {
 
   // 14. ANY /up/resco/installation/verify-claim-status
   async verifyClaimStatus(payload: {
-    id: number;
-    status: 2 | 3; // 2 = Approved, 3 = Rejected
+    id: number | string;
+    claim_id?: number | string;
+    status: number; // 2 = Approved, 3 = Rejected, 1 = Raised/Pending
+    claim_status?: number;
     remarks?: string;
+    approved_remarks?: string;
+    [key: string]: any;
   }): Promise<UpApiResponse> {
-    return requestJsonWithFallback(
-      UP_ADMIN_RESCO_API.VERIFY_CLAIM_STATUS_CANDIDATES(),
-      { method: 'POST', headers: buildHeaders(), body: JSON.stringify(payload) },
-      'Failed to update Resco claim status'
-    );
+    const claimId = Number(payload.id ?? payload.claim_id);
+    const statusNum = Number(payload.status ?? payload.claim_status ?? 2);
+    const rawRemarks =
+      payload.remarks ||
+      payload.approved_remarks ||
+      payload.verify_remarks ||
+      payload.claim_remarks ||
+      '';
+    const fallbackRemark = statusNum === 3 ? 'Claim Rejected' : 'Claim Approved';
+    const remarksText = String(rawRemarks.trim() || fallbackRemark).trim();
+
+    const candidates = UP_ADMIN_RESCO_API.VERIFY_CLAIM_STATUS_CANDIDATES(claimId);
+
+    // Build exhaustive data object covering all possible backend validator field names
+    const dataObj: Record<string, any> = {
+      id: claimId,
+      claim_id: claimId,
+      status: statusNum,
+      claim_status: statusNum,
+      verify_status: statusNum,
+      remarks: remarksText,
+      approved_remarks: remarksText,
+      verify_remarks: remarksText,
+      claim_remarks: remarksText,
+    };
+    if (payload.vendor_id != null) dataObj.vendor_id = Number(payload.vendor_id);
+    if (payload.company_id) dataObj.company_id = String(payload.company_id);
+    if (payload.pay_type != null) {
+      dataObj.pay_type = Number(payload.pay_type);
+      dataObj.payment_type = Number(payload.pay_type);
+    }
+
+    let lastError: any = null;
+
+    // Try 1: JSON body with application/json
+    try {
+      const res = await requestJsonWithFallback(
+        candidates,
+        { method: 'POST', headers: buildHeaders(false), body: JSON.stringify(dataObj) },
+        'Failed to update Resco claim status'
+      );
+      if (res && res.success !== false && res.status !== false) {
+        return res;
+      }
+    } catch (jsonErr: any) {
+      lastError = jsonErr;
+      console.warn('[UP Resco verifyClaimStatus] JSON attempt failed, trying FormData fallback:', jsonErr?.message);
+    }
+
+    // Try 2: multipart/form-data
+    try {
+      const fd = new FormData();
+      Object.entries(dataObj).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          fd.append(k, String(v));
+        }
+      });
+      const res = await requestJsonWithFallback(
+        candidates,
+        { method: 'POST', headers: buildHeaders(true), body: fd },
+        'Failed to update Resco claim status'
+      );
+      if (res && res.success !== false && res.status !== false) {
+        return res;
+      }
+    } catch (fdErr: any) {
+      lastError = fdErr;
+      console.warn('[UP Resco verifyClaimStatus] FormData attempt failed, trying URLSearchParams fallback:', fdErr?.message);
+    }
+
+    // Try 3: application/x-www-form-urlencoded
+    try {
+      const urlParams = new URLSearchParams();
+      Object.entries(dataObj).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          urlParams.append(k, String(v));
+        }
+      });
+      const headers = buildHeaders(false);
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+
+      const res = await requestJsonWithFallback(
+        candidates,
+        { method: 'POST', headers, body: urlParams.toString() },
+        'Failed to update Resco claim status'
+      );
+      if (res && res.success !== false && res.status !== false) {
+        return res;
+      }
+    } catch (urlErr: any) {
+      lastError = urlErr;
+    }
+
+    throw lastError || new Error('Failed to update Resco claim status');
+  }
+
+  // Alias for backward compatibility
+  approveClaim(payload: any): Promise<UpApiResponse> {
+    return this.verifyClaimStatus(payload);
   }
 
   // 15. ANY /up/resco/installation/view-payment
@@ -2013,6 +2111,7 @@ class UpRescoAdminService {
   }): Promise<{
     payments: UpRescoPaymentRecord[];
     payment_detail: UpPaymentDetailSummary;
+    vendors?: UpVendorItem[];
   }> {
     const json = await requestJsonWithFallback<any>(
       UP_ADMIN_RESCO_API.VIEW_PAYMENT_CANDIDATES(params),
@@ -2037,6 +2136,7 @@ class UpRescoAdminService {
         partially: Number(d.partially ?? 0),
         pending: Number(d.pending ?? 0),
       },
+      vendors: Array.isArray(data?.vendors) ? data.vendors : undefined,
     };
   }
 

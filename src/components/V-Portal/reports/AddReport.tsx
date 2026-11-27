@@ -407,7 +407,7 @@ export function AddReport() {
   // Selected WO & Details (from A5)
   const [selectedWo, setSelectedWo] = useState<string>('');
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [woDetails, setWoDetails] = useState<WorkOrderDetails | null>(null);
+  const [, setWoDetails] = useState<WorkOrderDetails | null>(null);
 
   // Form Fields (A2)
   const [stateVal, setStateVal] = useState<string>('');

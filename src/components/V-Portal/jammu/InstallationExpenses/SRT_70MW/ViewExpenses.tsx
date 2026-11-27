@@ -36,13 +36,6 @@ const ClaimStatusBadge = ({ status }: { status?: number }) => {
   return <Badge tone="info">Raised (Pending Audit)</Badge>;
 };
 
-const PayStatusBadge = ({ status }: { status?: number }) => {
-  const s = Number(status ?? 0);
-  if (s === 1) return <Badge tone="success">Disbursed</Badge>;
-  if (s === 2) return <Badge tone="neutral">Partially Paid</Badge>;
-  return <Badge tone="warning">Pending Disbursal</Badge>;
-};
-
 const formatDate = (d?: string | null): string => {
   if (!d) return DASH;
   const trimmed = String(d).trim();
@@ -455,7 +448,6 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
-const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
 export function ViewExpenses() {
   const [expenses, setExpenses] = useState<JammuExpenseClaimItem[]>([]);
@@ -720,7 +712,7 @@ export function ViewExpenses() {
   // Export Columns definition (Exact columns per specification)
   const exportCols: ExportColumn<JammuExpenseClaimItem>[] = useMemo(
     () => [
-      { header: 'Sr No', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr No', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => formatDate(r.date) },
       { header: 'State', accessor: (r) => r.state || 'Jammu' },
       { header: 'Project', accessor: (r) => r.project || 'SRT 70MW' },
@@ -769,7 +761,7 @@ export function ViewExpenses() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -779,7 +771,7 @@ export function ViewExpenses() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

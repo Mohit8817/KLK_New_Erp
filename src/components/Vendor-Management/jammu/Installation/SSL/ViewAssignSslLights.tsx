@@ -637,7 +637,7 @@ export function ViewAssignSslLights() {
 
   const exportToExcel = <T,>(listData: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!listData.length || !columns.length) return;
-    const headerRow = columns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('');
+    const headerRow = columns.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('');
     const bodyRows = listData
       .map(
         (row, idx) =>
@@ -654,7 +654,7 @@ export function ViewAssignSslLights() {
 
   const exportToPDF = <T,>(listData: T[], columns: ExportColumn<T>[], reportTitle: string) => {
     if (!listData.length || !columns.length) return;
-    const headerRow = columns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('');
+    const headerRow = columns.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('');
     const bodyRows = listData
       .map(
         (row, idx) =>

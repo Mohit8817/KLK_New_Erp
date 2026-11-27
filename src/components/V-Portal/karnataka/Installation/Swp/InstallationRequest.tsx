@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -16,7 +16,6 @@ import {
   resolveKarnatakaMediaUrl,
   type AssignedSiteItem,
   type AssignSiteDetailResponse,
-  type AssignSiteDetailName,
 } from '../../karnataka-services';
 
 /* ───────── Responsive page CSS (Exact Solar ERP / ULA reference, all columns scrollable) ───────── */
@@ -440,7 +439,6 @@ const fmtDate = (val?: string | null): string => {
 };
 
 export function InstallationRequest() {
-  const navigate = useNavigate();
 
   const [data, setData] = useState<AssignedSiteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -623,8 +621,8 @@ export function InstallationRequest() {
         setDetailData(mergedPayload);
 
         // Proactively fetch full site details for any site in this assignment missing father_name
-        const siteIdCandidates = mergedList
-          .map((s: any, idx: number) => ({
+        const siteIdCandidates: { idx: number; id: number; hasFather: boolean }[] = mergedList
+          .map((s: Record<string, unknown>, idx: number) => ({
             idx,
             id: Number(s.id || parseSiteIds(item.site_id)[idx]),
             hasFather: Boolean(
@@ -638,7 +636,7 @@ export function InstallationRequest() {
               s.husband_name
             ),
           }))
-          .filter((c) => Number.isFinite(c.id) && c.id > 0 && !c.hasFather);
+          .filter((c: { idx: number; id: number; hasFather: boolean }) => Number.isFinite(c.id) && c.id > 0 && !c.hasFather);
 
         if (siteIdCandidates.length > 0) {
           Promise.all(
@@ -967,17 +965,17 @@ export function InstallationRequest() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

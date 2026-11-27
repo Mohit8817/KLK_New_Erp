@@ -13,7 +13,6 @@ import {
 import {
   goaAdminService,
   resolveGoaMediaUrl,
-  type GoaSrtSiteRow,
   type GoaViewInstallationResponse,
 } from '../../goa-services';
 
@@ -402,7 +401,7 @@ export interface GoaInstallationVerifyItem {
 export function GoaSRTInstallationVerifySites() {
   const [data, setData] = useState<GoaViewInstallationResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState<string>('');
 

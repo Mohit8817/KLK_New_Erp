@@ -359,7 +359,6 @@ export function DocThumb({
 
 /* ───────── Row action dropdown ───────── */
 const MENU_W = 180;
-const MENU_H = 118;
 
 function RowActionDropdown({
   docUrl,
@@ -379,6 +378,9 @@ function RowActionDropdown({
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const totalItems = 1 + (canEdit && onEdit ? 1 : 0) + (extraAction ? 1 : 0) + (docUrl ? 1 : 0);
+  const menuH = totalItems * 36 + 12;
+
   const toggle = () => {
     if (open) {
       setOpen(false);
@@ -388,7 +390,7 @@ function RowActionDropdown({
     if (!b) return;
     const r = b.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const top = spaceBelow < menuH + 8 && r.top > menuH + 8 ? r.top - menuH - 4 : r.bottom + 4;
     const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
     setPos({ top, left });
     setOpen(true);
@@ -444,7 +446,7 @@ function RowActionDropdown({
 
       {open && pos &&
         createPortal(
-          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
+          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W, zIndex: 99999 }}>
             <button
               type="button"
               className="ula-menu__item"
@@ -453,8 +455,20 @@ function RowActionDropdown({
                 setOpen(false);
                 onView();
               }}
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}
             >
-              View Details
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                style={{ width: 15, height: 15, color: '#059669', flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View Details</span>
             </button>
             {canEdit && onEdit && (
               <button
@@ -465,8 +479,22 @@ function RowActionDropdown({
                   setOpen(false);
                   onEdit();
                 }}
+                style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}
               >
-                Edit Report
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ width: 15, height: 15, color: '#2563eb', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit</span>
               </button>
             )}
             {extraAction && (
@@ -478,8 +506,21 @@ function RowActionDropdown({
                   setOpen(false);
                   extraAction.onClick();
                 }}
+                style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}
               >
-                {extraAction.label}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 15, height: 15, color: '#7c3aed', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{extraAction.label}</span>
               </button>
             )}
             {docUrl && (
@@ -490,8 +531,22 @@ function RowActionDropdown({
                 className="ula-menu__item"
                 role="menuitem"
                 onClick={() => setOpen(false)}
+                style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}
               >
-                Open Media
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  style={{ width: 15, height: 15, color: '#0284c7', flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span>Open Media ↗</span>
               </a>
             )}
           </div>,
@@ -539,20 +594,38 @@ const OVERLAY_CSS = `
   }
   .ula-action-btn {
     display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
-    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+    font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--ax-border, #cbd5e1);
+    background: #ffffff;
+    transition: all 0.15s ease;
+  }
+  .ula-action-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
   }
   .ula-menu {
     position: fixed; z-index: 99999; box-sizing: border-box;
-    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
-    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+    display: flex; flex-direction: column; padding: 5px; text-align: left;
+    background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.14), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+    min-width: 165px;
   }
   .ula-menu__item {
-    display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
-    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
-    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
+    display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important;
+    width: 100%; box-sizing: border-box; margin: 0; padding: 8px 12px;
+    font: inherit; font-size: 12.5px; font-weight: 500; text-align: left; text-decoration: none;
+    white-space: nowrap !important;
+    color: #1e293b; background: transparent; border: 0; border-radius: 6px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
   }
-  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
+  .ula-menu__item svg {
+    flex-shrink: 0;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible {
+    background: #f1f5f9 !important;
+    color: #2563eb !important;
+    outline: none;
+  }
   @media (max-width: 560px) {
     .ula-m-stage { height: 56vh; }
     .ula-m-grid { grid-template-columns: minmax(0, 1fr); }
@@ -998,46 +1071,12 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
                           </td>
                         ))}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
-                            <RowActionDropdown
-                              docUrl={docUrlOf(row)}
-                              onView={() => setDetailRow(row)}
-                              canEdit={canEdit(row)}
-                              onEdit={() => handleEdit(row)}
-                            />
-                            {canEdit(row) && (
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 4,
-                                  padding: '4px 10px',
-                                  height: 30,
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                }}
-                                onClick={() => handleEdit(row)}
-                                title="Edit AMC report"
-                              >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth={1.75}
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  style={{ width: 13, height: 13 }}
-                                  aria-hidden="true"
-                                >
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                                <span>Edit</span>
-                              </button>
-                            )}
-                          </div>
+                          <RowActionDropdown
+                            docUrl={docUrlOf(row)}
+                            onView={() => setDetailRow(row)}
+                            canEdit={canEdit(row)}
+                            onEdit={() => handleEdit(row)}
+                          />
                         </td>
                       </tr>
                     );

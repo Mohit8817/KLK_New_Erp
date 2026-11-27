@@ -671,11 +671,6 @@ export function SrtDashboard() {
   const pendingSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.inst_pending || 0) : undefined;
   const verifySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.verify_approved || 0) : undefined;
 
-  const execRateSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_complete, d.site_count)) : undefined;
-  const auditPassSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.verify_approved, (d.verify_approved + d.verify_reject) || 1)) : undefined;
-  const pay80SettledSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_pay80_complete, d.inst_complete || 1)) : undefined;
-  const pay20SettledSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_pay20_complete, d.inst_complete || 1)) : undefined;
-
   // Export Columns definition for District Table
   const districtCols: ExportColumn<DashboardDistrictWiseItem & { site_not_assigned: number }>[] = useMemo(() => [
     { header: 'District', accessor: 'district' },

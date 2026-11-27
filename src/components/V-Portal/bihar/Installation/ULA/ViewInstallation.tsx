@@ -1029,7 +1029,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [selectedDistrict, setSelectedDistrict] = useState(() => searchParams.get('district') || 'All');
   const [selectedStatus, setSelectedStatus] = useState(() => searchParams.get('status') || 'All');
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [hiddenColumns] = useState<string[]>([]);
 
   // Photo preview modal
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
@@ -1273,7 +1273,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -1283,7 +1283,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

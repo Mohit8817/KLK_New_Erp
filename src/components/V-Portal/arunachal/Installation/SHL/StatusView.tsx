@@ -9,7 +9,6 @@ import {
   normalizeArunachalDashboardStatus,
   ARUNACHAL_STATUS_LIST,
   type ArunachalStatusDrillRow,
-  type ArunachalDashboardStatus,
   type ArunachalStatusMeta,
 } from '../../arunachal-services';
 import {

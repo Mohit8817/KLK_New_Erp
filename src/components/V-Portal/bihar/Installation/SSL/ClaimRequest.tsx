@@ -406,13 +406,6 @@ export function Bihar_Installation_SSL_ClaimRequest() {
   const editFileRef = useRef<HTMLInputElement>(null);
   const [eligibleSiteIds, setEligibleSiteIds] = useState<number[]>([]);
 
-  // Raise Claim Modal State
- 
-  const [claimAmount, setClaimAmount] = useState('');
-  const [siteIdsInput, setSiteIdsInput] = useState('');
-  const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
- 
-
   // Edit Claim Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingClaim, setEditingClaim] = useState<SslClaimRaisedItem | null>(null);
@@ -439,7 +432,6 @@ export function Bihar_Installation_SSL_ClaimRequest() {
       setClaims(Array.isArray(claimList) ? claimList : []);
       if (installedData?.claimed_applicable_ids) {
         setEligibleSiteIds(installedData.claimed_applicable_ids);
-        setSiteIdsInput(installedData.claimed_applicable_ids.join(', '));
       }
     } catch (err: any) {
       console.error('[ClaimRequest] error:', err);
@@ -573,7 +565,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
   // Export Columns
   const exportCols: ExportColumn<SslClaimRaisedItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: SslClaimRaisedItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: SslClaimRaisedItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Vendor Name', accessor: (r) => r.vendor_name || r.vendor || DASH },
       { header: 'State', accessor: (r) => r.state || 'Bihar' },
       { header: 'Claim Raised Date', accessor: (r) => r.claim_raised_date || DASH },
@@ -618,7 +610,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -628,7 +620,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

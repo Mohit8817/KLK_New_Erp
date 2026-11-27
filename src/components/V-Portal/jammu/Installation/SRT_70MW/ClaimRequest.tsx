@@ -590,7 +590,6 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
-const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
 /* ───────── Row Action Dropdown (Exact View UP Resco Installation pattern) ───────── */
 function RowActionDropdown({
@@ -785,8 +784,8 @@ export function ClaimRequest() {
   // Raise Claim Modal State
   const [raiseModalOpen, setRaiseModalOpen] = useState<boolean>(false);
   const [submittingClaim, setSubmittingClaim] = useState<boolean>(false);
-  const [sitesDropdown, setSitesDropdown] = useState<JammuInstallableSiteName[]>([]);
-  const [loadingSites, setLoadingSites] = useState<boolean>(false);
+  const [sitesDropdown] = useState<JammuInstallableSiteName[]>([]);
+  const [loadingSites] = useState<boolean>(false);
 
   // Form Fields for Raise Claim
   const [selectedSrtId, setSelectedSrtId] = useState<string>('');
@@ -824,22 +823,6 @@ export function ClaimRequest() {
   useEffect(() => {
     loadClaims();
   }, [loadClaims]);
-
-  // Open Raise Claim Modal and fetch eligible sites
-  const handleOpenRaiseModal = async () => {
-    setRaiseModalOpen(true);
-    setLoadingSites(true);
-    setClaimError(null);
-    try {
-      const siteNames = await jammuSrt70mwService.getInstallableSiteNames();
-      setSitesDropdown(Array.isArray(siteNames) ? siteNames : []);
-    } catch (err: any) {
-      console.error('[Jammu SRT Claims] fetch sites error:', err);
-      setSitesDropdown([]);
-    } finally {
-      setLoadingSites(false);
-    }
-  };
 
   // Submit Claim Request (API 10: POST /jammu/srt70mw/installation-claim-raise)
   const handleRaiseClaimSubmit = async (e: FormEvent) => {
@@ -1051,7 +1034,7 @@ export function ClaimRequest() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuClaimItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'State', accessor: (r) => (r.state ? String(r.state).charAt(0).toUpperCase() + String(r.state).slice(1) : '') || 'Jammu & Kashmir' },
       { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
       { header: 'Site Name', accessor: (r) => txt(r, 'site_name') || DASH },
@@ -1136,7 +1119,7 @@ export function ClaimRequest() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -1146,7 +1129,7 @@ export function ClaimRequest() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
@@ -1444,7 +1427,6 @@ export function ClaimRequest() {
                   );
                   const dStatus = Number(row.inst_doc_submit ?? (row as any).document_status ?? 0);
                   const isDocApproved = dStatus === 2 || String(row.inst_doc_submit).toLowerCase() === 'approved';
-                  const isApproved = Number(row.inst_claim_status) === 2;
                   const stateDisplay = row.state ? String(row.state).charAt(0).toUpperCase() + String(row.state).slice(1) : 'Jammu & Kashmir';
                   const claimAmt = row.inst_claim_amount ?? (row as any).claim_amount;
                   const pay80Amt = row.inst_pay80 ?? row.inst_pay80_amount ?? (row as any).pay80;
@@ -1520,7 +1502,7 @@ export function ClaimRequest() {
 
                       {/* Claim Status */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <ClaimStatusBadge status={row.inst_claim_status} />
+                        <ClaimStatusBadge status={row.inst_claim_status != null ? Number(row.inst_claim_status) : undefined} />
                       </td>
 
                       {/* Payment 80% Date */}

@@ -444,7 +444,7 @@ export function AssignSslLights() {
 
   // Loading Status
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
-  const [districtsLoading, setDistrictsLoading] = useState<boolean>(false);
+  const [districtsLoading] = useState<boolean>(false);
   const [blocksLoading, setBlocksLoading] = useState<boolean>(false);
   const [panchayatsLoading, setPanchayatsLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);

@@ -61,6 +61,8 @@ export interface FarmerNameFather {
   id?: number;
   farmer_name?: string;
   father_name?: string;
+  district?: string;
+  [key: string]: any;
 }
 
 export interface AssignedSiteItem {

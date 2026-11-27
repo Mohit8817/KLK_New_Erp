@@ -30,8 +30,6 @@ export interface BiharSSLClaimItem {
 
 type FilterKey = 'all' | BiharSSLClaimItem['status'];
 
-const DASH = '—';
-
 const statusTone = (s: BiharSSLClaimItem['status']): 'success' | 'danger' | 'warning' =>
   s === 'Approved' ? 'success' : s === 'Rejected' ? 'danger' : 'warning';
 

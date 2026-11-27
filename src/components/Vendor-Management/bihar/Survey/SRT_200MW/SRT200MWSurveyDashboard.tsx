@@ -508,7 +508,7 @@ export function BiharSRT200MWSurveyDashboard() {
 
   // Raw data from server
   const [rawSurveys, setRawSurveys] = useState<any[]>([]);
-  const [rawAssigns, setRawAssigns] = useState<any[]>([]);
+  const [, setRawAssigns] = useState<any[]>([]);
   const [districtList, setDistrictList] = useState<BiharDistrictSurveyDetail[]>([]);
   const [vendorList, setVendorList] = useState<BiharVendorSurveyDetail[]>([]);
 
@@ -526,9 +526,9 @@ export function BiharSRT200MWSurveyDashboard() {
 
   // Modal State for In-Page Status & Drilldown
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState('Status Register');
-  const [modalSubtitle, setModalSubtitle] = useState('');
-  const [modalRows, setModalRows] = useState<any[]>([]);
+  const [modalTitle] = useState('Status Register');
+  const [modalSubtitle] = useState('');
+  const [modalRows] = useState<any[]>([]);
   const [modalSearch, setModalSearch] = useState('');
   const [selectedSiteDetail, setSelectedSiteDetail] = useState<any | null>(null);
 

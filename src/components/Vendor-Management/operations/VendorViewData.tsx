@@ -473,7 +473,7 @@ export function VendorViewData() {
 
   const exportCols: ExportColumn<VendorMasterItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: VendorMasterItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: VendorMasterItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Company Name', accessor: (r) => r.company_name || '—' },
       { header: 'Contact Person', accessor: (r) => r.name || r.contact_person || '—' },
       { header: 'Email', accessor: (r) => r.email || '—' },

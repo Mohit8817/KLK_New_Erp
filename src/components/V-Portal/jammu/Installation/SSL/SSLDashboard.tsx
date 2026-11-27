@@ -12,6 +12,10 @@ import {
   Pagination,
   TableEmptyState,
   usePagination,
+  copyTableDataToClipboard,
+  exportDataToCSV,
+  exportDataToExcel,
+  printTableData,
   type ExportColumn,
 } from '../../../../../common';
 
@@ -52,7 +56,6 @@ const pad = (x: number) => String(x).padStart(2, '0');
 const fmtDate = (d: Date | null) => (d ? `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` : '—');
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
 const cv = (name: string) => (typeof window !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue(name).trim() : '');
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const fmtMonth = (s: string) => {
   const [y, m] = String(s || '').split('-');

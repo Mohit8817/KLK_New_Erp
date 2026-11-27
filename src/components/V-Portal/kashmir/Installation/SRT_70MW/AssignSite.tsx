@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -663,7 +663,7 @@ const getBatchSites = (item: KashmirAssignSiteItem): any[] => {
   }
   const raw = item.assign_srt?.site_name;
   if (Array.isArray(raw)) {
-    return raw.map((s, idx) => ({ id: s, site_name: `Site #${s}` }));
+    return raw.map((s) => ({ id: s, site_name: `Site #${s}` }));
   }
   if (typeof raw === 'string' && raw.trim()) {
     try {
@@ -734,8 +734,6 @@ const getVendorName = (item: KashmirAssignSiteItem | null | undefined): string =
 };
 
 export function Kashmir_Installation_AssignSite() {
-  const navigate = useNavigate();
-
   const [data, setData] = useState<KashmirAssignSiteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1400,7 +1398,7 @@ export function Kashmir_Installation_AssignSite() {
       <Modal
         open={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        title={activeItem ? `Assignment Details · #${activeItem.assign_srt?.id || activeItem.id}` : 'Assignment Details'}
+        title={activeItem ? `Assignment Details · #${activeItem.assign_srt?.id}` : 'Assignment Details'}
         subtitle="Individual site allocation and assignment configuration details"
         maxWidth={1100}
         footer={
@@ -1416,9 +1414,9 @@ export function Kashmir_Installation_AssignSite() {
                   const ok = await handleAccept(activeItem);
                   if (ok) setDetailModalOpen(false);
                 }}
-                disabled={acceptingId === (activeItem.assign_srt?.id || activeItem.id)}
+                disabled={acceptingId === activeItem.assign_srt?.id}
               >
-                {acceptingId === (activeItem.assign_srt?.id || activeItem.id) ? 'Accepting…' : 'Accept Assignment'}
+                {acceptingId === activeItem.assign_srt?.id ? 'Accepting…' : 'Accept Assignment'}
               </button>
             </div>
           ) : (

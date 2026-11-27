@@ -261,23 +261,58 @@ export interface JammuSwpInstallViewData {
   sites: JammuSwpInstalledSiteItem[];
 }
 
+export interface JammuSwpInstallPaymentBreakdown {
+  id?: number;
+  amount?: string | number;
+  balance?: string | number;
+  date?: string;
+  pay_remarks?: string;
+  remarks?: string;
+  created_at?: string;
+  [key: string]: any;
+}
+
 export interface JammuSwpClaimItem {
   id: number;
+  company_id?: string;
+  vendor_id?: string | number;
   project?: string;
   type?: string;
   state?: string;
   amount: string | number;
-  site_id: string | number[]; // e.g. "[501, 502]"
+  total_amount?: string | number | null;
+  grand_total?: string | number | null;
+  purpose?: string | null;
+  payment_type?: string | null;
+  site_id: string | number[]; // e.g. "[\"4350\"]"
+  site_details?: { id: number; f_farmer_name?: string; farmer_name?: string; name?: string; district?: string }[];
   file?: string;
   remarks?: string;
   claim_status?: number; // 1 = raised, 2 = approved, 3 = rejected
+  pay_status?: number; // 0 = pending, 1 = complete, 2 = partially
+  approved_date?: string | null;
+  approved_by?: string | number | null;
+  approved_remarks?: string | null;
   date?: string;
+  created_by?: string | number;
+  updated_by?: string | number | null;
+  created_at?: string;
+  updated_at?: string;
+  pay_amount?: string | number;
   payment_amount?: string | number;
+  paid_amount?: string | number;
+  balance_amount?: string | number;
   payment_balance?: string | number;
+  pay_date?: string;
   payment_date?: string;
+  paid_date?: string;
+  pay_remarks?: string;
   payment_remarks?: string;
   payment_status?: string | number;
-  created_at?: string;
+  allpayment?: JammuSwpInstallPaymentBreakdown[];
+  all_payments?: JammuSwpInstallPaymentBreakdown[];
+  payments?: JammuSwpInstallPaymentBreakdown[];
+  [key: string]: any;
 }
 
 export interface JammuSwpClaimableSite {

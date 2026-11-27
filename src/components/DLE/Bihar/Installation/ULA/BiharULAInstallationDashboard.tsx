@@ -627,7 +627,7 @@ export function BiharULAInstallationDashboard() {
   const exportToCSV = <T,>(data: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!data.length || !columns.length) return;
     const rows = [
-      columns.map((column) => column.header),
+      columns.map((column) => column.header ?? column.label ?? ''),
       ...data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column)))),
     ];
     const csv = rows.map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -637,7 +637,7 @@ export function BiharULAInstallationDashboard() {
   const copyToClipboard = async <T,>(data: T[], columns: ExportColumn<T>[]) => {
     if (!data.length || !columns.length) return;
     const textToCopy = [
-      columns.map((column) => column.header).join('\t'),
+      columns.map((column) => column.header ?? column.label ?? '').join('\t'),
       ...data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')),
     ].join('\n');
     try {
@@ -678,7 +678,7 @@ export function BiharULAInstallationDashboard() {
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.map((column, index) => ({
       key: `${column.header}-${index}`,
-      label: column.header,
+      label: column.header ?? column.label ?? '',
       visible: !hidden.includes(`${column.header}-${index}`),
     }));
 

@@ -1,3 +1,3 @@
 export * from './UpAmcTablePage';
 export * from './UpAmcPendingForm';
-export * from './UpAmcPaymentPage';
+export { UpAmcPaymentPage, type UpAmcPaymentPageProps } from './UpAmcPaymentPage';

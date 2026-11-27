@@ -85,6 +85,7 @@ export function ViewAssignVendorInstallation() {
   // Auto-populated General Information from fetchSiteDetail
   const [siteDetails, setSiteDetails] = useState<{
     id?: number;
+    survey_id?: number | string;
     unique_id?: string;
     state?: string;
     district?: string;
@@ -94,6 +95,8 @@ export function ViewAssignVendorInstallation() {
     site_name?: string;
     address?: string;
     location?: string;
+    latitude?: string | number;
+    longitude?: string | number;
     ca_no?: string;
     wo_no?: string;
     plant_sc?: string | number;

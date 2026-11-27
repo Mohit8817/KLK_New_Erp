@@ -107,27 +107,6 @@ function KpiCard({
   );
 }
 
-const formatDate = (d?: string | null): string => {
-  if (!d) return '—';
-  const trimmed = String(d).trim();
-  if (!trimmed || trimmed === '—' || trimmed === 'null' || trimmed === 'undefined') return '—';
-
-  try {
-    const normalized = trimmed.includes(' ') && !trimmed.includes('T') ? trimmed.replace(' ', 'T') : trimmed;
-    const dt = new Date(normalized);
-    if (!isNaN(dt.getTime())) {
-      return dt.toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-    }
-  } catch {}
-
-  const datePart = trimmed.split(/[ T]/)[0];
-  return datePart || trimmed;
-};
-
 export function VendorComplaintDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);

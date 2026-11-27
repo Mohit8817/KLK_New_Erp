@@ -678,7 +678,6 @@ export function GoaSRTInstallationViewAssignSites() {
   // KPI Calculations
   const totalSites = summary?.totalsite ?? assigns.length;
   const assignedSites = summary?.totalsite ?? assigns.length;
-  const notAssignedSites = summary?.not_assigned ?? 0;
   const completeInstall = summary?.complete ?? assigns.filter((a) => Number(a.status) === 2).length;
   const pendingInstall = summary?.pendingsite ?? assigns.filter((a) => Number(a.status) === 0).length;
   const approvedInstall = summary?.approvedsite ?? assigns.filter((a) => Number(a.status) === 1).length;

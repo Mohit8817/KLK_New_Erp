@@ -6,7 +6,6 @@ import {
   usePagination,
   SearchInput,
   TableExportToolbar,
-  TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
 import {
@@ -16,7 +15,7 @@ import {
   type DistrictWiseItem,
   type VendorWiseItem,
   type MonthInstallationItem,
-  DEFAULT_PUNJAB_SUMMARY,
+  type TodayInstallationItem,
 } from '../../punjab-services';
 
 // Code-split ApexCharts so Punjab SSL Dashboard shell renders instantly
@@ -704,7 +703,7 @@ export function PunjabSslDashboard() {
       columns.map((c) => c.header),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 

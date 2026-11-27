@@ -6,7 +6,6 @@ import {
   goaSrtInstallationService,
   getGoaSrtInstallationImageCandidates,
   type GoaSrtInstalledSiteItem,
-  type GoaSrtSiteDropdownItem,
 } from '../../goa-services/goaSrtInstallationService';
 import {
   Pagination,
@@ -374,14 +373,6 @@ export function Goa_Installation_SRT_ClaimRequest() {
   // Modals
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  const [eligibleSites, setEligibleSites] = useState<GoaSrtSiteDropdownItem[]>([]);
-  const [loadingSites, setLoadingSites] = useState(false);
-  const [claimSiteId, setClaimSiteId] = useState('');
-  const [claimAmount, setClaimAmount] = useState('');
-  const [claimRemarks, setClaimRemarks] = useState('');
-  const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
-  const [submittingClaim, setSubmittingClaim] = useState(false);
-
   // Raise 3rd Payment Modal State
   const [pay3Modal, setPay3Modal] = useState<GoaSrtInstalledSiteItem | null>(null);
   const [genImage, setGenImage] = useState<File | null>(null);
@@ -406,58 +397,6 @@ export function Goa_Installation_SRT_ClaimRequest() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Load eligible sites for raising claim
-  const handleOpenClaimModal = async () => {
-    setNewClaimModal(true);
-    setClaimSiteId('');
-    setClaimAmount('');
-    setClaimRemarks('');
-    setClaimInvoiceFile(null);
-    setLoadingSites(true);
-    try {
-      const list = await goaSrtInstallationService.fetchSiteNames();
-      setEligibleSites(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error('[Goa SRT ClaimRequest] fetchSiteNames error:', err);
-    } finally {
-      setLoadingSites(false);
-    }
-  };
-
-  // Submit Claim
-  const handleSubmitClaim = async (e: FormEvent) => {
-    e.preventDefault();
-    const trimmedRemarks = claimRemarks.trim();
-    if (!claimSiteId || !claimAmount || !claimInvoiceFile || !trimmedRemarks) {
-      alert('Please fill all mandatory fields (site, claim amount, claim invoice file, and remarks).');
-      return;
-    }
-    setSubmittingClaim(true);
-    try {
-      const fd = new FormData();
-      fd.append('site_id', claimSiteId);
-      fd.append('srt_id', claimSiteId);
-      fd.append('inst_claim_amount', claimAmount);
-      fd.append('claim_amount', claimAmount);
-      fd.append('amount', claimAmount);
-      fd.append('remarks', trimmedRemarks);
-      fd.append('claim_remarks', trimmedRemarks);
-      fd.append('inst_claim_remarks', trimmedRemarks);
-      fd.append('inst_claim_invoice', claimInvoiceFile);
-      fd.append('claim_invoice', claimInvoiceFile);
-      fd.append('invoice', claimInvoiceFile);
-
-      await goaSrtInstallationService.raiseClaim(fd);
-      setFeedback({ type: 'success', text: 'Installation claim submitted successfully!' });
-      setNewClaimModal(false);
-      loadData();
-    } catch (err: any) {
-      alert(err?.message || 'Failed to raise installation claim');
-    } finally {
-      setSubmittingClaim(false);
-    }
-  };
 
   // Submit 3rd Payment (15%)
   const handleSubmitPay3 = async (e: FormEvent) => {

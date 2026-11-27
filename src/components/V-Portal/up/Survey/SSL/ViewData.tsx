@@ -890,7 +890,7 @@ export function UP_Survey_SSL_ViewData() {
                     aria-label="Filter by district"
                   >
                     <option value="all">All Districts</option>
-                    {distinctDistricts.map((d) => (
+                    {distinctDistricts.filter((d): d is string => Boolean(d)).map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>

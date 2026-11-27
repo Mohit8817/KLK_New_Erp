@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useState, useDeferredValue, type ReactElement } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef, } from '../../../../../common/TableExportToolbar';
 import Pagination from '../../../../../common/pagination/Pagination';
 import SearchInput from '../../../../../common/search/SearchInput';
-import { createPortal } from 'react-dom';
-import { useClickOutside } from '../../../../../hooks/useClickOutside';
-import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 // DLE service: relative URL use karta hai -> Vite proxy API key/secret lagata hai
 import { dleService, filterByCompanyStrict } from '../../../dle-services';
 
@@ -259,12 +256,6 @@ const exportPdf = (rows: UlaRow[], cols: ExpCol[], title: string) => {
   w.focus();
 };
 
-const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (
-  <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={dir ? undefined : { opacity: 0.4 }}>
-    {dir === 'asc' ? <path d="M6 15l6 -6l6 6" /> : dir === 'desc' ? <path d="M6 9l6 6l6 -6" /> : (<><path d="M8 9l4 -4l4 4" /><path d="M16 15l-4 4l-4 -4" /></>)}
-  </svg>
-);
-
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 
 
@@ -342,255 +333,12 @@ const INITIAL_COLUMNS: ColumnDef[] = [
 type TableSortKey = SortKey;
 const SORTABLE: string[] = ['caNo', 'caName', 'district', 'block', 'surveyDate', 'surveyor'];
 
-function UlaModal({
-  open,
-  onClose,
-  row,
-}: {
-  open: boolean;
-  onClose: () => void;
-  row: UlaRow | null;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useFocusTrap(ref, open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open || !row) return null;
-
-  return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby="ula-detail-title">
-      <div className="ax-modal__backdrop" onClick={onClose} />
-      <div ref={ref} className="ax-modal__dialog ax-modal__dialog--lg">
-        <div className="ax-modal__header">
-          <h2 className="ax-modal__title" id="ula-detail-title">
-            Installation details · {row.caNo}
-          </h2>
-          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-            {ICON.close}
-          </button>
-        </div>
-
-        <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
-            gap: 'var(--ax-space-3)'
-          }}>
-            {([
-              ['ID', row.id],
-              ['Company ID', row.companyId],
-              ['CA No.', row.caNo],
-              ['CA Name', row.caName],
-              ['Beneficiary', row.beneficiary],
-              ['Beneficiary Contact', row.contact],
-              ['State', row.state],
-              ['District', row.district],
-              ['Block', row.block],
-              ['Panchayat', row.panchayat],
-              ['Village', row.village],
-              ['Survey Date', row.surveyDate],
-              ['1st Surveyor', row.surveyor],
-              ['2nd Surveyor', row.surveyor2],
-              ['User ID', row.userId],
-              ['User Name', row.userName],
-              ['User ID 2', row.userId2],
-              ['User Name 2', row.userName2],
-              ['Panel 1 No.', row.panel1],
-              ['Panel 2 No.', row.panel2],
-              ['Inverter No.', row.inverter],
-              ['Latitude', str(row.lat)],
-              ['Longitude', str(row.lng)],
-              ['Latitude 2', str(row.lat2)],
-              ['Longitude 2', str(row.lng2)],
-              ['Second Visit At', row.secondVisitAt],
-              ['Modification', row.modification],
-              ['1st Visit Complete', row.firstVisitComplete ? 'Yes' : 'No'],
-              ['2nd Visit Complete', row.secondVisitComplete ? 'Yes' : 'No'],
-            ] as [string, string][]).map(([k, v]) => (
-              <div key={k} style={{
-                padding: 'var(--ax-space-3) var(--ax-space-4)',
-                background: 'var(--ax-surface-subtle)',
-                border: '1px solid var(--ax-border)',
-                borderRadius: 'var(--ax-radius-md)'
-              }}>
-                <div style={{
-                  fontSize: 'var(--ax-text-2xs)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '.06em',
-                  color: 'var(--ax-text-subtle)'
-                }}>{k}</div>
-                <div style={{
-                  marginTop: 4,
-                  color: 'var(--ax-text-strong)',
-                  fontSize: 'var(--ax-text-sm)',
-                  fontWeight: 500,
-                  overflowWrap: 'anywhere'
-                }}>{v || '—'}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
-            gap: 'var(--ax-space-3)'
-          }}>
-            {[['1st Visit', row.visit1], ['2nd Visit', row.visit2]].map(([label, visit]) => {
-              const v = visit as Visit;
-              return (
-                <div key={label as string} style={{
-                  padding: 'var(--ax-space-4)',
-                  border: '1px solid var(--ax-border)',
-                  borderRadius: 'var(--ax-radius-md)'
-                }}>
-                  <div style={{
-                    fontSize: 'var(--ax-text-2xs)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '.06em',
-                    color: 'var(--ax-text-subtle)',
-                    marginBottom: 8
-                  }}>{label as string}</div>
-                  <span className={`ax-badge ax-badge--soft ax-badge--pill ${visitClass(v.status)}`}>
-                    <span className="ax-badge__dot" />
-                    {v.status}
-                  </span>
-                  {v.at && (
-                    <div className="ax-num" style={{
-                      fontSize: 'var(--ax-text-xs)',
-                      color: 'var(--ax-text-subtle)',
-                      marginTop: 8
-                    }}>{v.at}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
-            gap: 'var(--ax-space-3)'
-          }}>
-            {[
-              ['1st Visit Note', row.visit1Note],
-              ['2nd Visit Note', row.visit2Note],
-              ['Remarks', row.remarks],
-            ].map(([label, value]) => (
-              <div key={label} style={{
-                padding: 'var(--ax-space-3) var(--ax-space-4)',
-                background: 'var(--ax-surface-subtle)',
-                border: '1px solid var(--ax-border)',
-                borderRadius: 'var(--ax-radius-md)'
-              }}>
-                <div style={{
-                  fontSize: 'var(--ax-text-2xs)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '.06em',
-                  color: 'var(--ax-text-subtle)',
-                  marginBottom: 6
-                }}>{label}</div>
-                <div style={{
-                  color: 'var(--ax-text-strong)',
-                  fontSize: 'var(--ax-text-sm)',
-                  whiteSpace: 'pre-wrap',
-                  overflowWrap: 'anywhere'
-                }}>{value || '—'}</div>
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <div style={{
-              fontSize: 'var(--ax-text-2xs)',
-              textTransform: 'uppercase',
-              letterSpacing: '.06em',
-              color: 'var(--ax-text-subtle)',
-              marginBottom: 8
-            }}>Location</div>
-            {row.lat !== null && row.lng !== null ? (
-              <a
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                href={`https://www.google.com/maps?q=${row.lat},${row.lng}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open in Google Maps
-              </a>
-            ) : (
-              <span style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>
-                Location coordinates unavailable
-              </span>
-            )}
-          </div>
-
-          <div>
-            <div style={{
-              fontSize: 'var(--ax-text-2xs)',
-              textTransform: 'uppercase',
-              letterSpacing: '.06em',
-              color: 'var(--ax-text-subtle)',
-              marginBottom: 8
-            }}>Images</div>
-
-            {row.images.length ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))',
-                gap: 'var(--ax-space-3)'
-              }}>
-                {row.images.map((im) => (
-                  <a key={im.url} href={im.url} target="_blank" rel="noreferrer">
-                    <img
-                      src={im.url}
-                      alt={im.label}
-                      loading="lazy"
-                      style={{
-                        width: '100%',
-                        aspectRatio: '4/3',
-                        objectFit: 'cover',
-                        borderRadius: 'var(--ax-radius-md)',
-                        border: '1px solid var(--ax-border)'
-                      }}
-                    />
-                    <div style={{
-                      fontSize: 'var(--ax-text-xs)',
-                      color: 'var(--ax-text-muted)',
-                      marginTop: 5
-                    }}>{im.label}</div>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>
-                No images available for this record.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="ax-modal__footer">
-          <button type="button" className="ax-btn ax-btn--ghost" onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
 /* ---------- Page ---------- */
 
 export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const id = idProp ?? params.id ?? '';
 
   const [rows, setRows] = useState<UlaRow[]>([]);
@@ -745,12 +493,6 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
     else { setSortKey(k); setSortDir('asc'); }
     setPage(1);
   };
-  const sortable = (k: SortKey, label: string) => (
-    <th className="ax-table__th ax-table__th--sortable" scope="col" onClick={() => sortBy(k)}
-        aria-sort={sortKey === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      {label} <SortIcon dir={sortKey === k ? sortDir : null} />
-    </th>
-  );
 
   const fullyVisited = useMemo(
     () => rows.filter((r) => r.visit1.status === 'Completed' && r.visit2.status === 'Completed').length,

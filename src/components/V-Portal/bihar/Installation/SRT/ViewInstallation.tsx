@@ -47,10 +47,6 @@ const txt = (row: SrtInstalledSiteItem, key: string): string => {
   return String(v);
 };
 
-const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/+$/, '');
-
 function parseDateMs(dateStr?: string | null): number | null {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const s = dateStr.trim();
@@ -964,7 +960,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
   const [claimFilter, setClaimFilter] = useState<'all' | 'due' | 'raised' | 'pending'>('all');
   const [claimRecords, setClaimRecords] = useState<SrtInstallClaimItem[]>([]);
-  const [hiddenByTab, setHiddenByTab] = useState<Record<TabKey, string[]>>({ completed: [], payment: [] });
+  const [hiddenByTab] = useState<Record<TabKey, string[]>>({ completed: [], payment: [] });
 
   // Photo preview modal
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
@@ -1279,7 +1275,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -1289,7 +1285,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

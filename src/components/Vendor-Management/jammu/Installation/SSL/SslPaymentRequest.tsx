@@ -707,7 +707,7 @@ export function SslPaymentRequest() {
   // Export Columns definition
   const exportCols: ExportColumn<SslPaymentRegisterItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: SslPaymentRegisterItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: SslPaymentRegisterItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Vendor', accessor: (r) => r.vendor_name || `Vendor #${r.vendor_id ?? r.id}` },
       { header: 'State', accessor: () => 'JAMMU' },
       { header: 'Site Count', accessor: (r) => r.site_count ?? r.claim_site_count ?? 1 },

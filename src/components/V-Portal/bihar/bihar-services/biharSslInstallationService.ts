@@ -401,14 +401,6 @@ class BiharSslInstallationService {
     return headers;
   }
 
-  private appendCompany(url: string): string {
-    const cid = getCompanyId();
-    if (!cid) return url;
-    if (url.includes('company_id=')) return url;
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}company_id=${encodeURIComponent(cid)}`;
-  }
-
   private async fetchWithFallback(urlOrEndpoint: string, options: RequestInit = {}): Promise<Response> {
     let urls: string[] = [];
     const baseClean = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');

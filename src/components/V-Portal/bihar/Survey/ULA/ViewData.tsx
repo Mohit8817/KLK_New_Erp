@@ -13,7 +13,6 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  KpiSkeleton,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
@@ -626,7 +625,7 @@ export function Bihar_Survey_ULA_ViewData() {
   }, [feedbackMsg]);
 
   /* Column Visibility */
-  const [hiddenCols, setHiddenCols] = useState<string[]>([]);
+  const [hiddenCols] = useState<string[]>([]);
   const isVisible = (header: string) => !hiddenCols.includes(header);
 
   /* Load surveys from backend */
@@ -760,7 +759,7 @@ export function Bihar_Survey_ULA_ViewData() {
   );
 
   const activeExportCols = useMemo(
-    () => exportCols.filter((col) => !hiddenCols.includes(col.header)),
+    () => exportCols.filter((col) => !hiddenCols.includes(col.header ?? col.label ?? '')),
     [exportCols, hiddenCols]
   );
 
@@ -1190,10 +1189,10 @@ export function Bihar_Survey_ULA_ViewData() {
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
-                page={currentPage}
+                currentPage={currentPage}
                 pageSize={pageSize}
-                total={filteredSurveys.length}
-                onChange={setCurrentPage}
+                totalItems={filteredSurveys.length}
+                onPageChange={setCurrentPage}
                 onPageSizeChange={(sz) => {
                   setPageSize(sz);
                   setCurrentPage(1);

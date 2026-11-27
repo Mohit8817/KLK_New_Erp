@@ -308,7 +308,7 @@ export function Bihar_Complaint_SRT_AddComplaint() {
   // Auto-detect GPS coordinates on site select or load
   useEffect(() => {
     fetchLocation(true);
-  }, [selectedSiteId]);
+  }, [formData.site_name, editId]);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

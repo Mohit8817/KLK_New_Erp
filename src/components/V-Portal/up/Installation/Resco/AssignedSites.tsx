@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -713,8 +713,6 @@ const isAcceptedStatus = (s: any) => Number(s) === 2 || String(s) === '2';
  * MAIN COMPONENT: UP RESCO ASSIGNED SITES
  * ═════════════════════════════════════════════════════════════════ */
 export function UP_Installation_Resco_AssignedSites() {
-  const navigate = useNavigate();
-
   const [records, setRecords] = useState<UpRescoAssignSiteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

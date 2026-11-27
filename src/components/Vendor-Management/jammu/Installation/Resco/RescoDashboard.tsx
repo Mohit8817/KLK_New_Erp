@@ -6,6 +6,10 @@ import {
   usePagination,
   SearchInput,
   TableExportToolbar,
+  copyTableDataToClipboard,
+  exportDataToCSV,
+  exportDataToExcel,
+  printTableData,
   type ExportColumn,
 } from '../../../../../common';
 import {
@@ -31,12 +35,6 @@ const LIGHT_PINK = '#db2777';
 
 const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
-const escapeHtml = (s: string) =>
-  String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 
 // Responsive chart height hook matching Solar ERP standard
 const useChartHeight = (desktop: number, mobile: number) => {
@@ -1474,10 +1472,10 @@ export function RescoDashboard() {
                   ariaLabel="Search districts"
                 />
                 <TableExportToolbar
-                  data={tableDistricts}
-                  columns={districtCols}
-                  filename={`${distFileBase}_${stamp}`}
-                  title={distFileTitle}
+                  onCopy={() => copyTableDataToClipboard(tableDistricts, districtCols)}
+                  onExportCSV={() => exportDataToCSV(`${distFileBase}_${stamp}`, tableDistricts, districtCols)}
+                  onExportExcel={() => exportDataToExcel(`${distFileBase}_${stamp}`, tableDistricts, districtCols)}
+                  onExportPDF={() => printTableData(distFileTitle, tableDistricts, districtCols)}
                 />
               </div>
             </div>
@@ -1673,10 +1671,10 @@ export function RescoDashboard() {
                   ariaLabel="Search vendors"
                 />
                 <TableExportToolbar
-                  data={tableVendors}
-                  columns={vendorCols}
-                  filename={`${vendorFileBase}_${stamp}`}
-                  title={vendorFileTitle}
+                  onCopy={() => copyTableDataToClipboard(tableVendors, vendorCols)}
+                  onExportCSV={() => exportDataToCSV(`${vendorFileBase}_${stamp}`, tableVendors, vendorCols)}
+                  onExportExcel={() => exportDataToExcel(`${vendorFileBase}_${stamp}`, tableVendors, vendorCols)}
+                  onExportPDF={() => printTableData(vendorFileTitle, tableVendors, vendorCols)}
                 />
               </div>
             </div>

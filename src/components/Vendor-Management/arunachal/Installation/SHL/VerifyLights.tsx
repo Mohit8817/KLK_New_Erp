@@ -541,7 +541,10 @@ export function VerifyLights() {
         if (item.vendors.name) return item.vendors.name;
         if (item.vendors.vendor_name) return item.vendors.vendor_name;
       }
-      if (typeof item.vendors === 'string' && item.vendors.trim()) return item.vendors.trim();
+      if (typeof item.vendors === 'string') {
+        const vStr = item.vendors as string;
+        if (vStr.trim()) return vStr.trim();
+      }
       if (item.vendor_name) return item.vendor_name;
       const vid = item.inst_vendor ?? item.vendor ?? (item.vendors as any)?.id;
       if (vid !== undefined && vid !== null && String(vid).trim() !== '') {

@@ -511,7 +511,6 @@ export function DleDashboard() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserRow[]>([]);
 const [integration, setIntegration] = useState<DleDashboardIntegration>({});
-  const [techQuery, setTechQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -736,7 +735,7 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.map((column, index) => ({
       key: `${column.header}-${index}`,
-      label: column.header,
+      label: column.header ?? column.label ?? '',
       visible: !hidden.includes(`${column.header}-${index}`),
     }));
 
@@ -765,7 +764,7 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
   const exportToCSV = <T,>(data: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!data.length || !columns.length) return;
     const csvRows = [
-      columns.map((column) => column.header),
+      columns.map((column) => column.header ?? column.label ?? ''),
       ...data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column)))),
     ];
     const csv = csvRows.map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -775,7 +774,7 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
   const copyToClipboard = async <T,>(data: T[], columns: ExportColumn<T>[]) => {
     if (!data.length || !columns.length) return;
     const textToCopy = [
-      columns.map((column) => column.header).join('\t'),
+      columns.map((column) => column.header ?? column.label ?? '').join('\t'),
       ...data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')),
     ].join('\n');
     try {
@@ -846,23 +845,6 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
   const totalAmcLights = (biharAmc?.total || 0) + (upAmc?.total || 0);
   const totalWorkingLights = (biharAmc?.working || 0) + (upAmc?.working || 0);
   const totalNotWorkingLights = (biharAmc?.not_working || 0) + (upAmc?.not_working || 0);
-
-
-
-
-  // Technicians search and pagination
-  const deferredTechQuery = useDeferredValue(techQuery);
-  const technicians = useMemo(() => {
-    const rawUsers = dailyWork?.users || [];
-    const term = deferredTechQuery.trim().toLowerCase();
-    if (!term) return rawUsers;
-    return rawUsers.filter(
-      (u) =>
-        u.name.toLowerCase().includes(term) ||
-        String(u.user_id).includes(term) ||
-        u.sites?.some((s) => s.place?.toLowerCase().includes(term) || s.detail?.toLowerCase().includes(term))
-    );
-  }, [dailyWork, deferredTechQuery]);
 
 
   return (

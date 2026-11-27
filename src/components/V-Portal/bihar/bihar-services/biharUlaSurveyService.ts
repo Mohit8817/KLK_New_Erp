@@ -111,16 +111,14 @@ class BiharUlaSurveyService {
       ];
     }
 
-    let lastError: any = null;
     for (const url of urls) {
       try {
         const res = await fetch(url, options);
         if (res.status !== 404) {
           return res;
         }
-        lastError = new Error(`404 on ${url}`);
-      } catch (err) {
-        lastError = err;
+      } catch {
+        // continue fallback
       }
     }
     return fetch(urls[0], options);

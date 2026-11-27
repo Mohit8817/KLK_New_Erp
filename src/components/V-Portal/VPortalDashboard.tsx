@@ -262,18 +262,6 @@ function WelcomeBanner({
   );
 }
 
-/* ───────── Section heading above KPI cards ───────── */
-function SectionHead({ title, hint }: { title: string; hint: string }) {
-  return (
-    <div className="ax-col--12">
-      <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={sectionHeadStyle}>{title}</h4>
-        <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{hint}</span>
-      </div>
-    </div>
-  );
-}
-
 /* ───────── Monthly trend (8 col) ───────── */
 function StatusDonutCard({
   eyebrow, title, totalLabel, total, labels, series, colors, items, donutH,
@@ -365,7 +353,7 @@ const downloadTextFile = (content: string, filename: string, mimeType: string) =
 const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
   if (!dataToExport.length || !columns.length) return;
   const rows = [
-    columns.map((c) => c.header),
+    columns.map((c) => c.header ?? c.label ?? ''),
     ...dataToExport.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
   ];
   const csv = rows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -375,7 +363,7 @@ const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename
 const copyToClipboard = async <T,>(dataToCopy: T[], columns: ExportColumn<T>[]) => {
   if (!dataToCopy.length || !columns.length) return;
   const text = [
-    columns.map((c) => c.header).join('\t'),
+    columns.map((c) => c.header ?? c.label ?? '').join('\t'),
     ...dataToCopy.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
   ].join('\n');
   try {
@@ -414,7 +402,7 @@ const exportToPDF = <T,>(dataToExport: T[], columns: ExportColumn<T>[], title: s
 };
 
 const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-  columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
+  columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header ?? c.label ?? '', visible: !hidden.includes(`${c.header}-${i}`) }));
 
 const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
   columns.filter((c, i) => !hidden.includes(`${c.header}-${i}`));

@@ -17,7 +17,6 @@ import {
   resolveJammuSwpMediaUrl,
   getJammuSwpMediaCandidates,
   type JammuSwpAssignItem,
-  type JammuSwpApplicant,
 } from '../../jammu-services';
 
 /* ───────── Responsive page CSS (Matching Reference Design) ───────── */

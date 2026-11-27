@@ -1204,17 +1204,17 @@ export function Kashmir_Installation_Details() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
@@ -1870,28 +1870,7 @@ export function Kashmir_Installation_Details() {
                         </>
                       )}
 
-                      {!isCompleted && (
-                        <>
-                          {/* Payment 80% */}
-                          <td className="ax-table__td">
-                            <Badge tone={row.inst_pay80_status === 1 ? 'success' : 'warning'}>
-                              {row.inst_pay80_status === 1 ? 'Paid' : 'Pending'}
-                            </Badge>
-                          </td>
-                          {/* Payment 20% */}
-                          <td className="ax-table__td">
-                            <Badge tone={row.inst_pay20_status === 1 ? 'success' : 'warning'}>
-                              {row.inst_pay20_status === 1 ? 'Paid' : 'Pending'}
-                            </Badge>
-                          </td>
-                          {/* Claim Status */}
-                          <td className="ax-table__td">
-                            <Badge tone={siteClaimRaised ? 'success' : 'neutral'}>
-                              {siteClaimRaised ? 'Claim Raised' : 'Not Raised'}
-                            </Badge>
-                          </td>
-                        </>
-                      )}
+                   
                     </tr>
                   );
                 })}

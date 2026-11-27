@@ -4,7 +4,6 @@ import {
   BASE_URL,
   API_ROOT,
   RAW_BASE,
-  ROOT_URL,
 } from '../../Vendor_Management_APIS/Kashmir_Vendor_API';
 
 /* ── Backend & Media Base URLs ── */

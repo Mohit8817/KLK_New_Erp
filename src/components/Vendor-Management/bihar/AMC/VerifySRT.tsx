@@ -10,7 +10,7 @@ import {
   TableEmptyState,
   type ExportColumn,
 } from '../../../../common';
-import { biharAdminService, resolveBiharMediaUrl, getBiharMediaCandidates } from '../bihar-services/biharAdminService';
+import { biharAdminService, getBiharMediaCandidates } from '../bihar-services/biharAdminService';
 
 /* ───────── Responsive page CSS (Exact Karnataka SWP reference, all columns scrollable) ───────── */
 const PAGE_CSS = `

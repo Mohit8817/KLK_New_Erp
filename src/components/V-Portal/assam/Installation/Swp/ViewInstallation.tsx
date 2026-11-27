@@ -19,13 +19,6 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-/* ── Base URLs for media assets ── */
-const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/+$/, '');
-
-const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
-
 function getAssamSwpInstallationImageCandidates(path?: string | null): string[] {
   return getAssamMediaCandidates(path);
 }
@@ -700,8 +693,6 @@ const footerStyle = {
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
-const Req = () => <span style={{ color: 'var(--ax-danger-500)' }} aria-hidden="true">*</span>;
-
 /* ── Top KPI Card Component (matching Bihar SRT / ULA) ── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
@@ -1041,7 +1032,7 @@ export function ViewInstallation() {
 
   // Export columns
   const exportCols: ExportColumn<InstalledSiteItem>[] = useMemo(() => [
-    { header: 'Sr. No.', accessor: (_r: InstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+    { header: 'Sr. No.', accessor: (_r: InstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
     { header: 'State', accessor: (r) => txt(r, 'state') || 'Assam' },
     { header: 'District', accessor: (r) => txt(r, 'district') },
     { header: 'Block / Village', accessor: (r) => `${txt(r, 'block') || txt(r, 'tehsil')} / ${txt(r, 'village')}` },
@@ -1112,7 +1103,7 @@ export function ViewInstallation() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -1122,7 +1113,7 @@ export function ViewInstallation() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

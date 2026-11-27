@@ -531,7 +531,7 @@ export function UP_Survey_SRT_ViewSurvey() {
   /* ── Export columns ── */
   const exportCols: ExportColumn<UpSrtSurveyRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, i) => i + 1 },
+      { header: 'Sr. No.', accessor: (_r, i) => (i ?? 0) + 1 },
       { header: 'Survey Date', accessor: (r) => r.survey_date || DASH },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Block', accessor: (r) => r.block || DASH },

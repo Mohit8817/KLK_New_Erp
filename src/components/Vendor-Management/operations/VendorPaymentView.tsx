@@ -412,7 +412,7 @@ export function VendorPaymentView() {
 
   const exportCols: ExportColumn<PaymentRecordItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: PaymentRecordItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: PaymentRecordItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => r.date || '—' },
       { header: 'Work Order', accessor: (r) => r.workorder || '—' },
       { header: 'Vendor Name', accessor: (r) => r.vendor_name || '—' },

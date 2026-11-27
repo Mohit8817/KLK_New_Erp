@@ -3,7 +3,6 @@ import {
   JAMMU_VENDOR_API,
   buildCandidateUrls,
   ROOT_URL,
-  ADMIN_BASE_URL,
 } from '../../../Vendor_Management_APIS/Jammu_Vendor_API';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -73,6 +72,7 @@ export interface JammuSrtExpensePaymentItem {
   balance_amount: number | null;
   pay_date?: string | null;
   pay_remarks?: string | null;
+  approved_remarks?: string | null;
   pay_status: 'Pending' | 'Paid' | 'Partially';
   pay_status_code: 0 | 1 | 2;
   can_pay: boolean;

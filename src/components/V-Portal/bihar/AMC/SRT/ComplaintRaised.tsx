@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -304,9 +304,9 @@ export function Bihar_AMC_SRT_ComplaintRaised() {
 
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCsv={handleCsv}
+                onExportCSV={handleCsv}
                 onExportExcel={handleExcel}
-                onPrint={handlePdf}
+                onExportPDF={handlePdf}
               />
             </div>
           </div>

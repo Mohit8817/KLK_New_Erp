@@ -623,8 +623,8 @@ export function VerifySrt70MWSurvey() {
             contactPerson: item.contact_person || item.contact_person_name || DASH,
             contactNo: item.contact_no || item.contact_person_mobile || DASH,
             proposedCapacity: item.proposed_capacity ? `${item.proposed_capacity} kW` : (item.sanction_load ? `${item.sanction_load} kW` : DASH),
-            latitude: item.latitude || DASH,
-            longitude: item.longitude || DASH,
+            latitude: item.latitude != null ? String(item.latitude) : DASH,
+            longitude: item.longitude != null ? String(item.longitude) : DASH,
             loadType: item.load_type || DASH,
             connectionPhase: item.connection_type || item.connection_phase || DASH,
             meterConnectionType: item.meter_connection_type || DASH,
@@ -635,7 +635,7 @@ export function VerifySrt70MWSurvey() {
             threePhaseAvailable: item.three_phase_available || DASH,
             missingPhase: item.missing_phase || DASH,
             ltdbPresent: item.ltdb_status || item.ltdb_present || DASH,
-            existingDgSet: item.existing_dg_set || DASH,
+            existingDgSet: item.existing_dg_set != null ? String(item.existing_dg_set) : DASH,
             dgSetCapacity: item.dg_set_capacity || DASH,
             dgSetMake: item.dg_set_make || DASH,
             roofCondition: item.roof_condition || DASH,
@@ -1069,9 +1069,9 @@ export function VerifySrt70MWSurvey() {
               />
               <TableExportToolbar
                 onExportCSV={() => {
-                  const headerRow = exportColumns.map((c) => `"${c.header}"`).join(',');
+                  const headerRow = exportColumns.map((c) => `"${c.header ?? c.label ?? ''}"`).join(',');
                   const bodyRows = exportRows.map((r) =>
-                    exportColumns.map((c) => `"${String((r as any)[c.key] ?? '').replace(/"/g, '""')}"`).join(',')
+                    exportColumns.map((c) => `"${String(c.key ? (r as any)[c.key] ?? '' : '').replace(/"/g, '""')}"`).join(',')
                   );
                   const csv = `\ufeff${[headerRow, ...bodyRows].join('\r\n')}`;
                   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1083,7 +1083,7 @@ export function VerifySrt70MWSurvey() {
                   URL.revokeObjectURL(url);
                 }}
                 onExportExcel={() => {
-                  const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportRows.map((r) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((r as any)[c.key] ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                  const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${exportRows.map((r) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String(c.key ? (r as any)[c.key] ?? '' : ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
                   const blob = new Blob([`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`], { type: 'application/vnd.ms-excel;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -1096,9 +1096,9 @@ export function VerifySrt70MWSurvey() {
                   window.print();
                 }}
                 onCopy={() => {
-                  const headerRow = exportColumns.map((c) => c.header).join('\t');
+                  const headerRow = exportColumns.map((c) => c.header ?? c.label ?? '').join('\t');
                   const bodyRows = exportRows.map((r) =>
-                    exportColumns.map((c) => String((r as any)[c.key] ?? '')).join('\t')
+                    exportColumns.map((c) => String(c.key ? (r as any)[c.key] ?? '' : '')).join('\t')
                   );
                   navigator.clipboard.writeText([headerRow, ...bodyRows].join('\n'));
                   alert('Data copied to clipboard!');

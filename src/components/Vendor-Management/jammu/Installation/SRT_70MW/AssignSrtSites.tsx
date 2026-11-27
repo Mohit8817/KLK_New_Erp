@@ -29,7 +29,6 @@ export function AssignSrtSites() {
 
   // Form State - strictly 'jammu' (never 'kashmir')
   const [vendor, setVendor] = useState('');
-  const stateName = 'jammu';
   const [district, setDistrict] = useState('');
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [siteSearch, setSiteSearch] = useState('');

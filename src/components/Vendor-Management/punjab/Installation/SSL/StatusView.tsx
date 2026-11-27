@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -480,7 +480,6 @@ const footerStyle = {
 const monoCell = { fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 'var(--ax-text-xs, 12px)' } as const;
 
 export function StatusView() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const rawStatus = searchParams.get('status') || 'complete';
@@ -672,7 +671,7 @@ export function StatusView() {
   // Export Columns (Clean headers, no #)
   const exportCols: ExportColumn<LightVerificationItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => (currentPage - 1) * pageSize + idx + 1 },
+      { header: 'Sr. No.', accessor: (_r, idx) => (currentPage - 1) * pageSize + (idx ?? 0) + 1 },
       { header: 'UID', accessor: (r) => String(r.uid || r.unique_id || r.id || DASH) },
       { header: 'Vendor', accessor: (r) => getVendorName(r) },
       { header: 'State', accessor: (r) => r.state || 'Punjab' },

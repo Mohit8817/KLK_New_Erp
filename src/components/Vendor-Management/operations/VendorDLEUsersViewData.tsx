@@ -469,7 +469,7 @@ export function VendorDLEUsersViewData() {
 
   const exportCols: ExportColumn<DleUserItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: DleUserItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: DleUserItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'State', accessor: (r) => r.state || '—' },
       { header: 'Name', accessor: (r) => r.name || '—' },
       { header: 'Email', accessor: (r) => r.email || '—' },

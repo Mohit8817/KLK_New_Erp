@@ -685,8 +685,7 @@ export function BiharULAInstallationViewPayment() {
   }, [payments, appliedFilters, searchQuery]);
 
   // Pagination hook
-  const pagination = usePagination({
-    totalItems: filteredPayments.length,
+  const pagination = usePagination(filteredPayments, {
     initialPageSize: 10,
   });
 
@@ -717,7 +716,7 @@ export function BiharULAInstallationViewPayment() {
   // Export columns specification
   const exportCols: ExportColumn<BiharULAPaymentItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_, idx) => String(idx + 1) },
+      { header: 'S.No.', accessor: (_, idx) => String((idx ?? 0) + 1) },
       { header: 'Date', accessor: (r) => fmtDate(r.date) },
       { header: 'Vendor', accessor: (r) => r.vendor || '—' },
       { header: 'Site / Beneficiary', accessor: (r) => r.site_name || r.farmer || '—' },
@@ -736,9 +735,9 @@ export function BiharULAInstallationViewPayment() {
   // Clipboard & file export helpers
   const copyToClipboard = async (list: BiharULAPaymentItem[], cols: ExportColumn<BiharULAPaymentItem>[]) => {
     if (!list.length) return;
-    const header = cols.map((c) => c.header).join('\t');
+    const header = cols.map((c) => c.header ?? c.label ?? '').join('\t');
     const rows = list.map((row, idx) =>
-      cols.map((c) => (typeof c.accessor === 'function' ? c.accessor(row, idx) : (row as any)[c.accessor] ?? '')).join('\t')
+      cols.map((c) => (typeof c.accessor === 'function' ? c.accessor(row, idx) : c.accessor ? ((row as any)[c.accessor] ?? '') : '')).join('\t')
     );
     const text = [header, ...rows].join('\n');
     try {
@@ -752,11 +751,11 @@ export function BiharULAInstallationViewPayment() {
 
   const exportToCSV = (list: BiharULAPaymentItem[], cols: ExportColumn<BiharULAPaymentItem>[], filename: string) => {
     if (!list.length) return;
-    const header = cols.map((c) => `"${c.header.replace(/"/g, '""')}"`).join(',');
+    const header = cols.map((c) => `"${(c.header ?? c.label ?? '').replace(/"/g, '""')}"`).join(',');
     const rows = list.map((row, idx) =>
       cols
         .map((c) => {
-          const val = typeof c.accessor === 'function' ? c.accessor(row, idx) : (row as any)[c.accessor] ?? '';
+          const val = typeof c.accessor === 'function' ? c.accessor(row, idx) : c.accessor ? ((row as any)[c.accessor] ?? '') : '';
           return `"${String(val).replace(/"/g, '""')}"`;
         })
         .join(',')
@@ -772,12 +771,12 @@ export function BiharULAInstallationViewPayment() {
   const exportToExcel = (list: BiharULAPaymentItem[], cols: ExportColumn<BiharULAPaymentItem>[], filename: string) => {
     if (!list.length) return;
     const tableHtml = `<table border="1"><thead><tr>${cols
-      .map((c) => `<th>${escapeHtml(c.header)}</th>`)
+      .map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`)
       .join('')}</tr></thead><tbody>${list
       .map(
         (row, idx) =>
           `<tr>${cols
-            .map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? c.accessor(row, idx) : (row as any)[c.accessor] ?? ''))}</td>`)
+            .map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? c.accessor(row, idx) : c.accessor ? ((row as any)[c.accessor] ?? '') : ''))}</td>`)
             .join('')}</tr>`
       )
       .join('')}</tbody></table>`;
@@ -793,7 +792,7 @@ export function BiharULAInstallationViewPayment() {
   const exportToPDF = (list: BiharULAPaymentItem[], cols: ExportColumn<BiharULAPaymentItem>[], title: string) => {
     if (!list.length) return;
     const rows = list.map((row, idx) =>
-      cols.map((c) => escapeHtml(String(typeof c.accessor === 'function' ? c.accessor(row, idx) : (row as any)[c.accessor] ?? '')))
+      cols.map((c) => escapeHtml(String(typeof c.accessor === 'function' ? c.accessor(row, idx) : c.accessor ? ((row as any)[c.accessor] ?? '') : '')))
     );
     const win = window.open('', '_blank', 'width=1200,height=800');
     if (!win) return;
@@ -801,7 +800,7 @@ export function BiharULAInstallationViewPayment() {
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
       th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
-    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
     win.document.close();
     win.focus();
   };

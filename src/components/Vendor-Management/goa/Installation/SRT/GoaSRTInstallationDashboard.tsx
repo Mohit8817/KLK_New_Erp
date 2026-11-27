@@ -445,8 +445,8 @@ export function GoaSRTInstallationDashboard() {
   );
 
   // District options for filter dropdown
-  const districtOptions = useMemo(
-    () => [...new Set(rawDistricts.map((d: any) => d.district).filter(Boolean))].sort(),
+  const districtOptions = useMemo<string[]>(
+    () => [...new Set<string>(rawDistricts.map((d: any) => String(d.district || '').trim()).filter(Boolean))].sort(),
     [rawDistricts]
   );
 

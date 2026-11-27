@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   Pagination,
@@ -355,7 +355,7 @@ export function SSLAMC() {
   // Exactly 30 export columns per user specifications
   const exportCols: ExportColumn<JammuSslComplaintItem>[] = useMemo(
     () => [
-      { header: 'Sr. no.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. no.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Complaint ID', accessor: (r) => r.complaint_id || (r.id ? `#${r.id}` : DASH) },
       { header: 'Complaint Date', accessor: (r) => formatDate(r.complaint_date || r.created_at || r.date) },
       { header: 'Complaint', accessor: (r) => r.complaint || r.complaint_issue || DASH },
@@ -426,7 +426,7 @@ export function SSLAMC() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -436,7 +436,7 @@ export function SSLAMC() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

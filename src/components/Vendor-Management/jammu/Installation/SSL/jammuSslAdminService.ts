@@ -73,8 +73,11 @@ export interface ShlDashboardTotals {
 export interface DistrictWiseItem {
   district: string;
   light_count: number;
+  site_count: number;
   inst_complete: number;
+  complete: number;
   inst_pending: number;
+  pending: number;
   verify_approved: number;
   verify_pending: number;
   verify_reject: number;
@@ -82,6 +85,7 @@ export interface DistrictWiseItem {
   claim_approved: number;
   claim_reject?: number;
   payment_done: number;
+  inst_pay_done: number;
   payment_pending: number;
 }
 
@@ -89,14 +93,33 @@ export interface VendorWiseItem {
   inst_vendor: number | string;
   vendor_name: string;
   light_count: number;
+  site_count: number;
   inst_complete: number;
+  complete: number;
   inst_pending: number;
+  pending: number;
   verify_approved: number;
   verify_pending: number;
   verify_reject: number;
   claim_approved: number;
   payment_done: number;
+  inst_pay_done: number;
   performance_score?: string;
+}
+
+export interface AssignLightPayload {
+  id?: number | string;
+  vendor: number | string;
+  state?: string;
+  district: string;
+  block: string;
+  panchayat: string[] | string;
+  sitecount?: number | string;
+  total_light?: number | string;
+  ldate?: string;
+  assign_date?: string;
+  remark?: string;
+  [key: string]: any;
 }
 
 export interface MonthInstallationItem {
@@ -543,8 +566,28 @@ export const jammuAdminSslService = {
 
     return {
       shldatas: totals,
-      districtwise: Array.isArray(payload.districtwise) ? payload.districtwise : [],
-      vendorswise: Array.isArray(payload.vendorswise) ? payload.vendorswise : [],
+      districtwise: (Array.isArray(payload.districtwise) ? payload.districtwise : []).map((d: any) => ({
+        ...d,
+        light_count: Number(d.light_count ?? d.site_count ?? 0),
+        site_count: Number(d.site_count ?? d.light_count ?? 0),
+        inst_complete: Number(d.inst_complete ?? d.complete ?? 0),
+        complete: Number(d.complete ?? d.inst_complete ?? 0),
+        inst_pending: Number(d.inst_pending ?? d.pending ?? 0),
+        pending: Number(d.pending ?? d.inst_pending ?? 0),
+        payment_done: Number(d.payment_done ?? d.inst_pay_done ?? 0),
+        inst_pay_done: Number(d.inst_pay_done ?? d.payment_done ?? 0),
+      })),
+      vendorswise: (Array.isArray(payload.vendorswise) ? payload.vendorswise : []).map((v: any) => ({
+        ...v,
+        light_count: Number(v.light_count ?? v.site_count ?? 0),
+        site_count: Number(v.site_count ?? v.light_count ?? 0),
+        inst_complete: Number(v.inst_complete ?? v.complete ?? 0),
+        complete: Number(v.complete ?? v.inst_complete ?? 0),
+        inst_pending: Number(v.inst_pending ?? v.pending ?? 0),
+        pending: Number(v.pending ?? v.inst_pending ?? 0),
+        payment_done: Number(v.payment_done ?? v.inst_pay_done ?? 0),
+        inst_pay_done: Number(v.inst_pay_done ?? v.payment_done ?? 0),
+      })),
       vendor_installation_month: Array.isArray(payload.vendor_installation_month)
         ? payload.vendor_installation_month
         : [],
@@ -1497,7 +1540,7 @@ export const jammuAdminSslService = {
           remarks?: string;
         }
       | string,
-    payment_mode?: string,
+    _payment_mode?: string,
     date?: string,
     remarks?: string
   ) => {

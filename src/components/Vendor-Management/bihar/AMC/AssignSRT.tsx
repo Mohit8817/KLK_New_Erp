@@ -411,12 +411,12 @@ export function BiharSRTAMCAssignSRT() {
   const [deadlineDate, setDeadlineDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | undefined>(undefined);
-  const [existingFileUrl, setExistingFileUrl] = useState<string>('');
+  const [existingFileUrl] = useState<string>('');
   const [remarks, setRemarks] = useState('');
 
   // Status & Lock (Matching Karnataka SWP pattern)
-  const [isAcceptedLocked, setIsAcceptedLocked] = useState<boolean>(false);
-  const [recordStatus, setRecordStatus] = useState<number | null>(null);
+  const [isAcceptedLocked] = useState<boolean>(false);
+  const [recordStatus] = useState<number | null>(null);
 
   // Dropdown Lists
   const [vendorList, setVendorList] = useState<{ id: string | number; name: string }[]>([

@@ -6,7 +6,6 @@ import {
   biharComplaintService,
   getBiharComplaintMediaUrl,
   getBiharComplaintMediaCandidates,
-  getMediaUrl,
   type BiharComplaintItem,
   type AssignedComplaintsResponse,
 } from '../../bihar-services';
@@ -60,8 +59,8 @@ const unwrapPayload = (resp: any): any => {
   return resp || {};
 };
 
-const stripQuotes = (v: unknown) =>
-  typeof v === 'string' ? v.trim().replace(/^['"`]+|['"`]+$/g, '') : v;
+const stripQuotes = (v: unknown): string =>
+  v === null || v === undefined ? '' : String(v).trim().replace(/^['"`]+|['"`]+$/g, '');
 
 const cap = (v: unknown) => {
   if (typeof v !== 'string' || !v.trim()) return v;
@@ -775,15 +774,6 @@ function DetailItem({
     <div className={`view-data-cell${fullWidth ? ' view-data-cell--full' : ''}`}>
       <span className="view-data-label">{label}</span>
       <div className="view-data-value">{children !== undefined ? children : (value ?? '—')}</div>
-    </div>
-  );
-}
-
-function Field({ label, span, children }: { label: string; span: number; children: ReactNode }) {
-  return (
-    <div className={`ax-col--${span}`}>
-      <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 2 }}>{children}</div>
     </div>
   );
 }

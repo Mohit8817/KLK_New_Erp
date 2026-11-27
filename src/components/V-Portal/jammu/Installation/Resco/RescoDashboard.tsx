@@ -74,7 +74,6 @@ const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0
 const pad = (x: number) => String(x).padStart(2, '0');
 const fmtDate = (d: Date | null) => (d ? `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` : '—');
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
-const cv = (name: string) => (typeof window !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue(name).trim() : '');
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const fmtMonth = (s: string) => {
@@ -264,7 +263,6 @@ const I_COIN = svg(<><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><pat
 const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
 const I_EYE = svg(<><circle cx="12" cy="12" r="2" /><path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" /></>);
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
-const I_TRUCK = svg(<><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-4l-2 -3h-4v9" /></>);
 
 /* ───────── KPI Card (clickable card + clickable number segments) ───────── */
 interface KpiProps {
@@ -367,19 +365,6 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Bar({ pct }: { pct: number }) {
-  return (
-    <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap' }}>
-      <div className="ax-progress ax-progress--sm" style={{ minWidth: 80, width: 80 }}>
-        <div className="ax-progress__track">
-          <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald)' : 'var(--ax-accent)' }} />
-        </div>
-      </div>
-      <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{pct}%</span>
     </div>
   );
 }
@@ -506,9 +491,9 @@ export function RescoDashboard() {
   const dash = (v: number) => (loading && !data ? '…' : num(v));
   const instPct = pctOf(s.complete, s.site_count);
   const approvedPct = pctOf(s.verify_approved, s.site_count);
-  const matPct = pctOf(s.material_dispatch, s.site_count);
   const monthTotal = monthly.reduce((a, m) => a + n(m.monthly_installations), 0);
   const todayLabel = fmtDate(new Date());
+  const stamp = new Date().toISOString().slice(0, 10);
 
   // Status drill-down navigation (consistent pattern across dashboards)
   const goStatus = (st: string, dist?: string) => {
@@ -534,7 +519,7 @@ export function RescoDashboard() {
 
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: DistrictRow, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: DistrictRow, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'District', accessor: (r) => r.district || '' },
       { header: 'Total allocation', accessor: (r) => n(r.site_count) },
       { header: 'Total Installed', accessor: (r) => n(r.complete) },
@@ -594,7 +579,7 @@ export function RescoDashboard() {
   const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!dataToExport.length || !columns.length) return;
     const rows = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...dataToExport.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
     const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -604,7 +589,7 @@ export function RescoDashboard() {
   const copyToClipboard = async <T,>(dataToCopy: T[], columns: ExportColumn<T>[]) => {
     if (!dataToCopy.length || !columns.length) return;
     const text = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...dataToCopy.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
     ].join('\n');
     try {
@@ -664,9 +649,9 @@ export function RescoDashboard() {
     { label: '2. Material Dispatched', v: s.material_dispatch, of: s.site_count, color: 'var(--ax-viz-amber)', key: 'material_dispatch' },
     { label: '3. Installation Complete', v: s.complete, of: s.site_count, color: 'var(--ax-accent)', key: 'complete' },
     { label: '4. Installation Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald)', key: 'verify_approved' },
-    { label: '5. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink)', key: 'claim_raised' },
-    { label: '6. 80% Payment Disbursed', v: s.inst_pay80_done, of: s.complete, color: 'var(--ax-viz-emerald)', key: 'inst_pay80_done' },
-    { label: '7. 20% Final Payment Disbursed', v: s.inst_pay20_done, of: s.complete, color: 'var(--ax-viz-violet)', key: 'inst_pay20_done' },
+    { label: '5. Claim Raised', v: s.inst_claim1_raised, of: s.inst_claim1_applicable, color: 'var(--ax-viz-pink)', key: 'inst_claim1_raised' },
+    { label: '6. 1st Payment Disbursed', v: s.inst_pay1_complete, of: s.complete, color: 'var(--ax-viz-emerald)', key: 'inst_pay1_complete' },
+    { label: '7. 2nd Payment Disbursed', v: s.inst_pay2_complete, of: s.complete, color: 'var(--ax-viz-violet)', key: 'inst_pay2_complete' },
   ];
 
   return (
@@ -1119,7 +1104,7 @@ export function RescoDashboard() {
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {milestones.map((m) => {
-                    const pct = pctOf(m.v, m.of || 1);
+                    const pct = pctOf(m.v ?? 0, m.of || 1);
                     return (
                       <div
                         key={m.label}

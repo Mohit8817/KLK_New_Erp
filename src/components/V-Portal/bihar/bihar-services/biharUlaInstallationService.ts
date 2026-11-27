@@ -103,6 +103,7 @@ export interface PaymentClaimItem {
   site_id?: string | number[];
   remarks?: string;
   file?: string;
+  amount?: string | number;
   payment_amount?: string | number;
   payment_balance?: string | number;
   payment_date?: string;

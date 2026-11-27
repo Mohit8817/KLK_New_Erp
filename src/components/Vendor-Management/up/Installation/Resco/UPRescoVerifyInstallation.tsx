@@ -558,7 +558,7 @@ export function UPRescoVerifyInstallation() {
 
   // Derive distinct volumes in requested order: 1, 10, 3, 5, 7, 8
   const preferredOrder = ['1', '10', '3', '5', '7', '8'];
-  const { availableVolumes, volumeCounts } = useMemo(() => {
+  const { availableVolumes } = useMemo(() => {
     const all = [...verifyPending, ...verifyComplete];
     const counts: Record<string, number> = {};
     const set = new Set<string>();

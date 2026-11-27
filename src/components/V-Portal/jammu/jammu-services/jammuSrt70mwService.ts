@@ -61,23 +61,72 @@ export const getAuthHeaders = (isMultipart = false): Record<string, string> => {
 };
 
 /**
+ * Helper to test whether a file is a PDF document
+ */
+export function isJammuPdfFile(path?: string | null): boolean {
+  if (!path) return false;
+  const clean = String(path).split('?')[0].toLowerCase().trim();
+  return clean.endsWith('.pdf') || clean.includes('.pdf');
+}
+
+/**
  * Resolve Jammu upload media URLs
- * Images uploads/jammu/installation/srt/{panel, system, inverter, nm_sm, loger}/
- * Invoices uploads/Jammu/installation/srt70mw/claim/
+ * Images: uploads/jammu/installation/resco/{doc, document, system, inverter, panel, nm_sm, loger}/
+ * SRT / SWP / Invoices: uploads/jammu/installation/srt70mw/claim/, etc.
  */
 export function getJammuMediaCandidates(path?: string | null): string[] {
   if (!path) return [];
   const trimmed = String(path).trim();
-  if (!trimmed) return [];
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '—' || trimmed === '-') return [];
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return [trimmed];
 
-  const normalized = trimmed.replace(/^\/+/, '');
+  const normalized = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
   const filename = normalized.split('/').pop() || normalized;
   const candidates: string[] = [];
 
-  candidates.push(`${ROOT_URL}/${normalized}`);
-  candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/assignsite/${filename}`);
+  // Exact relative path if directory segments are included
+  if (normalized.includes('/')) {
+    candidates.push(`${ROOT_URL}/${normalized}`);
+  }
+
+  // RESCO Document & Compliance Files (highest priority for doc files)
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/doc/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/document/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/documents/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/doc_file/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/commissioning/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/files/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/${filename}`);
+
+  // RESCO Equipment & Installation Photos
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/system/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/inverter/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/panel/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/nm_sm/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/meter/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/loger/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/site/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/installation/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/installed/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/assign/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/payment/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/claim/${filename}`);
+
+  // Capitalized Jammu variants
+  candidates.push(`${ROOT_URL}/uploads/Jammu/installation/resco/doc/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/Jammu/installation/resco/document/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/Jammu/installation/resco/${filename}`);
+
+  // JK aliases
+  candidates.push(`${ROOT_URL}/uploads/jk/resco/doc/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jk/resco/document/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jk/resco/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jk/installation/resco/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jk/installation/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jk/${filename}`);
+
+  // SRT & other Jammu installation paths
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/assignsite/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/payment70/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt70mw/${filename}`);
@@ -87,11 +136,24 @@ export function getJammuMediaCandidates(path?: string | null): string[] {
   candidates.push(`${ROOT_URL}/uploads/kashmir/installation/srt70mw/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/kashmir/installation/srt/verify_file/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/expenses/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/resco/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/${filename}`);
 
+  if (!normalized.includes('/')) {
+    candidates.push(`${ROOT_URL}/${normalized}`);
+  }
+
+  // Cloudflare R2 candidates
   const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
   if (R2_BASE) {
-    candidates.push(`${R2_BASE}/${normalized}`);
+    if (normalized.includes('/')) {
+      candidates.push(`${R2_BASE}/${normalized}`);
+    }
+    candidates.push(`${R2_BASE}/uploads/jammu/installation/resco/doc/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/jammu/installation/resco/document/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/jammu/installation/resco/${filename}`);
     candidates.push(`${R2_BASE}/${filename}`);
   }
 
@@ -100,9 +162,11 @@ export function getJammuMediaCandidates(path?: string | null): string[] {
 
 export function resolveJammuMediaUrl(path?: string | null): string {
   if (!path) return '';
-  if (/^(https?:|data:|blob:)/i.test(path)) return path;
-  const candidates = getJammuMediaCandidates(path);
-  return candidates[0] || `${ROOT_URL}/${path.replace(/^\/+/, '')}`;
+  const trimmed = String(path).trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '—' || trimmed === '-') return '';
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+  const candidates = getJammuMediaCandidates(trimmed);
+  return candidates[0] || `${ROOT_URL}/${trimmed.replace(/\\/g, '/').replace(/^\/+/, '')}`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

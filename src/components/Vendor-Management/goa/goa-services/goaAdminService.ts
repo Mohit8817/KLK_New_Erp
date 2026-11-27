@@ -1,9 +1,5 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import {
-  BASE_URL,
-  ROOT_URL,
-  API_ROOT,
-  RAW_ADMIN_URL,
   GOA_ADMIN_SRT_API,
   GOA_ADMIN_SURVEY_API,
   GOA_ADMIN_AMC_API,
@@ -395,6 +391,8 @@ export interface GoaViewAssignResponse {
   role?: string;
   state?: string;
   amcsrtRecords: GoaAssignRecord[];
+  assigns?: GoaAssignRecord[];
+  not_assigned?: number;
   claimedapplicable: number;
   approvedsite: number;
   verifypending: number;
@@ -596,7 +594,7 @@ class GoaAdminService {
     let token = '';
     try {
       if (typeof authService !== 'undefined') {
-        token = authService.getToken?.() || authService.getAuthToken?.() || '';
+        token = authService.getToken?.() || '';
       }
     } catch {
       // fallback

@@ -8,7 +8,6 @@ import {
   usePagination,
   SearchInput,
   TableExportToolbar,
-  TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
 import { biharAdminService, resolveBiharMediaUrl } from '../../bihar-services/biharAdminService';
@@ -640,10 +639,10 @@ export function BiharULAInstallationDashboard() {
 
   // Drilldown Modal State
   const [drillModalOpen, setDrillModalOpen] = useState(false);
-  const [drillTitle, setDrillTitle] = useState('');
-  const [drillSubtitle, setDrillSubtitle] = useState('');
-  const [drillLoading, setDrillLoading] = useState(false);
-  const [drillRecords, setDrillRecords] = useState<DrillSiteRecord[]>([]);
+  const [drillTitle] = useState('');
+  const [drillSubtitle] = useState('');
+  const [drillLoading] = useState(false);
+  const [drillRecords] = useState<DrillSiteRecord[]>([]);
   const [drillSearch, setDrillSearch] = useState('');
   const defDrillSearch = useDeferredValue(drillSearch);
 
@@ -818,7 +817,6 @@ export function BiharULAInstallationDashboard() {
   const pctComplete = pctOf(kpiStats.installationInstalled, kpiStats.totalSites);
   const pctPending = pctOf(kpiStats.installationPending, kpiStats.totalSites);
   const pctStructureApproved = pctOf(kpiStats.structureApproved, kpiStats.totalSites);
-  const pctVerified = pctOf(kpiStats.verificationApproved, kpiStats.totalSites);
   const totalClaimsRaised = kpiStats.claim50Raised + kpiStats.claim30Raised;
   const totalClaimsApproved = kpiStats.claim50Approved + kpiStats.claim30Approved;
   const pctClaimApproved = pctOf(totalClaimsApproved, totalClaimsRaised || kpiStats.totalSites);

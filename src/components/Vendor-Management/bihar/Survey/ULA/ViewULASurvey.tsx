@@ -19,8 +19,6 @@ import type { BiharULASurveyItem } from '../../bihar-types';
 type Row = BiharULASurveyItem;
 type TabType = 'pending' | 'verified';
 
-const DASH = '—';
-
 /* ───────── Responsive page CSS (Exact reference matching Karnataka SWP VerifyDocument) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
@@ -573,15 +571,15 @@ export function BiharULASurveyViewData() {
             consent_form_photo: resolveBiharMediaUrl(item.consent_form_photo || item.consent_photo),
             aadhar_card_photo: resolveBiharMediaUrl(item.aadhar_card_photo || item.aadhar_photo),
             remarks: typeof item.remarks === 'object' && item.remarks !== null ? (item.remarks.remarks || '—') : (item.remarks || '—'),
-            status: item.status !== undefined ? String(item.status) : 'Completed',
+            status: item.status === 'Pending' || item.status === 0 || String(item.status) === '0' ? 'Pending' : 'Complete',
             verify_status: item.verify_status === 1 || item.verify_status === 'Approved' ? 'Approved' : item.verify_status === 2 || item.verify_status === 'Rejected' ? 'Rejected' : 'Pending',
             verify_remarks: typeof item.verify_remarks === 'object' && item.verify_remarks !== null ? (item.verify_remarks.remarks || '') : (item.verify_remarks || ''),
             verify_by: typeof item.verify_by === 'object' && item.verify_by !== null ? (item.verify_by.name || '') : (item.verify_by || ''),
           };
         };
 
-        const pList = pending.map(normalize);
-        const vList = verified.map(normalize);
+        const pList: Row[] = pending.map(normalize);
+        const vList: Row[] = verified.map(normalize);
         const allList = [...pList, ...vList];
 
         setPendingList(pList);

@@ -1,7 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import {
   PUNJAB_ADMIN_SSL_API,
-  buildCandidateUrls,
 } from '../../Vendor_Management_APIS/Punjab_Vendor_API';
 
 /* ── Backend & Media Base URLs ── */
@@ -909,7 +908,7 @@ class PunjabAdminService {
           `${ADMIN_BASE_URL}/punjab/ssl/installation/store-assign-lights`,
           `${BASE_URL}/punjab/ssl/installation/assign`,
           `${BASE_URL}/punjab/ssl/installation/store`,
-          PUNJAB_ADMIN_SSL_API.STORE_ASSIGN_ROOT,
+          `${BASE_URL}/punjab/ssl/installation/store-assign`,
         ];
 
     const primaryUrl = candidateUrls[0];
@@ -1090,11 +1089,10 @@ class PunjabAdminService {
       payload = idOrPayload as UpdateAssignPayload | FormData;
     }
 
-    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
     const headers = this.getHeaders();
     let assignId: string | number | undefined = explicitId;
 
-    if (isFormData) {
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
       delete headers['Content-Type'];
       delete headers['content-type'];
       if (!payload.has('state') || !payload.get('state')) {
@@ -1134,7 +1132,7 @@ class PunjabAdminService {
       `${ADMIN_BASE_URL}/punjab/ssl/installation/update-assign`,
       assignId ? `${ADMIN_BASE_URL}/punjab/ssl/installation/update-assign/${encodeURIComponent(assignId)}` : '',
       `${BASE_URL}/punjab/ssl/installation/update-assign`,
-      PUNJAB_ADMIN_SSL_API.STORE_ASSIGN_ROOT,
+      `${BASE_URL}/punjab/ssl/installation/store-assign`,
       assignId ? `${BASE_URL}/punjab/ssl/installation/update-assign/${encodeURIComponent(assignId)}` : '',
       assignId ? PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN_ROOT(assignId) : '',
     ].filter(Boolean);
@@ -1148,12 +1146,12 @@ class PunjabAdminService {
       {
         method: 'POST',
         headers,
-        body: isFormData ? payload : JSON.stringify(payload),
+        body: payload instanceof FormData ? payload : JSON.stringify(payload),
       }
     );
 
     // If FormData failed and no file is attached, retry with JSON payload
-    if (!res.ok && isFormData && !payload.get('file')) {
+    if (!res.ok && payload instanceof FormData && !payload.get('file')) {
       try {
         const jsonObj: Record<string, any> = {};
         const panchayats: string[] = [];

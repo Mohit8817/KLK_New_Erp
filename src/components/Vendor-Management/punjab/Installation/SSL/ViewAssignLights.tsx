@@ -618,7 +618,7 @@ export function ViewAssignLights() {
   // Export Columns matching Punjab SSL (NO #)
   const exportCols: ExportColumn<AssignLightRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => (pagination.currentPage - 1) * pagination.pageSize + idx + 1 },
+      { header: 'Sr. No.', accessor: (_r, idx) => (pagination.currentPage - 1) * pagination.pageSize + (idx ?? 0) + 1 },
       { header: 'Vendor', accessor: (r) => getVendorName(r) },
       { header: 'State', accessor: (r) => r.state || 'Punjab' },
       { header: 'Volume', accessor: (r) => r.volume || '2' },

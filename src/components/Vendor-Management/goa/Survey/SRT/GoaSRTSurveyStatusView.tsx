@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -513,7 +513,6 @@ const footerStyle = {
 const monoCell = { fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 'var(--ax-text-xs, 12px)' } as const;
 
 export function GoaSRTSurveyStatusView() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const rawStatus = searchParams.get('status') || '';
@@ -689,7 +688,7 @@ export function GoaSRTSurveyStatusView() {
 
   const exportCols: ExportColumn<any>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => `${idx + 1}` },
+      { header: 'Sr. No.', accessor: (_r, idx) => `${(idx ?? 0) + 1}` },
       { header: 'Survey ID', accessor: (r) => `${r.id}` },
       { header: 'Unique ID', accessor: (r) => r.uid || r.unique_id || DASH },
       { header: 'State', accessor: (r) => r.state || 'Goa' },
@@ -1036,7 +1035,6 @@ export function GoaSRTSurveyStatusView() {
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
                   const siteLabel = row.site_name || `Survey ${row.id}`;
                   const vStatus = Number(row.survey_verify_status ?? row.verify_status ?? 0);
-                  const isVerifyApproved = vStatus === 1;
                   const vendorName =
                     typeof row.vendors === 'object'
                       ? row.vendors?.name

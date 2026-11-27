@@ -1,21 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
 
-const CHEVRON_RIGHT = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    width={16}
-    height={16}
-    style={{ marginLeft: 'auto', opacity: 0.6 }}
-  >
-    <path d="M9 18l6-6-6-6" />
-  </svg>
-);
-
 export function MainErpSidebar({ filter = '' }: { filter?: string }) {
   const location = useLocation();
   const currentPath = location.pathname;

@@ -14,6 +14,12 @@ import {
   type JammuSrt70SurveyDistrictwise,
   type JammuSrt70SurveyVendorwise,
 } from '../jammuSurveyAdminService';
+import {
+  copyRowsToClipboard,
+  exportRowsCSV,
+  exportRowsExcel,
+  exportRowsPDF,
+} from '../../../up/Installation/upInstallationShared';
 
 // Lazy-load ApexCharts
 const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
@@ -25,11 +31,9 @@ const LIGHT_CYAN = '#0891b2';
 const LIGHT_AMBER = '#f59e0b';
 const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
-const LIGHT_PINK = '#db2777';
 
 const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const useChartHeight = (desktop: number, mobile: number) => {
   const pick = () => (typeof window !== 'undefined' && window.innerWidth < 640 ? mobile : desktop);

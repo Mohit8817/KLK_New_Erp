@@ -636,7 +636,7 @@ export function GoaSRTAMCStatusView() {
 
   const exportCols: ExportColumn<any>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => `${idx + 1}` },
+      { header: 'Sr. No.', accessor: (_r, idx) => `${(idx ?? 0) + 1}` },
       { header: 'AMC Record ID', accessor: (r) => `${r.id || DASH}` },
       { header: 'Site ID', accessor: (r) => `${r.site_id || r.id || DASH}` },
       { header: 'AMC Round', accessor: (r) => (r.amc ? `AMC ${r.amc}` : DASH) },

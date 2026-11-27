@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -422,7 +421,7 @@ function SurveyThumbnail({ file, label, onClick }: { file?: string | null; label
 export function GoaSRTSurveyVerify() {
   const [data, setData] = useState<GoaSurveyVerifyViewData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState<string>('');
 

@@ -520,7 +520,6 @@ export function BiharSSLAMCDashboard() {
   const pctAssigned = pctOf(stats.assigned, stats.site_count);
   const pctNotAssigned = pctOf(stats.not_assigned, stats.site_count);
   const pctComplete = pctOf(stats.complete, stats.assigned);
-  const pctPending = pctOf(stats.pending, stats.assigned);
   const pctToday = pctOf(stats.today, stats.assigned);
 
   const milestones = [
@@ -567,8 +566,6 @@ export function BiharSSLAMCDashboard() {
   const distFileTitle = 'Bihar SSL AMC District-Wise Status';
   const vendorFileBase = 'Bihar_SSL_AMC_Vendor_Summary';
   const vendorFileTitle = 'Bihar SSL AMC Vendor-Wise Status';
-
-  const go = (path: string) => navigate(`${BASE}/${path}`);
 
   const toStatusView = (status: string, dist?: string) => {
     const q = new URLSearchParams({ status });

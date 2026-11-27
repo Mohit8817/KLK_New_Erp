@@ -580,8 +580,8 @@ export function VerifyBiharSRT200Survey() {
           verified_by: item.verified_by || (item.survey_verify_by ? String(item.survey_verify_by) : ''),
         });
 
-        const pList = pending.map(normalize);
-        const vList = verified.map(normalize);
+        const pList: Row[] = pending.map(normalize);
+        const vList: Row[] = verified.map(normalize);
 
         setPendingList(pList);
         setVerifiedList(vList);

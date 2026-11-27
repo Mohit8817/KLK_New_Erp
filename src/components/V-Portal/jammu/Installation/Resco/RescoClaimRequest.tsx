@@ -7,7 +7,7 @@ import {
   resolveJammuMediaUrl,
   getJammuMediaCandidates,
   type JammuRescoPaymentItem,
-  type JammuRescoSiteNameItem,
+  type JammuRescoClaimData,
 } from '../../jammu-services';
 import {
   Pagination,
@@ -519,7 +519,7 @@ export function RescoClaimRequest() {
   const [raiseModalOpen, setRaiseModalOpen] = useState<boolean>(false);
   const [submittingClaim, setSubmittingClaim] = useState<boolean>(false);
   const [sitesDropdown, setSitesDropdown] = useState<any[]>([]);
-  const [loadingSites, setLoadingSites] = useState<boolean>(false);
+  const [loadingSites] = useState<boolean>(false);
 
   const [claimPayType, setClaimPayType] = useState<number>(1);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
@@ -888,15 +888,15 @@ export function RescoClaimRequest() {
       date: s.inst_date || s.created_at || null,
       created_at: s.created_at || null,
       amount: '',
-      file: null,
-      invoice: null,
+      file: undefined,
+      invoice: undefined,
       remarks: s.inst_remarks || s.remarks || '',
       status: 0, // 0 = Not Raised
       pay_type: payType,
       purpose: payType === 1 ? 40 : 30,
       payment_amount: '',
       payment_balance: '',
-      payment_date: null,
+      payment_date: undefined,
       payment_remarks: '',
       payment_status: 0,
       is_site_record: true,
@@ -920,7 +920,7 @@ export function RescoClaimRequest() {
     const rawPay1 = Array.isArray(claimData.pay1) ? claimData.pay1 : [];
     const unraised = rawPay1
       .filter((s: any) => !claimedM1SiteIds.has(Number(s.id ?? s.site_id)))
-      .map((s) => normalizeUnraisedSiteToItem(s, 1));
+      .map((s: any) => normalizeUnraisedSiteToItem(s, 1));
 
     return [...m1Claims, ...unraised];
   }, [payments, claimData.pay1, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
@@ -940,7 +940,7 @@ export function RescoClaimRequest() {
 
     const unraised = eligiblePay2Sites
       .filter((s: any) => !claimedM2SiteIds.has(Number(s.id ?? s.site_id)))
-      .map((s) => normalizeUnraisedSiteToItem(s, 2));
+      .map((s: any) => normalizeUnraisedSiteToItem(s, 2));
 
     return [...m2Claims, ...unraised];
   }, [payments, eligiblePay2Sites, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
@@ -960,7 +960,7 @@ export function RescoClaimRequest() {
 
     const unraised = eligiblePay3Sites
       .filter((s: any) => !claimedM3SiteIds.has(Number(s.id ?? s.site_id)))
-      .map((s) => normalizeUnraisedSiteToItem(s, 3));
+      .map((s: any) => normalizeUnraisedSiteToItem(s, 3));
 
     return [...m3Claims, ...unraised];
   }, [payments, eligiblePay3Sites, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
@@ -1067,7 +1067,7 @@ export function RescoClaimRequest() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuRescoPaymentItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => txt(r, 'date') || txt(r, 'claim_date') || txt(r, 'created_at') },
       { header: 'Claim', accessor: (r) => (r.is_site_record && !r.has_claim ? `Site ${r.site_id || r.id}` : `Claim ${r.id}`) },
       { header: 'Milestone', accessor: (r) => (Number(r.pay_type) === 1 ? 'Payment 40 %' : Number(r.pay_type) === 2 ? 'Payment 30 %' : Number(r.pay_type) === 3 ? 'Payment 30 %' : 'Payment 40 %') },
@@ -1384,7 +1384,7 @@ export function RescoClaimRequest() {
                   a.click();
                 }}
                 onExportExcel={() => {
-                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
                   const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
                   const blob = new Blob([`\ufeff${html}`], { type: 'application/vnd.ms-excel' });
                   const url = URL.createObjectURL(blob);

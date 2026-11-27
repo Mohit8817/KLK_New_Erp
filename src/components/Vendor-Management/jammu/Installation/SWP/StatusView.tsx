@@ -19,7 +19,6 @@ import {
   actionsRowStyle,
   footerStyle,
   centerCell,
-  Modal,
   KpiCard,
   MediaFileThumbnail,
   MediaLightbox,

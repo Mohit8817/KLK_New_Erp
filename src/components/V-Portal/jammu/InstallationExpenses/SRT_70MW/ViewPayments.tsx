@@ -282,7 +282,6 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
-const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
 const EMPTY_PAYMENT_DATA: JammuExpensePaymentData = {
   vendor: { id: 0, name: '' },
@@ -434,7 +433,7 @@ export function ViewPayments() {
   // Export columns definition - Exact 12 columns per user specification
   const exportCols: ExportColumn<JammuExpensePaymentItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => formatDate(getRowDate(r)) },
       { header: 'District', accessor: (r) => getRowDistrict(r) },
       { header: 'Site Name', accessor: (r) => r.site_name || DASH },
@@ -472,7 +471,6 @@ export function ViewPayments() {
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileBase = 'Jammu_SRT_70MW_Expense_Payments';
-  const fileTitle = 'Jammu SRT 70MW Installation Expense Reimbursement Disbursal Register';
 
   const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
     if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
@@ -496,7 +494,7 @@ export function ViewPayments() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -506,7 +504,7 @@ export function ViewPayments() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

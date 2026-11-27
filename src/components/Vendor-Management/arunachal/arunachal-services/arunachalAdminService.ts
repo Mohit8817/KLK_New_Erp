@@ -2,8 +2,6 @@ import { API_BASE_URL, authService } from '../../../../services/authService';
 import {
   ARUNACHAL_ADMIN_SHL_API,
   ADMIN_BASE_URL,
-  BASE_URL,
-  ROOT_URL,
 } from '../../Vendor_Management_APIS/Arunachal_Vendor_API';
 
 /* ── Backend & Media Base URLs ── */
@@ -217,6 +215,7 @@ export interface AssignSummaryCounts {
   complete: number;
   totalsite: number;
   pendingsite: number;
+  pending?: number;
 }
 
 export interface ViewAssignResponse {
@@ -274,10 +273,13 @@ export interface LightVerificationItem {
   inst_vendor?: number | string;
   vendor?: number | string;
   vendor_name?: string;
-  vendors?: {
-    id: number;
-    name: string;
-  };
+  vendors?:
+    | {
+        id: number;
+        name: string;
+        vendor_name?: string;
+      }
+    | string;
   beneficiary_name?: string;
   contact_person?: string;
   farmer_name?: string;
@@ -535,7 +537,7 @@ class ArunachalAdminService {
   async getAssignFormData(): Promise<AssignFormDataResponse> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.ASSIGN_FORM_DATA,
-      ARUNACHAL_ADMIN_SHL_API.ASSIGN_FORM_DATA_ROOT,
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -561,7 +563,7 @@ class ArunachalAdminService {
   async fetchDistricts(volume: string | number): Promise<DistrictItem[]> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.FETCH_DISTRICT(volume),
-      ARUNACHAL_ADMIN_SHL_API.FETCH_DISTRICT_ROOT(volume),
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -583,7 +585,7 @@ class ArunachalAdminService {
   async fetchBlocks(volume: string | number, district: string): Promise<BlockItem[]> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.FETCH_BLOCK(volume, district),
-      ARUNACHAL_ADMIN_SHL_API.FETCH_BLOCK_ROOT(volume, district),
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -605,7 +607,7 @@ class ArunachalAdminService {
   async fetchPanchayats(volume: string | number, district: string, block: string): Promise<PanchayatItem[]> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.FETCH_PANCHAYAT(volume, district, block),
-      ARUNACHAL_ADMIN_SHL_API.FETCH_PANCHAYAT_ROOT(volume, district, block),
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -655,14 +657,8 @@ class ArunachalAdminService {
           ARUNACHAL_ADMIN_SHL_API.STORE_ASSIGN,
           `${ADMIN_BASE_URL}/arunachal/shl/installation/assign`,
           `${ADMIN_BASE_URL}/arunachal/shl/installation/store`,
-          `${ROOT_URL}/admin/arunachal/shl/installation/store-assign`,
-          `${ROOT_URL}/admin/arunachal/shl/installation/assign`,
-          `${ROOT_URL}/admin/arunachal/shl/installation/store`,
-          `${ADMIN_BASE_URL}/arunachal/shl/installation/assign-lights`,
           `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign-lights`,
-          `${BASE_URL}/arunachal/shl/installation/assign`,
-          `${BASE_URL}/arunachal/shl/installation/store`,
-          ARUNACHAL_ADMIN_SHL_API.STORE_ASSIGN_ROOT,
+          `${ADMIN_BASE_URL}/arunachal/shl/installation/assign-lights`,
         ];
 
     const primaryUrl = candidateUrls[0];
@@ -741,7 +737,7 @@ class ArunachalAdminService {
       if (/file/i.test(errText)) {
         try {
           const fallbackFormData = new FormData();
-          if (isFormData) {
+          if (payload instanceof FormData) {
             payload.forEach((val, k) => fallbackFormData.append(k, val));
           } else {
             Object.entries(payload as any).forEach(([k, v]) => {
@@ -810,7 +806,7 @@ class ArunachalAdminService {
   async getEditAssign(id: string | number): Promise<EditAssignData> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.EDIT_ASSIGN(id),
-      ARUNACHAL_ADMIN_SHL_API.EDIT_ASSIGN_ROOT(id),
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -865,11 +861,10 @@ class ArunachalAdminService {
       payload = idOrPayload as UpdateAssignPayload | FormData;
     }
 
-    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
     const headers = this.getHeaders();
     let assignId: string | number | undefined = explicitId;
 
-    if (isFormData) {
+    if (typeof FormData !== 'undefined' && payload instanceof FormData) {
       delete headers['Content-Type'];
       delete headers['content-type'];
       if (!payload.has('state') || !payload.get('state') || String(payload.get('state') || '').toLowerCase().includes('arunachal')) {
@@ -905,9 +900,6 @@ class ArunachalAdminService {
           assignId ? ARUNACHAL_ADMIN_SHL_API.UPDATE_ASSIGN_WITH_ID(assignId) : '',
           `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
           assignId ? `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(assignId)}` : '',
-          `${BASE_URL}/arunachal/shl/installation/update-assign`,
-          ARUNACHAL_ADMIN_SHL_API.STORE_ASSIGN_ROOT,
-          assignId ? `${BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(assignId)}` : '',
         ].filter(Boolean);
 
     const primaryUrl = candidateUrls[0];
@@ -919,7 +911,7 @@ class ArunachalAdminService {
       {
         method: 'POST',
         headers,
-        body: isFormData ? payload : JSON.stringify(payload),
+        body: payload instanceof FormData ? payload : JSON.stringify(payload),
       }
     );
 
@@ -927,7 +919,7 @@ class ArunachalAdminService {
     if (!res.ok) {
       try {
         let jsonObj: Record<string, any>;
-        if (isFormData) {
+        if (payload instanceof FormData) {
           jsonObj = {};
           const panchayats: string[] = [];
           payload.forEach((value, key) => {
@@ -990,7 +982,7 @@ class ArunachalAdminService {
       if (/file/i.test(errText)) {
         try {
           const fallbackFormData = new FormData();
-          if (isFormData) {
+          if (payload instanceof FormData) {
             payload.forEach((val, k) => fallbackFormData.append(k, val));
           } else {
             Object.entries(payload as any).forEach(([k, v]) => {
@@ -1058,8 +1050,8 @@ class ArunachalAdminService {
   // ── 8. GET /view-assign ──
   async getViewAssign(): Promise<ViewAssignResponse> {
     const res = await this.fetchWithFallback(
-      ARUNACHAL_ADMIN_SHL_API.VIEW_ASSIGN_ROOT,
       ARUNACHAL_ADMIN_SHL_API.VIEW_ASSIGN,
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -1095,10 +1087,11 @@ class ArunachalAdminService {
   async approveAssign(id: string | number): Promise<AdminApiResponse> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.APPROVE_ASSIGN(id),
-      ARUNACHAL_ADMIN_SHL_API.APPROVE_ASSIGN_ROOT(id),
+      ARUNACHAL_ADMIN_SHL_API.APPROVE_ASSIGN_TYPO(id),
       {
         method: 'POST',
         headers: this.getHeaders(),
+        body: JSON.stringify({ id }),
       }
     );
     const json = await res.json();
@@ -1112,7 +1105,7 @@ class ArunachalAdminService {
   async getViewInstallation(page?: number): Promise<ViewInstallationResponse> {
     const res = await this.fetchWithFallback(
       ARUNACHAL_ADMIN_SHL_API.VIEW_INSTALLATION(page),
-      ARUNACHAL_ADMIN_SHL_API.VIEW_INSTALLATION_ROOT(page),
+      undefined,
       {
         method: 'GET',
         headers: this.getHeaders(),
@@ -1177,15 +1170,11 @@ class ArunachalAdminService {
       payload.remark = remark;
       payload.inst_verify_remarks = remark;
     }
-    const res = await this.fetchWithFallback(
-      ARUNACHAL_ADMIN_SHL_API.VERIFY_INSTALLATION_STATUS,
-      ARUNACHAL_ADMIN_SHL_API.VERIFY_INSTALLATION_STATUS_ROOT,
-      {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify(payload),
-      }
-    );
+    const res = await fetch(ARUNACHAL_ADMIN_SHL_API.VERIFY_INSTALLATION_STATUS, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(payload),
+    });
     const json = await res.json();
     if (!res.ok || json.success === false || json.status === false) {
       throw new Error(json.message || 'Failed to update verification status');
@@ -1195,14 +1184,10 @@ class ArunachalAdminService {
 
   // ── 12. GET /dashboard ──
   async getDashboard(): Promise<ShlDashboardData> {
-    const res = await this.fetchWithFallback(
-      ARUNACHAL_ADMIN_SHL_API.DASHBOARD,
-      ARUNACHAL_ADMIN_SHL_API.DASHBOARD_ROOT,
-      {
-        method: 'GET',
-        headers: this.getHeaders(),
-      }
-    );
+    const res = await fetch(ARUNACHAL_ADMIN_SHL_API.DASHBOARD, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
     if (!res.ok) throw new Error(`Failed to load dashboard (${res.status})`);
     const json = await res.json();
     const data = json.data || {};
@@ -1243,14 +1228,10 @@ class ArunachalAdminService {
 
   // ── 13. GET /view-dashboard/{status} ──
   async getViewDashboard(status: string): Promise<LightVerificationItem[]> {
-    const res = await this.fetchWithFallback(
-      ARUNACHAL_ADMIN_SHL_API.VIEW_DASHBOARD(status),
-      ARUNACHAL_ADMIN_SHL_API.VIEW_DASHBOARD_ROOT(status),
-      {
-        method: 'GET',
-        headers: this.getHeaders(),
-      }
-    );
+    const res = await fetch(ARUNACHAL_ADMIN_SHL_API.VIEW_DASHBOARD(status), {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
     if (!res.ok) throw new Error(`Failed to load lights by status: ${status} (${res.status})`);
     const json = await res.json();
     const data = json.data || {};
@@ -1261,20 +1242,11 @@ class ArunachalAdminService {
   async getVendorWiseData(status: string, vendor: string | number): Promise<LightVerificationItem[]> {
     const primary = ARUNACHAL_ADMIN_SHL_API.VENDORWISE_DATA(status, vendor);
     const typoFallback = ARUNACHAL_ADMIN_SHL_API.VENDORWISE_DATA_TYPO(status, vendor);
-    const rootFallback = ARUNACHAL_ADMIN_SHL_API.VENDORWISE_DATA_ROOT(status, vendor);
 
-    let res: Response;
-    try {
-      res = await this.fetchWithFallback(primary, typoFallback, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-      if (res.status === 404) {
-        res = await fetch(rootFallback, { method: 'GET', headers: this.getHeaders() });
-      }
-    } catch {
-      res = await fetch(rootFallback, { method: 'GET', headers: this.getHeaders() });
-    }
+    const res = await this.fetchWithFallback(primary, typoFallback, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
 
     if (!res.ok) throw new Error(`Failed to load vendorwise lights (${res.status})`);
     const json = await res.json();
@@ -1284,14 +1256,10 @@ class ArunachalAdminService {
 
   // ── 15. GET /districtwise-data/{status}/{district} ──
   async getDistrictWiseData(status: string, district: string): Promise<LightVerificationItem[]> {
-    const res = await this.fetchWithFallback(
-      ARUNACHAL_ADMIN_SHL_API.DISTRICTWISE_DATA(status, district),
-      ARUNACHAL_ADMIN_SHL_API.DISTRICTWISE_DATA_ROOT(status, district),
-      {
-        method: 'GET',
-        headers: this.getHeaders(),
-      }
-    );
+    const res = await fetch(ARUNACHAL_ADMIN_SHL_API.DISTRICTWISE_DATA(status, district), {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
     if (!res.ok) throw new Error(`Failed to load districtwise lights (${res.status})`);
     const json = await res.json();
     const data = json.data || {};

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -310,7 +310,6 @@ interface RowActionDropdownProps {
 }
 
 function RowActionDropdown({
-  row,
   isApproved,
   onEdit,
   onDownload,

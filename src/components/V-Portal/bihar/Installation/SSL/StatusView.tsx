@@ -120,7 +120,6 @@ const PaymentBadge = ({ status }: { status: number }) =>
   status === 1 || status === 2 ? <Badge tone="success">Paid</Badge> : <Badge tone="warning">Pending</Badge>;
 
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
-const escapeHtmlText = (v: unknown) => String(v ?? '');
 
 const rowImage = (r: SslStatusDrillRow): string => {
   const raw = (r as any).light_image || (r as any).light_file || (r as any).installation_image;

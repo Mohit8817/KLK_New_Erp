@@ -83,7 +83,13 @@ const verifyState = (r: any): VerifyState => {
   return v === 1 ? 'approved' : v === 2 ? 'rejected' : 'pending';
 };
 const verifyLabel = (s: VerifyState) => (s === 'approved' ? 'Approved' : s === 'rejected' ? 'Rejected' : 'Pending');
-const claimLabel = (c: number) => (c === 2 ? 'Approved' : c === 3 ? 'Rejected' : c === 1 ? 'Raised' : 'Not Raised');
+const claimLabel = (c: number) => {
+  const s = Number(c ?? 0);
+  if (s === 2) return 'Approved';
+  if (s === 3) return 'Reject';
+  if (s === 1) return 'Claimed';
+  return 'Pending';
+};
 
 /* ───────── Status Badges ───────── */
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
@@ -99,10 +105,11 @@ const VerifyBadge = ({ row }: { row: any }) => {
   return <Badge tone={s === 'approved' ? 'success' : s === 'rejected' ? 'danger' : 'warning'}>{verifyLabel(s)}</Badge>;
 };
 const ClaimBadge = ({ status }: { status: number }) => {
-  if (status === 2) return <Badge tone="success">Approved</Badge>;
-  if (status === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (status === 1) return <Badge tone="info">Raised</Badge>;
-  return <Badge tone="neutral">Not Raised</Badge>;
+  const s = Number(status ?? 0);
+  if (s === 2) return <Badge tone="success">Approved</Badge>;
+  if (s === 3) return <Badge tone="danger">Reject</Badge>;
+  if (s === 1) return <Badge tone="info">Claimed</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
 };
 const PayBadge = ({ paid }: { paid: boolean }) =>
   paid ? <Badge tone="success">Paid</Badge> : <Badge tone="neutral">Pending</Badge>;

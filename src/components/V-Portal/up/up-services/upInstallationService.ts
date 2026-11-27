@@ -679,6 +679,7 @@ export interface UpRescoDashboardCounts {
 
 export interface UpKusumCReadySiteItem {
   id: number;
+  excel_id?: string | number;
   lot_no?: string;
   state?: string;
   phase?: string;

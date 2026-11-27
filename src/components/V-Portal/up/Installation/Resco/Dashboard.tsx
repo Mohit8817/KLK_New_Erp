@@ -324,20 +324,6 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, parts, spa
   );
 }
 
-/* ───────── Progress bar ───────── */
-function Bar({ pct }: { pct: number }) {
-  return (
-    <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap' }}>
-      <div className="ax-progress ax-progress--sm" style={{ minWidth: 80, width: 80 }}>
-        <div className="ax-progress__track">
-          <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald)' : 'var(--ax-accent)' }} />
-        </div>
-      </div>
-      <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{pct}%</span>
-    </div>
-  );
-}
-
 /* ───────── Filter bar ───────── */
 function FilterBar({
   ariaLabel, districts, selected, onChange, shown,
@@ -716,7 +702,7 @@ const exportToPDF = <T,>(dataToExport: T[], columns: ExportColumn<T>[], title: s
 };
 
 const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-  columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
+  columns.map((c, i) => ({ key: `${c.header ?? c.label ?? ''}-${i}`, label: c.header ?? c.label ?? '', visible: !hidden.includes(`${c.header ?? c.label ?? ''}-${i}`) }));
 
 const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
   columns.filter((c, i) => !hidden.includes(`${c.header}-${i}`));
@@ -1273,7 +1259,7 @@ export function UP_Installation_Resco_Dashboard() {
             P('verify-reject', cnt('verify_reject'), 'Rejected'),
           ]}
           badge={`${verPct}% Approved`}
-          spark={spk((d) => d.verified)}
+          spark={spk((d) => d.verify_approved)}
         />
         <KpiCard
           icon={I_DOC}

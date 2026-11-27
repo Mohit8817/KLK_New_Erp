@@ -585,17 +585,17 @@ export function Kashmir_Installation_SRT_Dashboard() {
   const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!dataToExport.length || !columns.length) return;
     const rows = [
-      columns.map((column) => column.header),
+      columns.map((column) => column.header ?? column.label ?? ''),
       ...dataToExport.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column)))),
     ];
-    const csv = rows.map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = rows.map((row) => row.map((value) => `"${(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(dataToCopy: T[], columns: ExportColumn<T>[]) => {
     if (!dataToCopy.length || !columns.length) return;
     const textToCopy = [
-      columns.map((column) => column.header).join('\t'),
+      columns.map((column) => column.header ?? column.label ?? '').join('\t'),
       ...dataToCopy.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')),
     ].join('\n');
     try {
@@ -635,13 +635,13 @@ export function Kashmir_Installation_SRT_Dashboard() {
 
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.map((column, index) => ({
-      key: `${column.header}-${index}`,
-      label: column.header,
-      visible: !hidden.includes(`${column.header}-${index}`),
+      key: `${column.header ?? column.label ?? ''}-${index}`,
+      label: column.header ?? column.label ?? '',
+      visible: !hidden.includes(`${column.header ?? column.label ?? ''}-${index}`),
     }));
 
   const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.filter((column, index) => !hidden.includes(`${column.header}-${index}`));
+    columns.filter((column, index) => !hidden.includes(`${column.header ?? column.label ?? ''}-${index}`));
 
   const districtToolbarColumns = makeToolbarColumns(districtCols, hiddenDistrictColumns);
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>

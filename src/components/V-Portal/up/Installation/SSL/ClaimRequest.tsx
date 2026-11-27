@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { getCurrentUser } from '../../../../../services/authService';

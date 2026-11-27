@@ -49,8 +49,8 @@ export interface BiharUlaInstallationApi {
 
 export interface BiharSrtInstallationApi {
   DASHBOARD: string;
-  DASHBOARD_BY_STATUS?: (status: string | number) => string;
-  DASHBOARD_BY_DISTRICT?: (status: string | number, district: string) => string;
+  DASHBOARD_BY_STATUS: (status: string | number) => string;
+  DASHBOARD_BY_DISTRICT: (status: string | number, district: string) => string;
   VIEW_ASSIGN_SITE: string;
   ASSIGN_SITE_ACCEPT: string;
   FETCH_SITE_NAME: string;

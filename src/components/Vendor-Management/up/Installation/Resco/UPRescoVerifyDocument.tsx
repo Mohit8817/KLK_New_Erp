@@ -342,7 +342,7 @@ function MediaFileThumbnail({
         position: 'relative',
         transition: 'all 0.15s ease',
       }}
-      title={`Click to preview: ${file.split('/').pop()}`}
+      title={`Click to preview: ${clean.split('/').pop()}`}
     >
       {!imgError && (isDirectImage || ext === 'heic') ? (
         <img

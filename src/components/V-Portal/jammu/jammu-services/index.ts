@@ -9,6 +9,7 @@ export {
   default as defaultSrtService,
   resolveJammuMediaUrl,
   getJammuMediaCandidates,
+  isJammuPdfFile,
 } from './jammuSrt70mwService';
 export { jammuExpenseService } from './jammuExpenseService';
 export { jammuRescoService, default as defaultRescoService } from './jammuRescoService';

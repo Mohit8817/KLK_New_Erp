@@ -89,9 +89,9 @@ function getDocStatusLabel(status: unknown): string {
 function getClaimStatusLabel(status: unknown): string {
   const n = Number(status ?? 0);
   if (n === 2) return 'Approved';
-  if (n === 3) return 'Rejected';
-  if (n === 1) return 'Pending';
-  return 'Not Raised';
+  if (n === 3) return 'Reject';
+  if (n === 1) return 'Claimed';
+  return 'Pending';
 }
 
 function getPaymentStatusLabel(status: unknown): string {
@@ -683,11 +683,11 @@ export function StatusView() {
                         {claimCode === 2 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
                         ) : claimCode === 3 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--danger">Reject</span>
                         ) : claimCode === 1 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--info">Pending</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--info">Claimed</span>
                         ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--neutral">Not Raised</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                         )}
                       </td>
                       <td className="ax-table__td">

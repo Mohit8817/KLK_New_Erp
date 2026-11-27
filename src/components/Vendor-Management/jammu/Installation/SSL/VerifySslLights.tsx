@@ -769,13 +769,6 @@ export function VerifySslLights() {
     w.focus();
   };
 
-  // Top KPI values
-  const totalSiteCount = counts.totalsite || (verifyPending.length + verifyComplete.length);
-  const installedCount = counts.complete || (verifyPending.length + verifyComplete.length);
-  const pendingCount = counts.verifypending || verifyPending.length;
-  const approvedCount = counts.approvedsite || verifyComplete.filter((s) => Number(s.inst_verify_status) === 1).length;
-  const rejectedCount = counts.rejectsite || verifyComplete.filter((s) => Number(s.inst_verify_status) === 2).length;
-
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>

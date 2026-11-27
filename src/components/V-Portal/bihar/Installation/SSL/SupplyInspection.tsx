@@ -521,7 +521,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
   // Export Columns
   const exportCols: ExportColumn<SslSupplyInspectionItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: SslSupplyInspectionItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: SslSupplyInspectionItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Vendor Name', accessor: (r) => r.vendor_name || r.vendor || DASH },
       { header: 'State', accessor: (r) => r.state || 'Bihar' },
       { header: 'Date', accessor: (r) => r.date || DASH },
@@ -567,7 +567,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -577,7 +577,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

@@ -68,6 +68,9 @@ export function UPComplaintKBAssigned() {
       exportTitle="UP Kusum B Assigned Complaints"
       close={{
         heading: 'Close Kusum B Complaint',
+        variant: 'resolver',
+        showContactFields: true,
+        smsDefault: 'Yes',
         defaultSuccess: 'Kusum B Complaint closed successfully!',
         summary: (c) => [
           { label: 'Beneficiary', value: pick(c, ['beneficiary_name']) },
@@ -76,20 +79,69 @@ export function UPComplaintKBAssigned() {
           { label: 'Application No.', value: pick(c, ['application_no']) },
         ],
         remarksPlaceholder: 'Describe resolution details (e.g. replaced controller card, tested flow output)…',
-        fileLabel: 'Repair verification / customer sign-off',
+        fileLabel: 'Repair verification / customer sign-off (Required)',
         fileHint: 'Post-repair photo or signed site work sheet',
+        file1Label: 'Resolution File 2 (Optional)',
+        file1Hint: 'Secondary photo or satisfaction sheet (Optional)',
         submit: (v, item) => {
           const fd = new FormData();
-          fd.append('id', String(item.id || ''));
+          const cId = String(item.id || item.complaint_id || '');
+          fd.append('id', cId);
+          fd.append('complain_id', cId);
           if (item.complaint_id) fd.append('complaint_id', String(item.complaint_id));
+
+          // Resolver info
           fd.append('resolved_by', v.resolvedBy);
-          fd.append('remarks', v.remarks);
+          fd.append('r_mobile', v.mobile);
+          fd.append('mobile', v.mobile);
+          if (v.email) {
+            fd.append('r_email', v.email);
+            fd.append('email', v.email);
+          }
+
+          // Dates
+          fd.append('manual_close_date', v.date);
           fd.append('closing_date', v.date);
-          fd.append('document', v.file);
-          fd.append('file', v.file);
-          fd.append('r_file', v.file);
-          fd.append('r_file1', v.file);
-          fd.append('r_file2', v.file);
+          fd.append('close_date', v.date);
+
+          // Remarks & SMS
+          fd.append('remarks', v.remarks);
+          fd.append('close_sms', v.closeSms);
+          fd.append('sms', v.closeSms);
+
+          // Beneficiary & Contact
+          const beneficiary =
+            v.contactPerson?.trim() ||
+            pick(item, ['beneficiary_name', 'name', 'contact_person']) ||
+            '';
+          const contact =
+            v.contactNumber?.trim() ||
+            pick(item, ['contact_no', 'contact_number', 'mobile_no', 'mobile']) ||
+            '';
+
+          fd.append('beneficiary_name', beneficiary);
+          fd.append('close_beneficiary_name', beneficiary);
+          fd.append('contact_person', beneficiary);
+
+          fd.append('contact_no', contact);
+          fd.append('close_beneficiary_contact', contact);
+          fd.append('contact_number', contact);
+          fd.append('mobile_no', contact);
+
+          // Files
+          if (v.file) {
+            fd.append('document', v.file);
+            fd.append('file', v.file);
+            fd.append('r_file', v.file);
+          }
+          const f2 = v.file1 || v.file;
+          if (f2) {
+            fd.append('r_file1', f2);
+            fd.append('r_file2', f2);
+            fd.append('file1', f2);
+            fd.append('file2', f2);
+          }
+
           return upComplaintService.closeKusumBComplaint(fd);
         },
       }}

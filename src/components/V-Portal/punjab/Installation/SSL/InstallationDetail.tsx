@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -705,7 +705,6 @@ const COMMON_HEADERS = [
 
 export function Punjab_Installation_SSL_InstallationDetail() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [data, setData] = useState<PunjabCompleteLightsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -949,7 +948,7 @@ export function Punjab_Installation_SSL_InstallationDetail() {
 
   // Export columns
   const exportCols: ExportColumn<PunjabInstalledLightItem>[] = useMemo(() => [
-    { header: 'Sr. No.', accessor: (_r: PunjabInstalledLightItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+    { header: 'Sr. No.', accessor: (_r: PunjabInstalledLightItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
     { header: 'State', accessor: (r) => txt(r, 'state') || 'Punjab' },
     { header: 'District', accessor: (r) => txt(r, 'district') },
     { header: 'Block', accessor: (r) => txt(r, 'block') },
@@ -1016,17 +1015,17 @@ export function Punjab_Installation_SSL_InstallationDetail() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

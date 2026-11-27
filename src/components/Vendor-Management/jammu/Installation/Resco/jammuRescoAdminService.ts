@@ -1,5 +1,5 @@
 import { API_BASE_URL, authService } from '../../../../../services/authService';
-import { JAMMU_VENDOR_API, buildCandidateUrls as buildCentralCandidateUrls } from '../../../Vendor_Management_APIS/Jammu_Vendor_API';
+import { JAMMU_VENDOR_API } from '../../../Vendor_Management_APIS/Jammu_Vendor_API';
 
 export { JAMMU_VENDOR_API };
 

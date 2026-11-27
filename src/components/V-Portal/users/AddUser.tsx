@@ -186,7 +186,7 @@ export function AddUser() {
 
   // Vendor context data (B4: GET /vendor-add-user)
   const [vendorInfo, setVendorInfo] = useState<any>(null);
-  const [loadingContext, setLoadingContext] = useState(false);
+  const [, setLoadingContext] = useState(false);
 
   // Form Fields (B5: POST /vendor-save-user)
   const [name, setName] = useState<string>('');

@@ -8,7 +8,6 @@ import {
   getUpMediaCandidates,
   type UpRescoVerifiedSite,
   type UpRescoBillItem,
-  type UpRescoBillInverterReading,
 } from '../../up-services';
 import {
   TableExportToolbar,
@@ -836,7 +835,11 @@ export function UP_Installation_Resco_MonthlyBill() {
     // Also fetch full site details in background so address, dept_name, plant_sc are fully populated
     upInstallationService.getRescoSiteDetail(site.id).then((full) => {
       if (full) {
-        setSelectedSite((prev) => (prev ? { ...prev, ...full } : full));
+        setSelectedSite((prev) =>
+          prev
+            ? { ...prev, ...full, id: Number(full.id) || prev.id }
+            : { ...site, ...full, id: Number(full.id) || site.id }
+        );
       }
     });
 
@@ -888,7 +891,11 @@ export function UP_Installation_Resco_MonthlyBill() {
     // Fetch full site details to ensure all 12 metadata fields are complete
     upInstallationService.getRescoSiteDetail(site.id).then((full) => {
       if (full) {
-        setSelectedSite((prev) => (prev ? { ...prev, ...full } : full));
+        setSelectedSite((prev) =>
+          prev
+            ? { ...prev, ...full, id: Number(full.id) || prev.id }
+            : { ...site, ...full, id: Number(full.id) || site.id }
+        );
       }
     });
 
@@ -1043,7 +1050,7 @@ export function UP_Installation_Resco_MonthlyBill() {
 
   const exportCols: ExportColumn<UpRescoVerifiedSite>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, i) => String(i + 1) },
+      { header: 'Sr. No.', accessor: (_r, i) => String((i ?? 0) + 1) },
       { header: 'State', accessor: (r) => r.state || 'UP' },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Site Name', accessor: (r) => r.site_name || DASH },

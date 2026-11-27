@@ -342,7 +342,7 @@ export function Bihar_Installation_ULA_Payment() {
 
   const exportCols: ExportColumn<PaymentClaimItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r: PaymentClaimItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'S.No.', accessor: (_r: PaymentClaimItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Payment Type', accessor: (r) => `${r.payment_type || 50}% Claim` },
       { header: 'Date', accessor: (r) => fmtDate((r as any).date || r.created_at) },
       { header: 'Sites', accessor: (r) => getSiteCount(r) },
@@ -515,8 +515,8 @@ export function Bihar_Installation_ULA_Payment() {
 
                 <TableExportToolbar
                   onCopy={() => copyTableDataToClipboard(filteredClaims, exportCols)}
-                  onExportCSV={() => exportDataToCSV(filteredClaims, exportCols, 'bihar_ula_payment_claims.csv')}
-                  onExportExcel={() => exportDataToExcel(filteredClaims, exportCols, 'bihar_ula_payment_claims.xlsx')}
+                  onExportCSV={() => exportDataToCSV('bihar_ula_payment_claims.csv', filteredClaims, exportCols)}
+                  onExportExcel={() => exportDataToExcel('bihar_ula_payment_claims.xlsx', filteredClaims, exportCols)}
                   onExportPDF={() => printTableData('Bihar ULA Payment Claims', filteredClaims, exportCols)}
                 />
               </div>

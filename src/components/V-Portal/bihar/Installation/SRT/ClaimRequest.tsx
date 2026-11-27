@@ -554,8 +554,8 @@ export function Bihar_Installation_SRT_ClaimRequest() {
 
   /* New Claim Modal State */
   const [newClaimModal, setNewClaimModal] = useState(false);
-  const [pendingSites, setPendingSites] = useState<SrtSiteDropdownItem[]>([]);
-  const [loadingPendingSites, setLoadingPendingSites] = useState(false);
+  const [pendingSites] = useState<SrtSiteDropdownItem[]>([]);
+  const [loadingPendingSites] = useState(false);
   const [claimSiteId, setClaimSiteId] = useState('');
   const [claimAmount, setClaimAmount] = useState('');
   const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);

@@ -7,7 +7,6 @@ import {
   SearchInput,
   TableExportToolbar,
   TableEmptyState,
-  type ExportColumn,
 } from '../../../../../common';
 import {
   punjabSslInstallationService,
@@ -389,17 +388,6 @@ export function Punjab_Installation_SSL_AssignedLights() {
       setAcceptingId(null);
     }
   };
-
-  // Export Columns
-  const exportCols: ExportColumn<PunjabAssignedLightItem>[] = [
-    { header: 'Batch ID', accessor: (r) => `${r.id}` },
-    { header: 'Vendor', accessor: 'vendor' },
-    { header: 'State', accessor: (r) => r.state || 'Punjab' },
-    { header: 'District', accessor: 'district' },
-    { header: 'Block', accessor: 'block' },
-    { header: 'Panchayat', accessor: 'panchayat' },
-    { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Acceptance') },
-  ];
 
   return (
     <div className="solar-erp-page">

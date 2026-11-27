@@ -159,7 +159,6 @@ export const V_PORTAL_FIELD_LABELS: Record<string, string> = {
  */
 export function normalizeFieldKey(rawKey: string): string[] {
   const clean = rawKey.trim();
-  const lower = clean.toLowerCase();
   const candidates: string[] = [clean];
 
   // Contact / Mobile aliases
@@ -369,7 +368,6 @@ export function formatMissingRequiredMsg(
   const labelMap = { ...V_PORTAL_FIELD_LABELS, ...(customLabels || {}) };
 
   keys.forEach((key) => {
-    const errorText = errors[key];
     // If it's a specific format error, we can still list the field
     const friendly =
       labelMap[key] ||

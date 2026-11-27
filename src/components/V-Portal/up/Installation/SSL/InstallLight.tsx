@@ -629,7 +629,7 @@ export function UP_Installation_SSL_InstallLight() {
 
   useEffect(() => {
     handleDetectGps();
-  }, [selectedLightId]);
+  }, [selectedUniqueId]);
 
   // File Upload Handlers
   const handleFileChange = (file: File) => {

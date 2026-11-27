@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -909,7 +909,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
   // Export Columns
   const exportCols: ExportColumn<AssignedSslLightItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: AssignedSslLightItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: AssignedSslLightItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Vendor', accessor: (r) => r.vendor || '' },
       { header: 'State', accessor: (r) => r.state || 'Bihar' },
       { header: 'District', accessor: (r) => r.district || '' },
@@ -954,7 +954,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -964,7 +964,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {

@@ -395,7 +395,7 @@ export function AssignLights() {
           ]);
           if (!active) return;
 
-          const editData = editRes.status === 'fulfilled' ? editRes.value || {} : {};
+          const editData: Record<string, any> = editRes.status === 'fulfilled' ? editRes.value || {} : {};
           const formData = formDataRes.status === 'fulfilled' ? formDataRes.value || { vendors: [], volumes: [] } : { vendors: [], volumes: [] };
           const viewAssignList =
             viewAssignRes.status === 'fulfilled' && viewAssignRes.value?.assignedlight

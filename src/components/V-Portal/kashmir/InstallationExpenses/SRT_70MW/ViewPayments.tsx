@@ -25,16 +25,6 @@ type PayFilter = 'all' | 'complete' | 'partially' | 'pending';
 
 const DEFAULT_DETAILS = { total: 0, complete: 0, partially: 0, pending: 0 };
 
-/* Safe getter: checks candidate keys in object */
-const pick = (r: KashmirExpenseItem, ...keys: string[]): string => {
-  const o = r as unknown as Record<string, unknown>;
-  for (const k of keys) {
-    const v = o[k];
-    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
-  }
-  return '';
-};
-
 /* Format date helper */
 const fmtDate = (v: string | null | undefined): string => {
   if (!v) return DASH;
@@ -585,7 +575,7 @@ export function Kashmir_Expenses_ViewPayments() {
   // Export columns — Exactly 12 columns per specification
   const exportCols: ExportColumn<KashmirExpenseItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => fmtDate(getRowDate(r)) },
       { header: 'District', accessor: (r) => getRowDistrict(r) },
       { header: 'Site Name', accessor: (r) => getRowSiteName(r) },

@@ -415,7 +415,7 @@ export function VendorWorkOrderAssignView() {
 
   const exportCols: ExportColumn<WorkOrderAssignItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: WorkOrderAssignItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: WorkOrderAssignItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Assign ID', accessor: (r) => r.assign_id || `ASN-${r.id}` },
       { header: 'Work Order', accessor: (r) => r.workorder || '—' },
       { header: 'Vendor', accessor: (r) => r.vendor || '—' },

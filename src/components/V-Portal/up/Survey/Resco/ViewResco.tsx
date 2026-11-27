@@ -994,7 +994,7 @@ export function UP_Survey_Resco_ViewResco() {
   // Export columns
   const exportCols: ExportColumn<UpRescoSurveyRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, i) => i + 1 },
+      { header: 'Sr. No.', accessor: (_r, i) => (i ?? 0) + 1 },
       { header: 'Unique ID', accessor: (r) => r.uid || `RESCO-${r.id}` },
       { header: 'State', accessor: (r) => (r.state || 'UP').toUpperCase() },
       { header: 'District', accessor: (r) => r.district || DASH },

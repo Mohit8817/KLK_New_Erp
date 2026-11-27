@@ -264,9 +264,9 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
   };
 
   const handleCopy = guardExport(() => copyTableDataToClipboard(exportRows, exportCols));
-  const handleCSV = guardExport(() => exportDataToCSV(exportRows, exportCols, `${exportBase}.csv`));
-  const handleExcel = guardExport(() => exportDataToExcel(exportRows, exportCols, `${exportBase}.xlsx`));
-  const handlePrint = guardExport(() => printTableData(exportRows, exportCols, `ULA Assignment #${assignId} Sites`));
+  const handleCSV = guardExport(() => exportDataToCSV(`${exportBase}.csv`, exportRows, exportCols));
+  const handleExcel = guardExport(() => exportDataToExcel(`${exportBase}.xlsx`, exportRows, exportCols));
+  const handlePrint = guardExport(() => printTableData(`ULA Assignment #${assignId} Sites`, exportRows, exportCols));
 
   const COLS = 8;
 

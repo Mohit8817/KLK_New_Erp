@@ -193,7 +193,6 @@ const svg = (children: ReactNode) => (
 );
 const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
 const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
-const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></>);
 const I_COIN = svg(<><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 7v10" /></>);
@@ -517,7 +516,7 @@ export function Bihar_Installation_SRT_Dashboard() {
   const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!dataToExport.length || !columns.length) return;
     const rows = [
-      columns.map((column) => column.header),
+      columns.map((column) => column.header ?? column.label ?? ''),
       ...dataToExport.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column)))),
     ];
     const csv = rows.map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -527,7 +526,7 @@ export function Bihar_Installation_SRT_Dashboard() {
   const copyToClipboard = async <T,>(dataToCopy: T[], columns: ExportColumn<T>[]) => {
     if (!dataToCopy.length || !columns.length) return;
     const textToCopy = [
-      columns.map((column) => column.header).join('\t'),
+      columns.map((column) => column.header ?? column.label ?? '').join('\t'),
       ...dataToCopy.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')),
     ].join('\n');
     try {
@@ -568,7 +567,7 @@ export function Bihar_Installation_SRT_Dashboard() {
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.map((column, index) => ({
       key: `${column.header}-${index}`,
-      label: column.header,
+      label: column.header ?? column.label ?? '',
       visible: !hidden.includes(`${column.header}-${index}`),
     }));
 

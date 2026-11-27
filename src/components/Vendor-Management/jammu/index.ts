@@ -1,5 +1,5 @@
-export { Srt70MWSurveyDashboard } from './Srt70MWSurveyDashboard';
-export { AssignSrt70MWSurvey } from './AssignSrt70MWSurvey';
-export { ViewAssignSrt70MWSurvey } from './ViewAssignSrt70MWSurvey';
-export { VerifySrt70MWSurvey } from './VerifySrt70MWSurvey';
-export { StatusView as Srt70MWStatusView } from './StatusView';
+export { Srt70MWSurveyDashboard } from './Survey/SRT_70MW';
+export { AssignSrt70MWSurvey } from './Survey/SRT_70MW';
+export { ViewAssignSrt70MWSurvey } from './Survey/SRT_70MW';
+export { VerifySrt70MWSurvey } from './Survey/SRT_70MW';
+export { Srt70MWStatusView } from './Survey/SRT_70MW';

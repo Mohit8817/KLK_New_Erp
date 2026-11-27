@@ -733,9 +733,9 @@ export function SrtExpenseClaimRequests() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Toast notification
-  const [feedbackToast, setFeedbackToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [feedbackToast, setFeedbackToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setFeedbackToast({ type, message });
     setTimeout(() => setFeedbackToast(null), 3500);
   }, []);
@@ -945,7 +945,7 @@ export function SrtExpenseClaimRequests() {
   // Export Columns matching exact fields
   const exportCols: ExportColumn<JammuSrtExpenseClaimItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
       { header: 'State', accessor: (r) => r.state || 'JAMMU & KASHMIR' },
       { header: 'Vendor', accessor: (r) => r.vendor },
       { header: 'Claim Date', accessor: (r) => r.claim_date },
@@ -1210,7 +1210,7 @@ export function SrtExpenseClaimRequests() {
             top: 24,
             right: 24,
             zIndex: 10000,
-            background: feedbackToast.type === 'error' ? '#ef4444' : '#16a34a',
+            background: feedbackToast.type === 'error' ? '#ef4444' : feedbackToast.type === 'info' ? '#2563eb' : '#16a34a',
             color: '#ffffff',
             padding: '12px 20px',
             borderRadius: 8,
@@ -1222,7 +1222,7 @@ export function SrtExpenseClaimRequests() {
             gap: 10,
           }}
         >
-          <span>{feedbackToast.type === 'error' ? '⚠️' : '✓'}</span>
+          <span>{feedbackToast.type === 'error' ? '⚠️' : feedbackToast.type === 'info' ? 'ℹ' : '✓'}</span>
           <span>{feedbackToast.message}</span>
         </div>
       )}

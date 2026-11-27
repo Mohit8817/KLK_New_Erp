@@ -253,12 +253,6 @@ const SVG_CLOSE = (
   </svg>
 );
 
-const SVG_CHECK = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }} aria-hidden="true">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
 const SVG_ALERT = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }} aria-hidden="true">
     <circle cx="12" cy="12" r="10" />
@@ -542,7 +536,7 @@ export function GoaSRTAMCAssignViewSite() {
   // Export Columns definition matching user request exactly
   const exportCols: ExportColumn<GoaAmcAssignRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Amc Type', accessor: (r) => getAmcLabel(r.amc) },
       { header: 'State', accessor: (r) => (r.srtdata?.state || r.state || 'Goa').toUpperCase() },
       { header: 'District', accessor: (r) => r.srtdata?.district || r.district || '—' },

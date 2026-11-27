@@ -53,6 +53,7 @@ export interface BiharSRTAssignRecord {
   site_count: number;
   ca_no?: string;
   department?: string;
+  sanction_load?: string;
   deadline_date?: string;
   file?: string | null;
   remarks?: string;

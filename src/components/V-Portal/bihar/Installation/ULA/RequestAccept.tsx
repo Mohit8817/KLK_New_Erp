@@ -6,7 +6,6 @@ import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
   type AssignSiteItem,
-  type AssignedBeneficiarySite,
 } from '../../bihar-services';
 import {
   TableExportToolbar,

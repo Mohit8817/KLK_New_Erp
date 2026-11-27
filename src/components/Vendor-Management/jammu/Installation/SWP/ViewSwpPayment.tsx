@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -14,7 +13,6 @@ import {
 import {
   jammuAdminSwpService,
   resolveJammuSwpMediaUrl,
-  type JammuSwpPaymentRecord,
 } from './jammuSwpAdminService';
 
 /* ───────── Responsive page CSS (Exact Solar ERP / Jammu SRT 70MW reference) ───────── */
@@ -439,7 +437,7 @@ export function ViewSwpPayment() {
       const rawPayments = Array.isArray(res.payments) ? res.payments : [];
       const mapped: JammuSwpPaymentTableItem[] = rawPayments.map((p: any) => {
         const installments = Array.isArray(p.allpayment) ? p.allpayment : [];
-        const totalPaid = installments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+        const totalPaid = installments.reduce((acc: number, curr: { amount?: number | string }) => acc + Number(curr.amount || 0), 0);
         const claimAmt = Number(p.amount ?? p.claim_amount ?? 0);
         const balance = Math.max(0, claimAmt - totalPaid);
 
@@ -634,7 +632,7 @@ export function ViewSwpPayment() {
 
   const exportToExcel = () => {
     if (!exportDataFormatted.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((row) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((row) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_SWP_Payments.xls`, 'application/vnd.ms-excel');
   };
 
@@ -646,7 +644,7 @@ export function ViewSwpPayment() {
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
       th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
-    </style></head><body><h1>Jammu SWP Payment & Disbursement Register</h1><table><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((r) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    </style></head><body><h1>Jammu SWP Payment & Disbursement Register</h1><table><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${exportDataFormatted.map((r) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
     w.document.close();
     w.focus();
   };

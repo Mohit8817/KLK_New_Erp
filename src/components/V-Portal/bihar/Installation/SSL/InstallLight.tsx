@@ -432,46 +432,6 @@ export function Bihar_Installation_SSL_InstallLight() {
     setGpsStatusMsg(null);
   }, []);
 
-  // Quick helper to fill equipment serial numbers registered in ERP Master
-  const handlePrefillMasterEquipment = useCallback(() => {
-    if (!siteDetail) return;
-    setForm((p) => ({
-      ...p,
-      uuidNo: siteDetail.uuid_no || p.uuidNo,
-      batteryNo: siteDetail.battery_serial_no || siteDetail.battery_no || p.batteryNo,
-      panelNo: siteDetail.module_no || siteDetail.panel_no || p.panelNo,
-      lightNo: siteDetail.light_no || siteDetail.luminary_no || p.lightNo,
-    }));
-    setErrors((p) => {
-      const next = { ...p };
-      delete next.uuidNo;
-      delete next.batteryNo;
-      delete next.panelNo;
-      delete next.lightNo;
-      return next;
-    });
-  }, [siteDetail]);
-
-  // Quick helper to fill official survey beneficiary and location details
-  const handlePrefillMasterBeneficiary = useCallback(() => {
-    if (!siteDetail) return;
-    setForm((p) => ({
-      ...p,
-      wardNo: siteDetail.ward_no || p.wardNo,
-      poleNo: siteDetail.pole_no || p.pole_no,
-      beneficiaryName: siteDetail.beneficiary_name || p.beneficiaryName,
-      contactNo: siteDetail.contact_no || p.contactNo,
-    }));
-    setErrors((p) => {
-      const next = { ...p };
-      delete next.wardNo;
-      delete next.poleNo;
-      delete next.beneficiaryName;
-      delete next.contactNo;
-      return next;
-    });
-  }, [siteDetail]);
-
   // Fetch Dropdown List
   useEffect(() => {
     let active = true;
@@ -654,13 +614,6 @@ export function Bihar_Installation_SSL_InstallLight() {
     setExistingImageUrl(null);
   };
 
-  // Progress metrics
-  const totalRequired = 1 + TEXT_KEYS.length + 1;
-  const completedRequired =
-    (selectedUniqueId ? 1 : 0) +
-    TEXT_KEYS.filter((k) => form[k].trim() !== '').length +
-    (lightFile || (isEditMode && existingImageUrl) ? 1 : 0);
-  const progressPercent = Math.round((completedRequired / totalRequired) * 100);
   const errorCount = Object.keys(errors).filter((k) => errors[k]).length;
 
   // Site Info Items (24 items from Bihar SSL API)

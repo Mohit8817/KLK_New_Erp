@@ -633,7 +633,7 @@ export function GoaSRTInstallationStatusView() {
 
   const exportCols: ExportColumn<GoaSrtSiteRow>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => `${idx + 1}` },
+      { header: 'Sr. No.', accessor: (_r, idx) => `${(idx ?? 0) + 1}` },
       { header: 'Site ID', accessor: (r) => `${r.id}` },
       { header: 'Unique ID', accessor: (r) => r.unique_id || DASH },
       { header: 'State', accessor: (r) => r.state || 'Goa' },

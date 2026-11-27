@@ -503,7 +503,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
     setLoadingSites(true);
     try {
       const names = await biharUlaInstallationService.fetchSiteNames();
-      setSiteOptions((prev) => {
+      setSiteOptions(() => {
         const fetched = Array.isArray(names) ? names : [];
         if (id && !fetched.some((s) => String(s.id) === String(id))) {
           const fallbackLabel = stateSite?.beneficiary_name
@@ -1979,7 +1979,7 @@ function PhotoCard({
 
   const handleCameraClick = () => {
     if (multiple && full) return;
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia && onFileCaptured) {
+    if (typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function' && onFileCaptured) {
       setCameraModalOpen(true);
     } else {
       cameraRef.current?.click();

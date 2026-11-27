@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';

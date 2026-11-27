@@ -13,7 +13,6 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  KpiSkeleton,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
@@ -706,7 +705,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   }, [feedbackMsg]);
 
   /* Column Visibility */
-  const [hiddenCols, setHiddenCols] = useState<string[]>([]);
+  const [hiddenCols] = useState<string[]>([]);
   const isVisible = (header: string) => !hiddenCols.includes(header);
 
   /* Load survey view data */
@@ -838,7 +837,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   );
 
   const activeExportCols = useMemo(
-    () => exportCols.filter((col) => !hiddenCols.includes(col.header)),
+    () => exportCols.filter((col) => !hiddenCols.includes(col.header ?? col.label ?? '')),
     [exportCols, hiddenCols]
   );
 
@@ -848,8 +847,6 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const handlePdf = () => printTableData('Bihar SRT 200MW Survey', filteredSites, activeExportCols);
 
   const visibleTextCols = TEXT_COLS_BEFORE_MEDIA.filter((c) => isVisible(c.key));
-  const surveyDonePct = kpis.total > 0 ? Math.round((kpis.complete / kpis.total) * 100) : 0;
-  const verifyDonePct = kpis.total > 0 ? Math.round((kpis.verify_complete / kpis.total) * 100) : 0;
 
   /* Total column count for empty / loading rows */
   const colCount =

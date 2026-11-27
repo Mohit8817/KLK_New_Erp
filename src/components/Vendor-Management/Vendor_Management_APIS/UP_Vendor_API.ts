@@ -384,7 +384,17 @@ export const UP_ADMIN_RESCO_API = {
 
   // 14. Verify Claim Status — ANY /up/resco/installation/verify-claim-status
   VERIFY_CLAIM_STATUS: `${ADMIN_BASE_URL}/up/resco/installation/verify-claim-status`,
-  VERIFY_CLAIM_STATUS_CANDIDATES: () => buildUpCandidateUrls('/up/resco/installation/verify-claim-status'),
+  VERIFY_CLAIM_STATUS_CANDIDATES: (id?: number | string) => {
+    const list = buildUpCandidateUrls('/up/resco/installation/verify-claim-status');
+    if (id) {
+      list.push(...buildUpCandidateUrls(`/up/resco/installation/verify-claim-status/${id}`));
+    }
+    list.push(...buildUpCandidateUrls('/up/resco/installation/claim-status-update'));
+    if (id) {
+      list.push(...buildUpCandidateUrls(`/up/resco/installation/claim-status-update/${id}`));
+    }
+    return Array.from(new Set(list));
+  },
 
   // 15. View Payment — ANY /up/resco/installation/view-payment
   VIEW_PAYMENT_CANDIDATES: (params?: {

@@ -55,7 +55,6 @@ const fmtDate = (d: Date | null) => (d ? `${pad(d.getDate())}-${pad(d.getMonth()
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
 const cv = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
 const fmtMonth = (s: string) => {
   const [y, m] = String(s || '').split('-');
@@ -69,23 +68,6 @@ const onActivate = (fn: () => void) => (e: React.KeyboardEvent) => {
     e.preventDefault();
     fn();
   }
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  'total-light': 'Total Lights',
-  'assign-light': 'Assigned Lights',
-  'not-assign-light': 'Not Assigned Lights',
-  'installed-light': 'Installed Lights',
-  'not-installed-light': 'Install Pending',
-  'verify-light': 'Verified & Approved',
-  'verify-pending-light': 'Verification Pending',
-  'verify-reject-light': 'Verification Rejected',
-  'claim-applicable': 'Claim Applicable',
-  'claim-raised': 'Claims Raised',
-  'claim-approved': 'Claims Approved',
-  'claim-pending': 'Claims Pending',
-  'pay-done': 'Payment Done',
-  'pay-pending': 'Payment Pending',
 };
 
 const useIsMobile = (breakpoint = 640) => {
@@ -308,7 +290,6 @@ function Bar({ pct }: { pct: number }) {
   );
 }
 
-const AVATAR_COLORS = ['var(--ax-accent)', 'var(--ax-viz-cyan)', 'var(--ax-viz-violet)', 'var(--ax-viz-amber)', 'var(--ax-viz-pink)'];
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const selectStyle = { height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'end', justifyContent: 'flex-end', width: '100%' } as const;
@@ -414,11 +395,6 @@ export function Punjab_Installation_SSL_Dashboard() {
   const monthly: Array<{ month_year: string; monthly_installations: number }> = useMemo(() => {
     const arr = Array.isArray((data as any)?.district_installation_month) ? (data as any).district_installation_month : [];
     return [...arr].reverse();
-  }, [data]);
-
-  const topDistricts: Array<{ district: string; inst_complete: number }> = useMemo(() => {
-    const arr = Array.isArray((data as any)?.district_install) ? (data as any).district_install : [];
-    return [...arr].sort((a, b) => n(b.inst_complete) - n(a.inst_complete));
   }, [data]);
 
   const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
@@ -561,17 +537,17 @@ export function Punjab_Installation_SSL_Dashboard() {
   const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!dataToExport.length || !columns.length) return;
     const rows = [
-      columns.map((column) => column.header),
+      columns.map((column) => column.header ?? column.label ?? ''),
       ...dataToExport.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column)))),
     ];
-    const csv = rows.map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = rows.map((row) => row.map((value) => `"${(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(dataToCopy: T[], columns: ExportColumn<T>[]) => {
     if (!dataToCopy.length || !columns.length) return;
     const textToCopy = [
-      columns.map((column) => column.header).join('\t'),
+      columns.map((column) => column.header ?? column.label ?? '').join('\t'),
       ...dataToCopy.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')),
     ].join('\n');
     try {
@@ -611,13 +587,13 @@ export function Punjab_Installation_SSL_Dashboard() {
 
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.map((column, index) => ({
-      key: `${column.header}-${index}`,
-      label: column.header,
-      visible: !hidden.includes(`${column.header}-${index}`),
+      key: `${column.header ?? column.label ?? ''}-${index}`,
+      label: column.header ?? column.label ?? '',
+      visible: !hidden.includes(`${column.header ?? column.label ?? ''}-${index}`),
     }));
 
   const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.filter((column, index) => !hidden.includes(`${column.header}-${index}`));
+    columns.filter((column, index) => !hidden.includes(`${column.header ?? column.label ?? ''}-${index}`));
 
   const districtToolbarColumns = makeToolbarColumns(districtCols, hiddenDistrictColumns);
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
@@ -634,15 +610,6 @@ export function Punjab_Installation_SSL_Dashboard() {
     { label: '4. Claim Raised', v: ssl.claim_raised, of: ssl.site_count, color: 'var(--ax-viz-amber)' },
     { label: '5. Claim Approved', v: ssl.claim_approved, of: ssl.site_count, color: 'var(--ax-viz-emerald)' },
     { label: '6. Payment Disbursed', v: ssl.inst_pay_done, of: ssl.site_count, color: 'var(--ax-viz-emerald)' },
-  ];
-
-  const pipeline = [
-    { label: 'Claim Applicable', v: ssl.claim_applicable, of: ssl.complete, status: 'claim-applicable', tone: 'violet' },
-    { label: 'Claim Raised', v: ssl.claim_raised, of: ssl.claim_applicable, status: 'claim-raised', tone: 'amber' },
-    { label: 'Claim Approved', v: ssl.claim_approved, of: ssl.claim_raised, status: 'claim-approved', tone: 'success' },
-    { label: 'Claim Pending', v: ssl.claim_pending, of: ssl.claim_raised, status: 'claim-pending', tone: 'warning' },
-    { label: 'Payment Done', v: ssl.inst_pay_done, of: ssl.claim_approved, status: 'pay-done', tone: 'success' },
-    { label: 'Payment Pending', v: ssl.inst_pay_pending, of: ssl.claim_approved, status: 'pay-pending', tone: 'neutral' },
   ];
 
 

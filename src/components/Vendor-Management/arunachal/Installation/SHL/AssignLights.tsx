@@ -430,7 +430,7 @@ export function AssignLights() {
             (editData as any).data?.assign_shl ||
             (editData as any).data?.assignedlight ||
             (editData as any).data?.assign ||
-            (editData.data && typeof editData.data === 'object' && !Array.isArray(editData.data) && (editData.data.id || (typeof editData.data.district === 'string' && editData.data.district !== '[object Object]')) ? editData.data : null);
+            ((editData as any).data && typeof (editData as any).data === 'object' && !Array.isArray((editData as any).data) && ((editData as any).data.id || (typeof (editData as any).data.district === 'string' && (editData as any).data.district !== '[object Object]')) ? (editData as any).data : null);
 
           // Combine record: prefer recordFromEdit, fall back to recordFromView
           const assignObj = { ...(recordFromView || {}), ...(recordFromEdit || {}) };

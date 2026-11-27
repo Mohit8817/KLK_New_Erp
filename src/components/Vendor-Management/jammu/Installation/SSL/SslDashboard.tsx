@@ -15,7 +15,6 @@ import {
   type DistrictWiseItem,
   type VendorWiseItem,
   type MonthInstallationItem,
-  type TodayInstallationItem,
 } from './jammuSslAdminService';
 
 // Code-split ApexCharts so Jammu SSL Dashboard shell renders instantly

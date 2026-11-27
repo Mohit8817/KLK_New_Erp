@@ -6,17 +6,13 @@ import {
   usePagination,
   SearchInput,
   TableExportToolbar,
-  TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
 import {
   assamSwpService,
-  resolveAssamMediaUrl,
   normalizeAssamDashboardStatus,
   type AssamSwpDashboardResponse,
   type DistrictWiseDetail,
-  type InstalledSiteItem,
-  type DistrictInstallItem,
   type DistrictMonthItem,
 } from '../../assam-services';
 
@@ -34,7 +30,6 @@ const LIGHT_RED = '#ef4444';
 const num = (x: number) => x.toLocaleString('en-IN');
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const cv = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 // Responsive chart height hook matching DleDashboard
 const useChartHeight = (desktop: number, mobile: number) => {
@@ -262,7 +257,6 @@ const svg = (children: ReactNode) => (
 );
 const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
 const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
-const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
 const I_CLOCK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 7v5l3 3" /></>);
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 10l4 4m0 -4l-4 4" /></>);
@@ -624,7 +618,7 @@ export function AssamDashboard() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => c.header),
+      columns.map((c) => c.header ?? c.label ?? ''),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -634,7 +628,7 @@ export function AssamDashboard() {
   const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
-      columns.map((c) => c.header).join('\t'),
+      columns.map((c) => c.header ?? c.label ?? '').join('\t'),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
     ].join('\n');
     try {

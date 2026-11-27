@@ -52,17 +52,8 @@ export function buildCandidateUrls(rawPathOrUrl: string): string[] {
   const routePath = `${cleaned}${search}`;
 
   const candidates: string[] = [
-    // 1. API Admin route: e.g. https://klkerp.com/api/admin/arunachal/shl/installation/...
+    // All Arunachal admin installation routes strictly use ADMIN_BASE_URL (/admin/arunachal/shl/installation/...)
     `${ADMIN_BASE_URL}${routePath}`,
-
-    // 2. Direct API route: e.g. https://klkerp.com/api/arunachal/shl/installation/...
-    `${BASE_URL}${routePath}`,
-
-    // 3. Direct Web / Admin route: e.g. https://klkerp.com/admin/arunachal/shl/installation/...
-    `${ROOT_URL}/admin${routePath}`,
-
-    // 4. Root web route: e.g. https://klkerp.com/arunachal/shl/installation/...
-    `${ROOT_URL}${routePath}`,
   ];
 
   return Array.from(new Set(candidates.filter(Boolean)));
@@ -83,125 +74,123 @@ export const ARUNACHAL_VENDOR_API = {
  * ═══════════════════════════════════════════════════════════════════════════
  * ARUNACHAL PRADESH SHL INSTALLATION - SUPER ADMIN PORTAL APIS
  * Controller: ArunachalShlInstallationController
- * 15 Endpoints with dual support for `/admin/...` and root `/...` prefixes
+ * All endpoints strictly prefixed with /admin as required by the backend routes
  * ═══════════════════════════════════════════════════════════════════════════
  */
 export const ARUNACHAL_ADMIN_SHL_API = {
   // ── Dropdown & Assignment Cascade ──
   // 1. GET /assign (vendors with arunachal_shl.installation permission & volumes)
   ASSIGN_FORM_DATA: `${ADMIN_BASE_URL}/arunachal/shl/installation/assign`,
-  ASSIGN_FORM_DATA_ROOT: `${BASE_URL}/arunachal/shl/installation/assign`,
+  ASSIGN_FORM_DATA_ROOT: `${ADMIN_BASE_URL}/arunachal/shl/installation/assign`,
 
   // 2. GET /fetch-district?volume=...
   FETCH_DISTRICT: (volume: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/fetch-district?volume=${encodeURIComponent(String(volume).trim())}`,
   FETCH_DISTRICT_ROOT: (volume: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/fetch-district?volume=${encodeURIComponent(String(volume).trim())}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/fetch-district?volume=${encodeURIComponent(String(volume).trim())}`,
 
   // 3. GET /fetch-block?volume=...&district=...
   FETCH_BLOCK: (volume: string | number, district: string) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/fetch-block?volume=${encodeURIComponent(String(volume).trim())}&district=${encodeURIComponent(district.trim())}`,
   FETCH_BLOCK_ROOT: (volume: string | number, district: string) =>
-    `${BASE_URL}/arunachal/shl/installation/fetch-block?volume=${encodeURIComponent(String(volume).trim())}&district=${encodeURIComponent(district.trim())}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/fetch-block?volume=${encodeURIComponent(String(volume).trim())}&district=${encodeURIComponent(district.trim())}`,
 
   // 4. GET /fetch-panchayat?volume=...&district=...&block=... (returns panchayats with unassigned light count)
   FETCH_PANCHAYAT: (volume: string | number, district: string, block: string) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/fetch-panchayat?volume=${encodeURIComponent(String(volume).trim())}&district=${encodeURIComponent(district.trim())}&block=${encodeURIComponent(block.trim())}`,
   FETCH_PANCHAYAT_ROOT: (volume: string | number, district: string, block: string) =>
-    `${BASE_URL}/arunachal/shl/installation/fetch-panchayat?volume=${encodeURIComponent(String(volume).trim())}&district=${encodeURIComponent(district.trim())}&block=${encodeURIComponent(block.trim())}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/fetch-panchayat?volume=${encodeURIComponent(String(volume).trim())}&district=${encodeURIComponent(district.trim())}&block=${encodeURIComponent(block.trim())}`,
 
   // ── Assignment CRUD & Actions ──
   // 5. POST /store-assign (vendor, state, volume, district, block, panchayat[], ldate, remark)
   STORE_ASSIGN: `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign`,
-  STORE_ASSIGN_ROOT: `${BASE_URL}/arunachal/shl/installation/store-assign`,
+  STORE_ASSIGN_ROOT: `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign`,
   STORE_ASSIGN_CANDIDATES: () => [
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/assign'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/store'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign-light'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign-lights'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/assign-lights'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/assign-store'),
-    ...buildCandidateUrls('/arunachal/shl/installation/store-assign'),
-    ...buildCandidateUrls('/vendor/arunachal/shl/installation/store-assign'),
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/assign`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/store`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign-light`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign-lights`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/assign-lights`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/assign-store`,
   ],
 
   // 6. GET /edit-assign/{id}
   EDIT_ASSIGN: (id: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/edit-assign/${encodeURIComponent(id)}`,
   EDIT_ASSIGN_ROOT: (id: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/edit-assign/${encodeURIComponent(id)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/edit-assign/${encodeURIComponent(id)}`,
 
   // 7. POST /update-assign
   UPDATE_ASSIGN: `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
-  UPDATE_ASSIGN_ROOT: `${BASE_URL}/arunachal/shl/installation/update-assign`,
+  UPDATE_ASSIGN_ROOT: `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
   UPDATE_ASSIGN_BASE: `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
   UPDATE_ASSIGN_WITH_ID: (id: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(id)}`,
   UPDATE_ASSIGN_WITH_ID_ROOT: (id: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(id)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(id)}`,
   UPDATE_ASSIGN_CANDIDATES: (id?: string | number) => [
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/update-assign'),
-    ...(id ? buildCandidateUrls(`/admin/arunachal/shl/installation/update-assign/${id}`) : []),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign'),
-    ...buildCandidateUrls('/arunachal/shl/installation/update-assign'),
-    ...(id ? buildCandidateUrls(`/arunachal/shl/installation/update-assign/${id}`) : []),
-    ...buildCandidateUrls('/arunachal/shl/installation/store-assign'),
-    ...buildCandidateUrls('/admin/arunachal/shl/installation/update'),
-    ...buildCandidateUrls('/arunachal/shl/installation/update'),
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
+    ...(id ? [`${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(id)}`] : []),
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/update`,
   ],
 
   // 8. GET /view-assign (dashboard counts + assigned list)
   VIEW_ASSIGN: `${ADMIN_BASE_URL}/arunachal/shl/installation/view-assign`,
-  VIEW_ASSIGN_ROOT: `${BASE_URL}/arunachal/shl/installation/view-assign`,
+  VIEW_ASSIGN_ROOT: `${ADMIN_BASE_URL}/arunachal/shl/installation/view-assign`,
 
-  // 9. POST /approvel-assign/{id} (status = 1 + triggers WhatsApp / SMS notification)
+  // 9. POST /approval-assign/{id} (status = 1 + triggers WhatsApp / SMS notification)
   APPROVE_ASSIGN: (id: string | number) =>
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/approval-assign/${encodeURIComponent(id)}`,
+  APPROVE_ASSIGN_TYPO: (id: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/approvel-assign/${encodeURIComponent(id)}`,
   APPROVE_ASSIGN_ROOT: (id: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/approvel-assign/${encodeURIComponent(id)}`,
-  APPROVE_ASSIGN_ALT: (id: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/approval-assign/${encodeURIComponent(id)}`,
   APPROVE_ASSIGN_ALT_ROOT: (id: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/approval-assign/${encodeURIComponent(id)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/approvel-assign/${encodeURIComponent(id)}`,
+  APPROVE_ASSIGN_CANDIDATES: (id: string | number) => [
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/approval-assign/${encodeURIComponent(id)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/approvel-assign/${encodeURIComponent(id)}`,
+  ],
 
   // ── Installation Verification ──
   // 10. GET /view-installation (?page=1)
   VIEW_INSTALLATION: (page?: number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/view-installation${page ? `?page=${page}` : ''}`,
   VIEW_INSTALLATION_ROOT: (page?: number) =>
-    `${BASE_URL}/arunachal/shl/installation/view-installation${page ? `?page=${page}` : ''}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/view-installation${page ? `?page=${page}` : ''}`,
 
   // 11. POST /verify-installation-status (id, status: 1=Approved, 2=Rejected)
   VERIFY_INSTALLATION_STATUS: `${ADMIN_BASE_URL}/arunachal/shl/installation/verify-installation-status`,
-  VERIFY_INSTALLATION_STATUS_ROOT: `${BASE_URL}/arunachal/shl/installation/verify-installation-status`,
+  VERIFY_INSTALLATION_STATUS_ROOT: `${ADMIN_BASE_URL}/arunachal/shl/installation/verify-installation-status`,
 
   // ── Dashboard & Drilldown APIs ──
   // 12. GET /dashboard
   DASHBOARD: `${ADMIN_BASE_URL}/arunachal/shl/installation/dashboard`,
-  DASHBOARD_ROOT: `${BASE_URL}/arunachal/shl/installation/dashboard`,
+  DASHBOARD_ROOT: `${ADMIN_BASE_URL}/arunachal/shl/installation/dashboard`,
 
   // 13. GET /view-dashboard/{status}
   VIEW_DASHBOARD: (status: string) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/view-dashboard/${encodeURIComponent(status)}`,
   VIEW_DASHBOARD_ROOT: (status: string) =>
-    `${BASE_URL}/arunachal/shl/installation/view-dashboard/${encodeURIComponent(status)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/view-dashboard/${encodeURIComponent(status)}`,
 
   // 14. GET /vendorwise-data/{status}/{vendor} (with fallback for route typo vendorwise-data{status}/{vendor})
   VENDORWISE_DATA: (status: string, vendor: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/vendorwise-data/${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`,
   VENDORWISE_DATA_ROOT: (status: string, vendor: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/vendorwise-data/${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/vendorwise-data/${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`,
   VENDORWISE_DATA_TYPO: (status: string, vendor: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/vendorwise-data${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`,
   VENDORWISE_DATA_TYPO_ROOT: (status: string, vendor: string | number) =>
-    `${BASE_URL}/arunachal/shl/installation/vendorwise-data${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/vendorwise-data${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`,
 
   // 15. GET /districtwise-data/{status}/{district}
   DISTRICTWISE_DATA: (status: string, district: string) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/districtwise-data/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
   DISTRICTWISE_DATA_ROOT: (status: string, district: string) =>
-    `${BASE_URL}/arunachal/shl/installation/districtwise-data/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
+    `${ADMIN_BASE_URL}/arunachal/shl/installation/districtwise-data/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
 };
 
 export default ARUNACHAL_ADMIN_SHL_API;

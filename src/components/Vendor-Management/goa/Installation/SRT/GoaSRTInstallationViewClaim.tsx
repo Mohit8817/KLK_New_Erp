@@ -13,7 +13,6 @@ import {
 import {
   goaAdminService,
   resolveGoaMediaUrl,
-  type GoaViewClaimRow,
 } from '../../goa-services';
 
 /* ───────── Responsive Page CSS ───────── */
@@ -389,7 +388,7 @@ export interface GoaClaimItem {
 export function GoaSRTInstallationViewClaim() {
   const [claims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);

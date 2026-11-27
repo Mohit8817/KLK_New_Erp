@@ -465,7 +465,7 @@ export function VendorReturnMaintenanceView() {
 
   const exportCols: ExportColumn<RmRequestItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: RmRequestItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: RmRequestItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Required Date', accessor: (r) => r.required_date || '—' },
       { header: 'Work Order', accessor: (r) => r.workorder || '—' },
       { header: 'Requester / Vendor', accessor: (r) => r.vendor_name || '—' },

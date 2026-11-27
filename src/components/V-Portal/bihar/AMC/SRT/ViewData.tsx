@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharAmcService,
   getAmcMediaUrl,
   type BiharSrtAmcItem,
+  type BiharSrtSiteDetail,
 } from '../../bihar-services/biharAmcService';
 import {
   TableExportToolbar,
@@ -210,7 +211,6 @@ const X_ICON = (
 );
 
 export function Bihar_AMC_SRT_ViewData() {
-  const navigate = useNavigate();
   const [tab, setTab] = useState<TabType>('Incomplete');
   const [loading, setLoading] = useState(true);
   const [incompleteList, setIncompleteList] = useState<Row[]>([]);
@@ -255,7 +255,7 @@ export function Bihar_AMC_SRT_ViewData() {
   // Filtered
   const filtered = useMemo(() => {
     return currentList.filter((r) => {
-      const site = r.srtdata || {};
+      const site: Partial<BiharSrtSiteDetail> = r.srtdata ?? {};
       const district = site.district || (r as any).district || '';
       if (districtFilter !== 'all' && district.toLowerCase() !== districtFilter.toLowerCase()) {
         return false;
@@ -442,9 +442,9 @@ export function Bihar_AMC_SRT_ViewData() {
 
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCsv={handleCsv}
+                onExportCSV={handleCsv}
                 onExportExcel={handleExcel}
-                onPrint={handlePdf}
+                onExportPDF={handlePdf}
               />
             </div>
           </div>
@@ -519,7 +519,7 @@ export function Bihar_AMC_SRT_ViewData() {
               {!loading &&
                 paged.map((r, idx) => {
                   const srNo = (currentPage - 1) * pageSize + idx + 1;
-                  const site = r.srtdata || {};
+                  const site: Partial<BiharSrtSiteDetail> = r.srtdata ?? {};
                   const isComplete = tab === 'Complete';
 
                   return (
@@ -641,7 +641,7 @@ export function Bihar_AMC_SRT_ViewData() {
 
 /* ───────── View Detail Modal for Completed SRT AMC ───────── */
 function SrtAmcDetailModal({ item, onClose }: { item: Row; onClose: () => void }) {
-  const site = item.srtdata || {};
+  const site: Partial<BiharSrtSiteDetail> = item.srtdata ?? {};
 
   // Collect uploaded images
   const photos = [

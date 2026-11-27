@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { biharAdminService, resolveBiharMediaUrl } from '../../bihar-services/biharAdminService';
+import { biharAdminService } from '../../bihar-services/biharAdminService';
 
 // Unified Single-Card Layout with Floating Labels & Section Dividers (matching Karnataka SWP / Assam SWP reference)
 const SINGLE_CARD_FORM_CSS = `
@@ -425,7 +425,7 @@ export function BiharULAInstallationAssignSites() {
   const [deadlineDate, setDeadlineDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | undefined>(undefined);
-  const [existingFileUrl, setExistingFileUrl] = useState<string>('');
+  const [existingFileUrl] = useState<string>('');
   const [remarks, setRemarks] = useState('');
 
   // Dropdown Lists

@@ -361,8 +361,16 @@ export interface DistrictWiseDetail {
   pending: number;
   verify_approved: number;
   verify_pending: number;
+  verify_reject?: number;
   doc_approved: number;
+  doc_pending?: number;
+  doc_reject?: number;
+  inst_claim_raised?: number;
+  inst_claim_approved?: number;
+  inst_claim_reject?: number;
   inst_pay_complete: number;
+  inst_pay_partially?: number;
+  inst_pay_pending?: number;
 }
 
 export interface DistrictInstallItem {

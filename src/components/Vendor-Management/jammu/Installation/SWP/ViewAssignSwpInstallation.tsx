@@ -18,7 +18,6 @@ import {
 } from './jammuSwpAdminService';
 import {
   fmtDate,
-  fmtNum,
   DASH,
 } from '../../../up/Installation/upInstallationShared';
 
@@ -510,7 +509,7 @@ export function ViewAssignSwpInstallation() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuSwpAssignRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: JammuSwpAssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: JammuSwpAssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Vendor', accessor: (r) => r.vendors?.name || (typeof r.vendor === 'string' ? r.vendor : `Vendor #${r.vendor}`) },
       { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date || r.created_at) },
       { header: 'State', accessor: () => 'JAMMU' },
@@ -559,9 +558,9 @@ export function ViewAssignSwpInstallation() {
   const exportToCSV = () => {
     if (!filteredAssigns.length) return;
     const out = [
-      exportCols.map((c) => c.header),
+      exportCols.map((c) => c.header ?? c.label ?? ''),
       ...filteredAssigns.map((row, idx) =>
-        exportCols.map((c) => `"${String(typeof c.accessor === 'function' ? (c.accessor as any)(row, idx) : (row as any)[c.accessor] ?? '').replace(/"/g, '""')}"`)
+        exportCols.map((c) => `"${String(typeof c.accessor === 'function' ? (c.accessor as any)(row, idx) : (c.accessor ? (row as any)[c.accessor] ?? '' : '')).replace(/"/g, '""')}"`)
       ),
     ];
     downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `${fileBase}_${stamp}.csv`, 'text/csv');
@@ -569,14 +568,14 @@ export function ViewAssignSwpInstallation() {
 
   const exportToExcel = () => {
     if (!filteredAssigns.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead><tbody>${filteredAssigns.map((row, idx) => `<tr>${exportCols.map((c) => `<td>${String(typeof c.accessor === 'function' ? (c.accessor as any)(row, idx) : (row as any)[c.accessor] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${c.header ?? c.label ?? ''}</th>`).join('')}</tr></thead><tbody>${filteredAssigns.map((row, idx) => `<tr>${exportCols.map((c) => `<td>${String(typeof c.accessor === 'function' ? (c.accessor as any)(row, idx) : (c.accessor ? (row as any)[c.accessor] ?? '' : ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `${fileBase}_${stamp}.xls`, 'application/vnd.ms-excel');
   };
 
   const exportToPDF = () => {
     if (!filteredAssigns.length) return;
     const body = filteredAssigns.map((row, idx) =>
-      exportCols.map((c) => String(typeof c.accessor === 'function' ? (c.accessor as any)(row, idx) : (row as any)[c.accessor] ?? ''))
+      exportCols.map((c) => String(typeof c.accessor === 'function' ? (c.accessor as any)(row, idx) : (c.accessor ? (row as any)[c.accessor] ?? '' : '')))
     );
     const w = window.open('', '_blank', 'width=1200,height=800');
     if (!w) return;

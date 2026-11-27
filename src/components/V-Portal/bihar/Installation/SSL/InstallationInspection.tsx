@@ -22,13 +22,12 @@ type Item = SslInstallationInspectionItem;
 const BLUE_PRIMARY = '#2563eb';
 const GREEN_EMERALD = '#10b981';
 const AMBER_WARNING = '#f59e0b';
-const DASH = '—';
+const DASH = 'ï¿½';
 
 /* -- Icons -- */
 const svgProps = { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 const ICON_INSPECTION = (<svg {...svgProps}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><path d="m9 14 2 2 4-4" /></svg>);
 const ICON_LIGHTS = (<svg {...svgProps}><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" /></svg>);
-const ICON_RUPEE = (<svg {...svgProps}><path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a4 4 0 0 0 0-8" /></svg>);
 const ICON_VERIFIED = (<svg {...svgProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>);
 const ICON_CLOCK = (<svg {...svgProps}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>);
 const ICON_REFRESH = (
@@ -120,7 +119,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
       </div>
       <div className="ax-modal__body" style={{ padding: 0 }}>
         <div className="ssi-m-stage">
-          {status === 'loading' && <div className="ssi-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
+          {status === 'loading' && <div className="ssi-m-stage__msg"><span className="ax-spinner" /> Loading imageï¿½</div>}
           {status === 'error' && <div className="ssi-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
           <img
             key={url}
@@ -376,7 +375,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
   const [search, setSearch] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [hiddenColumns] = useState<string[]>([]);
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
@@ -505,9 +504,6 @@ export function Bihar_Installation_SSL_InstallationInspection() {
   const resetFilters = () => { setSearch(''); setSelectedDistrict('All'); setSelectedStatus('All'); setPage(1); };
 
   const visibleCols = COLS.filter((c) => !hiddenColumns.includes(c.id));
-  const toolbarColumns = COLS.map((c) => ({ key: c.id, label: c.header, visible: !hiddenColumns.includes(c.id) }));
-  const toggleColumn = (key: string) =>
-    setHiddenColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   const activeCols: ExportColumn<Item>[] = visibleCols.map((c) => ({ header: c.header, accessor: (r: Item, i?: number) => c.exportVal(r, i ?? 0) }));
   const TOTAL_COLUMNS = visibleCols.length + 1;
   const stamp = new Date().toISOString().slice(0, 10);
@@ -574,14 +570,14 @@ export function Bihar_Installation_SSL_InstallationInspection() {
 
   const exportToCSV = (list: Item[], columns: ExportColumn<Item>[], filename: string) => {
     if (!list.length || !columns.length) return;
-    const out = [columns.map((c) => c.header), ...list.map((row, idx) => columns.map((c) => esc(getExportValue(row, c, idx))))];
+    const out = [columns.map((c) => c.header ?? c.label ?? ''), ...list.map((row, idx) => columns.map((c) => esc(getExportValue(row, c, idx))))];
     const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async (list: Item[], columns: ExportColumn<Item>[]) => {
     if (!list.length || !columns.length) return;
-    const t = [columns.map((c) => c.header).join('\t'), ...list.map((row, idx) => columns.map((c) => esc(getExportValue(row, c, idx))).join('\t'))].join('\n');
+    const t = [columns.map((c) => c.header ?? c.label ?? '').join('\t'), ...list.map((row, idx) => columns.map((c) => esc(getExportValue(row, c, idx))).join('\t'))].join('\n');
     try {
       await navigator.clipboard.writeText(t);
     } catch {
@@ -720,7 +716,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                 <SearchInput
                   value={search}
                   onChange={setSearch}
-                  placeholder="Search vendor, block, district…"
+                  placeholder="Search vendor, block, districtï¿½"
                   size="sm"
                   ariaLabel="Search inspection records"
                 />
@@ -751,7 +747,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                 {loading && (
                   <tr>
                     <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading inspection records…
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading inspection recordsï¿½
                     </td>
                   </tr>
                 )}
@@ -875,7 +871,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
               <div className="ax-field">
                 <label className="ax-label" htmlFor="ssi-a-block">Block <Req /></label>
                 <select id="ssi-a-block" className="ax-input" value={addBlock} onChange={(e) => setAddBlock(e.target.value)} required disabled={!addDistrict || blocksLoading}>
-                  <option value="">{blocksLoading ? 'Loading blocks…' : '-- Select Block --'}</option>
+                  <option value="">{blocksLoading ? 'Loading blocksï¿½' : '-- Select Block --'}</option>
                   {availableBlocks.map((b) => (<option key={b} value={b}>{b}</option>))}
                 </select>
               </div>
@@ -884,7 +880,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
             <div className="ax-field">
               <label className="ax-label">Panchayat(s) <Req /></label>
               {panchayatsLoading ? (
-                <div className="ssi-m-note"><span className="ax-spinner" style={{ marginRight: 8 }} /> Fetching panchayats…</div>
+                <div className="ssi-m-note"><span className="ax-spinner" style={{ marginRight: 8 }} /> Fetching panchayatsï¿½</div>
               ) : availablePanchayats.length === 0 ? (
                 <div className="ssi-m-cell"><span style={{ textTransform: 'none', fontWeight: 500 }}>
                   {addBlock ? 'No panchayats available for this block.' : 'Please select District and Block first.'}
@@ -927,7 +923,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
 
             <div className="ax-field">
               <label className="ax-label" htmlFor="ssi-a-rem">Remarks (Optional)</label>
-              <textarea id="ssi-a-rem" className="ax-input" rows={3} placeholder="Enter inspection remarks…" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} />
+              <textarea id="ssi-a-rem" className="ax-input" rows={3} placeholder="Enter inspection remarksï¿½" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} />
             </div>
 
             <div className="ax-field">

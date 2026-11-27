@@ -781,10 +781,24 @@ export function Kashmir_Installation_StatusView() {
                 paginatedData.map((r, index) => {
                   const label = rowLabel(r);
                   const installed = isInstalled(r);
+                  const isApproved =
+                    verifyState(r) === 'approved' ||
+                    Number(r.inst_verify_status) === 1 ||
+                    String(r.inst_verify_status).trim().toLowerCase() === 'approved' ||
+                    Number(r.verify_status) === 1 ||
+                    String(r.verify_status).trim().toLowerCase() === 'approved';
+
                   const items: MenuItem[] = installed
                     ? [
                         { label: 'View Details', onClick: () => setDetailItem(r) },
-                        { label: 'Edit Installation', onClick: () => navigate(`/v/kashmir/srt/70mw/installation/site?edit=1&srt_id=${r.id}`) },
+                        ...(!isApproved
+                          ? [
+                              {
+                                label: 'Edit Installation',
+                                onClick: () => navigate(`/v/kashmir/srt/70mw/installation/site?edit=1&srt_id=${r.id}`),
+                              },
+                            ]
+                          : []),
                         { label: 'Open Installed Sites', onClick: () => navigate('/v/kashmir/srt/70mw/view-install-sites') },
                       ]
                     : [

@@ -1,4 +1,4 @@
-import { API_BASE_URL, authService } from '../../../../services/authService';
+import { authService } from '../../../../services/authService';
 import { BIHAR_ADMIN_API, ROOT_URL } from '../../Vendor_Management_APIS/Bihar_Vendor_API';
 
 const R2_BASE = (

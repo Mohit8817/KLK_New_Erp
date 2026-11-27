@@ -488,7 +488,7 @@ export function VendorComplaintView() {
 
   const exportCols: ExportColumn<VendorComplaintItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: VendorComplaintItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: VendorComplaintItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Complaint ID', accessor: (r) => r.complaint_id },
       { header: 'Date', accessor: (r) => r.complaint_date },
       { header: 'Complaint', accessor: (r) => r.complaint },

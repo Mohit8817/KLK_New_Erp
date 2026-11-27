@@ -7,6 +7,7 @@ import {
   jammuRescoService,
   resolveJammuMediaUrl,
   getJammuMediaCandidates,
+  isJammuPdfFile,
   type JammuRescoInstalledSiteItem,
   type JammuRescoInstallDetailSummary,
 } from '../../jammu-services';
@@ -50,21 +51,6 @@ const txt = (row: any, key: string): string => {
   const v = row?.[key];
   if (v === null || v === undefined || v === '') return '';
   return String(v);
-};
-
-const fmtSerials = (val: any): string => {
-  if (!val) return '';
-  if (Array.isArray(val)) return val.join(', ');
-  if (typeof val === 'string') {
-    try {
-      const parsed = JSON.parse(val);
-      if (Array.isArray(parsed)) return parsed.join(', ');
-    } catch {
-      // not json
-    }
-    return val;
-  }
-  return String(val);
 };
 
 /* ───────── Modal Component ───────── */
@@ -119,6 +105,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   const [zoomIdx, setZoomIdx] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const zoom = ZOOM_STEPS[zoomIdx];
+  const isPdf = isJammuPdfFile(url);
 
   useEffect(() => {
     setZoomIdx(0);
@@ -135,37 +122,49 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
       </div>
 
       <div className="ax-modal__body" style={{ padding: 0 }}>
-        <div className="ula-m-stage">
-          {status === 'loading' && (
-            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
-          )}
-          {status === 'error' && (
-            <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
-          )}
-          <img
-            key={url}
-            src={url}
-            alt={title || 'Preview'}
-            onLoad={() => setStatus('ready')}
-            onError={() => setStatus('error')}
-            style={{
-              display: status === 'ready' ? 'block' : 'none',
-              margin: 'auto',
-              borderRadius: 0,
-              ...(zoom === 1
-                ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
-                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
-            }}
-          />
-        </div>
+        {isPdf ? (
+          <div style={{ height: 'min(70vh, 650px)', width: '100%' }}>
+            <iframe
+              src={url}
+              title={title || 'Document Preview'}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          </div>
+        ) : (
+          <div className="ula-m-stage">
+            {status === 'loading' && (
+              <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
+            )}
+            {status === 'error' && (
+              <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
+            )}
+            <img
+              key={url}
+              src={url}
+              alt={title || 'Preview'}
+              onLoad={() => setStatus('ready')}
+              onError={() => setStatus('error')}
+              style={{
+                display: status === 'ready' ? 'block' : 'none',
+                margin: 'auto',
+                borderRadius: 0,
+                ...(zoom === 1
+                  ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                  : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
-        <div className="ula-m-zoom" role="group" aria-label="Zoom">
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
-          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
-        </div>
+        {!isPdf ? (
+          <div className="ula-m-zoom" role="group" aria-label="Zoom">
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+            <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+          </div>
+        ) : <div />}
         <div className="ula-m-zoom">
           <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
           <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
@@ -181,12 +180,15 @@ function InstallationThumbnail({
   alt,
   onPreview,
   size = 34,
+  fallbackToLink = false,
 }: {
   src?: string | null;
   alt: string;
   onPreview: (url: string, title: string) => void;
   size?: number;
+  fallbackToLink?: boolean;
 }) {
+  const isPdf = useMemo(() => isJammuPdfFile(src), [src]);
   const candidates = useMemo(() => getJammuMediaCandidates(src), [src]);
   const [candidateIdx, setCandidateIdx] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -196,55 +198,128 @@ function InstallationThumbnail({
     setFailed(false);
   }, [src]);
 
-  if (!src || failed || candidateIdx >= candidates.length) {
+  if (!src || String(src).trim() === '' || String(src).toLowerCase() === 'null' || String(src).toLowerCase() === 'undefined') {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  }
+
+  // If the document is explicitly a PDF
+  if (isPdf) {
+    const pdfUrl = candidates[0] || resolveJammuMediaUrl(src);
+    return (
+      <a
+        href={pdfUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ax-btn ax-btn--ghost ax-btn--xs"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '3px 8px',
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#dc2626',
+          background: 'rgba(220, 38, 38, 0.08)',
+          border: '1px solid rgba(220, 38, 38, 0.22)',
+          borderRadius: 4,
+          textDecoration: 'none',
+        }}
+        title="Open PDF Document in new tab"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 13, height: 13 }}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+        <span>PDF ↗</span>
+      </a>
+    );
+  }
+
+  // If all candidate URLs failed
+  if (failed || candidateIdx >= candidates.length) {
+    if (fallbackToLink) {
+      const fallbackUrl = candidates[0] || resolveJammuMediaUrl(src);
+      return (
+        <a
+          href={fallbackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ax-btn ax-btn--ghost ax-btn--xs"
+          style={{ color: '#2563eb', padding: '2px 6px', fontSize: 11 }}
+          title="Open Document File"
+        >
+          📄 View
+        </a>
+      );
+    }
     return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
   }
 
   const currentUrl = candidates[candidateIdx];
 
   return (
-    <img
-      src={currentUrl}
-      alt={alt}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 0,
-        objectFit: 'cover',
-        cursor: 'zoom-in',
-        border: '1px solid var(--ax-border, #e2e8f0)',
-        background: 'var(--ax-surface-subtle, #f8fafc)',
-        display: 'block',
-        flexShrink: 0,
-      }}
-      onError={() => {
-        if (candidateIdx + 1 < candidates.length) {
-          setCandidateIdx((prev) => prev + 1);
-        } else {
-          setFailed(true);
-        }
-      }}
-      onClick={() => onPreview(currentUrl, alt)}
-      title="Click to preview"
-    />
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 0,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+        }}
+        onError={() => {
+          if (candidateIdx + 1 < candidates.length) {
+            setCandidateIdx((prev) => prev + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview image"
+      />
+      {fallbackToLink && (
+        <a
+          href={currentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: '#2563eb', fontSize: 11.5, textDecoration: 'none', fontWeight: 600, padding: '2px' }}
+          title="Open full resolution in new tab"
+        >
+          ↗
+        </a>
+      )}
+    </div>
   );
 }
 
 /* ── Action Dropdown (menu is rendered in <body> via createPortal so the table never clips it) ── */
 const MENU_W = 170;
-const MENU_H = 76;
+const MENU_H_DEFAULT = 76;
+const MENU_H_WITH_DOC = 112;
 
 function RowActionDropdown({
   onEdit,
   onSubmitDoc,
+  docUrl,
 }: {
   onEdit: () => void;
   onSubmitDoc: () => void;
+  docUrl?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuH = docUrl ? MENU_H_WITH_DOC : MENU_H_DEFAULT;
 
   const toggle = () => {
     if (open) {
@@ -255,7 +330,7 @@ function RowActionDropdown({
     if (!b) return;
     const r = b.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const top = spaceBelow < menuH + 8 && r.top > menuH + 8 ? r.top - menuH - 4 : r.bottom + 4;
     const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
     setPos({ top, left });
     setOpen(true);
@@ -334,6 +409,20 @@ function RowActionDropdown({
             >
               Submit Document
             </button>
+            {docUrl && (
+              <a
+                href={docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                style={{ color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span>View Document</span>
+                <span style={{ fontSize: 11 }}>↗</span>
+              </a>
+            )}
           </div>,
           document.body
         )}
@@ -982,6 +1071,7 @@ export function RescoInstallationDetails() {
       { header: 'Verify Status', accessor: (r: JammuRescoInstalledSiteItem) => (Number(r.inst_verify_status ?? r.verify_status) === 1 ? 'Complete' : Number(r.inst_verify_status ?? r.verify_status) === 2 ? 'Reject' : 'Pending') },
       { header: 'Verify Remarks', accessor: (r: JammuRescoInstalledSiteItem) => r.inst_verify_remarks || r.verify_remarks || DASH },
       { header: 'Document Status', accessor: (r: JammuRescoInstalledSiteItem) => (Number(r.inst_doc_status ?? r.document_status) === 2 ? 'Complete' : Number(r.inst_doc_status ?? r.document_status) === 3 ? 'Reject' : 'Pending') },
+      { header: 'Document File', accessor: (r: JammuRescoInstalledSiteItem) => resolveJammuMediaUrl(r.inst_doc_file || r.doc_file || r.document_file || r.inst_doc || r.document || r.file) || DASH },
       { header: 'Document Remarks', accessor: (r: JammuRescoInstalledSiteItem) => r.inst_doc_remarks || r.doc_remarks || r.document_remarks || DASH },
     ],
     []
@@ -1166,7 +1256,7 @@ export function RescoInstallationDetails() {
                   a.click();
                 }}
                 onExportExcel={() => {
-                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredSites.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${filteredSites.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
                   const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
                   const blob = new Blob([`\ufeff${html}`], { type: 'application/vnd.ms-excel' });
                   const url = URL.createObjectURL(blob);
@@ -1232,15 +1322,25 @@ export function RescoInstallationDetails() {
                   const hasGeo = lat !== '' && lng !== '' && !isNaN(Number(lat)) && !isNaN(Number(lng));
                   const siteLabel = row.site_name || `Site ${row.id}`;
 
-                  const panelImg = row.panel_image;
-                  const systemImg = row.system_image;
-                  const inverterImg = row.inverter_image;
-                  const nmSmImg = row.nm_sm_image;
-                  const logerImg = row.loger_image;
+                  const panelImg = row.panel_image || row.panel_photo || row.panel_img;
+                  const systemImg = row.system_image || row.system_photo || row.system_img;
+                  const inverterImg = row.inverter_image || row.inverter_photo || row.inverter_img;
+                  const nmSmImg = row.nm_sm_image || row.nm_sm_photo || row.nm_sm_img || row.meter_image;
+                  const logerImg = row.loger_image || row.loger_photo || row.loger_img || row.logger_image;
 
-                  const docFileUrl = (row.inst_doc_file || row.doc_file || row.document_file || row.inst_doc)
-                    ? resolveJammuMediaUrl(row.inst_doc_file || row.doc_file || row.document_file || row.inst_doc)
-                    : null;
+                  const docFileRaw =
+                    row.inst_doc_file ||
+                    row.doc_file ||
+                    row.document_file ||
+                    row.inst_doc ||
+                    row.document ||
+                    row.doc ||
+                    row.doc_image ||
+                    row.commissioning_doc ||
+                    row.inst_verify_file ||
+                    row.file;
+
+                  const docFileUrl = docFileRaw ? resolveJammuMediaUrl(docFileRaw) : null;
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawV = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isApproved = vStatus === 1 || rawV === 'approved' || rawV === 'complete';
@@ -1337,21 +1437,14 @@ export function RescoInstallationDetails() {
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <DocBadge status={row.inst_doc_status ?? row.document_status} />
                       </td>
-                      <td className="ax-table__td">
-                        {docFileUrl ? (
-                          <a
-                            href={docFileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ color: '#2563eb', padding: '2px 6px', fontSize: 11 }}
-                            title="Open Document File"
-                          >
-                            📄 View
-                          </a>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
-                        )}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <InstallationThumbnail
+                          src={docFileRaw}
+                          alt={`${siteLabel} - Document File`}
+                          onPreview={openPreview}
+                          size={34}
+                          fallbackToLink={true}
+                        />
                       </td>
                       <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>
                         {row.inst_doc_remarks || row.doc_remarks || row.document_remarks || DASH}
@@ -1397,6 +1490,7 @@ export function RescoInstallationDetails() {
                           <RowActionDropdown
                             onEdit={() => handleOpenEdit(row.id)}
                             onSubmitDoc={() => handleOpenDocModal(row)}
+                            docUrl={docFileUrl}
                           />
                         )}
                       </td>
@@ -1668,6 +1762,51 @@ export function RescoInstallationDetails() {
               <div style={{ fontSize: 12.5, color: 'var(--ax-text-muted, #64748b)', background: 'var(--ax-surface-subtle, #f8fafc)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)' }}>
                 Upload commissioning handover sheet, joint inspection report or signed invoice document (PDF, JPG, PNG).
               </div>
+
+              {Boolean(
+                docModalSite.inst_doc_file ||
+                docModalSite.doc_file ||
+                docModalSite.document_file ||
+                docModalSite.inst_doc ||
+                docModalSite.file
+              ) && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <InstallationThumbnail
+                      src={
+                        docModalSite.inst_doc_file ||
+                        docModalSite.doc_file ||
+                        docModalSite.document_file ||
+                        docModalSite.inst_doc ||
+                        docModalSite.file
+                      }
+                      alt={`${docModalSite.site_name || 'Site'} - Existing Document`}
+                      onPreview={openPreview}
+                      size={36}
+                      fallbackToLink={true}
+                    />
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#166534' }}>Current Document Attached</div>
+                      <div style={{ fontSize: 11, color: '#15803d' }}>Upload a new file below to replace it</div>
+                    </div>
+                  </div>
+                  <a
+                    href={resolveJammuMediaUrl(
+                      docModalSite.inst_doc_file ||
+                      docModalSite.doc_file ||
+                      docModalSite.document_file ||
+                      docModalSite.inst_doc ||
+                      docModalSite.file
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ax-btn ax-btn--ghost ax-btn--xs"
+                    style={{ color: '#166534', fontWeight: 600, fontSize: 11 }}
+                  >
+                    View Current ↗
+                  </a>
+                </div>
+              )}
 
               {/* Document File Dropzone */}
               <div className="ax-modern-field">

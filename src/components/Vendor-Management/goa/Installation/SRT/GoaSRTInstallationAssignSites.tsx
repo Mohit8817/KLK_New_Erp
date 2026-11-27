@@ -4,7 +4,6 @@ import { PageHead } from '../../../../shell/PageHead';
 import {
   goaAdminService,
   type GoaVendor,
-  type GoaDistrictItem,
   type GoaSiteItem,
 } from '../../goa-services';
 

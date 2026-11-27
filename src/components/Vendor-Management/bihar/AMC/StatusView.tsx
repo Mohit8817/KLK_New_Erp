@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../shell/PageHead';
 import { useFocusTrap } from '../../../../hooks/useFocusTrap';
 import {
@@ -732,13 +732,11 @@ function SiteDetailModal({
    MAIN COMPONENT: BiharSSLAMCStatusView
    ═══════════════════════════════════════════════════════════════════════════ */
 export function BiharSSLAMCStatusView() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const rawStatus = searchParams.get('status') || 'total';
   const activeStatus = normalizeSslAmcStatus(rawStatus);
   const districtParam = (searchParams.get('district') || '').trim();
-  const vendorParam = (searchParams.get('vendor') || '').trim();
 
   const currentStatusMeta: StatusMeta = STATUS_META_MAP[activeStatus] || STATUS_META_LIST[0];
 

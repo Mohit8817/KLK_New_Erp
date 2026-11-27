@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharComplaintService,
-  type BiharSrtComplaintItem,
+  type BiharComplaintItem,
 } from '../../bihar-services';
 import {
   TableExportToolbar,
@@ -18,7 +18,7 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-type Row = BiharSrtComplaintItem;
+type Row = BiharComplaintItem;
 type StatusFilter = 'all' | 'pending' | 'closed';
 
 /* ── Status helpers ──
@@ -239,7 +239,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
   const [pageSize, setPageSize] = useState(100);
 
   // Column Visibility
-  const [hiddenCols, setHiddenCols] = useState<string[]>([]);
+  const [hiddenCols] = useState<string[]>([]);
   const isVisible = (key: string) => !hiddenCols.includes(key);
 
   const loadComplaints = async () => {
@@ -306,7 +306,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
     ],
     []
   );
-  const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
+  const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header ?? c.label ?? '')), [exportCols, hiddenCols]);
 
 
   const handleCopy = () => copyTableDataToClipboard(filteredComplaints, activeExportCols);

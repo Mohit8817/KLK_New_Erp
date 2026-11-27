@@ -357,7 +357,6 @@ export function UPRescoViewCreatedBills() {
               ) : (
                 pagination.paged.map((r: UpRescoBillRow, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
-                  const statusMeta = getBillStatusMeta(r.verify_status);
                   const readingsCount = r.readings?.length ?? 0;
 
                   return (

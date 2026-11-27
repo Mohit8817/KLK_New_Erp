@@ -414,7 +414,7 @@ export function VendorWorkOrderView() {
 
   const exportCols: ExportColumn<WorkOrderItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r: WorkOrderItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Sr. No.', accessor: (_r: WorkOrderItem, idx?: number) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Date', accessor: (r) => r.date || '—' },
       { header: 'Work Order ID', accessor: (r) => r.workorder_id || `WO-${r.id}` },
       { header: 'Work Order Name', accessor: (r) => r.workorder || '—' },

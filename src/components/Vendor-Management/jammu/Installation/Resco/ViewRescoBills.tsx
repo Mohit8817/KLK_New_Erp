@@ -666,7 +666,7 @@ export function ViewRescoBills() {
 
   const exportToExcel = () => {
     if (!filteredBills.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredBills.map((row) => `<tr>${exportColumns.map((c) => {
+    const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${filteredBills.map((row) => `<tr>${exportColumns.map((c) => {
       const val = typeof c.accessor === 'function' ? (c.accessor as any)(row) : (row as any)[c.accessor as string];
       return `<td>${escapeHtml(String(val ?? ''))}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table>`;
@@ -681,7 +681,7 @@ export function ViewRescoBills() {
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
       th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
-    </style></head><body><h1>${escapeHtml(fileTitle)}</h1><table><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredBills.map((r) => `<tr>${exportColumns.map((c) => {
+    </style></head><body><h1>${escapeHtml(fileTitle)}</h1><table><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${filteredBills.map((r) => `<tr>${exportColumns.map((c) => {
       const val = typeof c.accessor === 'function' ? (c.accessor as any)(r) : (r as any)[c.accessor as string];
       return `<td>${escapeHtml(String(val ?? ''))}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);

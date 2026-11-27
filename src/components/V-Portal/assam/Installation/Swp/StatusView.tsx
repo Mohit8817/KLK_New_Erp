@@ -840,7 +840,6 @@ export function AssamStatusView() {
                 onExportCSV={() => exportToCSV(filteredSites, exportCols, `${fileBase}_${stamp}`)}
                 onExportExcel={() => exportToExcel(filteredSites, exportCols, `${fileBase}_${stamp}`)}
                 onExportPDF={() => exportToPDF(filteredSites, exportCols, fileTitle)}
-                disabled={filteredSites.length === 0}
               />
             </div>
           </div>

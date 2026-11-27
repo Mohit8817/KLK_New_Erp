@@ -90,7 +90,7 @@ const verifyLabel = (s: VerifyState) => (s === 'approved' ? 'Approved' : s === '
 const verifyTone = (s: VerifyState): Tone => (s === 'approved' ? 'success' : s === 'rejected' ? 'danger' : 'warning');
 
 const claimOf = (r: Row): number => {
-  const raw =
+  const raw: unknown =
     r.inst_claim_status !== undefined && r.inst_claim_status !== null
       ? r.inst_claim_status
       : r.claim_status !== undefined && r.claim_status !== null

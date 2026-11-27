@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -8,7 +8,6 @@ import {
   resolveUpMediaUrl,
   type UpSsl18wInstalledLightItem,
   type UpSsl18wInstallDetailsCount,
-  type UpSsl18wLightDetail,
 } from '../../up-services';
 import {
   Pagination,
@@ -59,7 +58,7 @@ export const getVerifyStatus = (r: Row): number => {
 };
 
 export const getClaimStatus = (r: Row): number => {
-  const raw =
+  const raw: unknown =
     r.inst_claim_status !== undefined && r.inst_claim_status !== null
       ? r.inst_claim_status
       : r.claim_status !== undefined && r.claim_status !== null
@@ -120,10 +119,6 @@ const getPaymentStatusInfo = (r: Row): { label: string; tone: Tone } => {
   if (payStatus === 2) return { label: 'Partially Paid', tone: 'warning' };
   if (claimStatus === 2) return { label: 'Pending', tone: 'warning' };
   return { label: 'Not Applicable', tone: 'neutral' };
-};
-
-const getClaimStatusTextLegacy = (r: Row): string => {
-  return getClaimStatusInfo(r).label;
 };
 
 const VerifyBadge = ({ value }: { value: number }) =>
@@ -1413,7 +1408,6 @@ export function UP_Installation_SSL_InstallationDetail() {
                   const lng = String(row.longitude ?? '').trim();
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
                   const verifyVal = getVerifyStatus(row);
-                  const claimVal = getClaimStatus(row);
                   const claimRaised = isLightClaimRaised(row);
                   const claimDue = isLightClaimDue(row);
                   const locked = isLocked(row);

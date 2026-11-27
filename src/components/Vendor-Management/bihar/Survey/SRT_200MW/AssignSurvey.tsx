@@ -475,7 +475,7 @@ export function AssignBiharSRT200MWSurvey() {
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | undefined>(undefined);
-  const [existingFileName, setExistingFileName] = useState<string>('');
+  const [existingFileName] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
 
   // Dropdown & Sites data

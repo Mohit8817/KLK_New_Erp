@@ -47,7 +47,7 @@ const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
   return <Badge tone="warning">Pending</Badge>;
 };
 
-const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string | null }) => {
+const DocBadge = ({ status }: { status?: number; docUrl?: string | null }) => {
   const s = Number(status ?? 0);
   if (s === 2) return <Badge tone="success">Approved</Badge>;
   if (s === 3) return <Badge tone="danger">Reject</Badge>;
@@ -2332,7 +2332,6 @@ export function UP_Installation_KusumC_ViewInstallation() {
                   const invImg = row.inverter_vfd_image || row.inverter_image || row.vfd_image;
                   const waterImg = row.running_water_image || row.water_image;
                   const moduleSerialsList = getRowModuleSerials(row);
-                  const ser = moduleSerialsList.length > 0 ? moduleSerialsList.join(', ') : DASH;
                   const blockVillage = getBlockVillage(row);
 
                   const vStatus = getVerifyVal(row);
