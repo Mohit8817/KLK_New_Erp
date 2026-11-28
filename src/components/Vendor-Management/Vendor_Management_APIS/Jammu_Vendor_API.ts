@@ -266,6 +266,24 @@ export const JAMMU_VENDOR_API = {
   ADMIN_RESCO_VERIFY_INSTALLATION: `${ADMIN_BASE_URL}/jk/resco/installation/verify-installation-status`,
   ADMIN_RESCO_VIEW_DOC: `${ADMIN_BASE_URL}/jk/resco/installation/view-installation-document`,
   ADMIN_RESCO_VERIFY_DOC: `${ADMIN_BASE_URL}/jk/resco/installation/verify-document-status`,
+  ADMIN_RESCO_VERIFY_DOC_CANDIDATES: (id?: string | number) => {
+    const basePaths = [
+      '/jk/resco/installation/verify-document-status',
+      '/jk/resco/installation/verify-installation-doc-status',
+      '/jk/resco/installation/verify-installation-document',
+      '/jammu/resco/installation/verify-document-status',
+      '/jammu/resco/installation/verify-installation-doc-status',
+      '/jammu/resco/installation/verify-installation-document',
+    ];
+    const list: string[] = [];
+    for (const bp of basePaths) {
+      list.push(...buildCandidateUrls(bp));
+      if (id !== undefined && id !== null && String(id).trim() !== '') {
+        list.push(...buildCandidateUrls(`${bp}/${encodeURIComponent(String(id).trim())}`));
+      }
+    }
+    return Array.from(new Set(list));
+  },
   ADMIN_RESCO_VIEW_CLAIM: `${ADMIN_BASE_URL}/jk/resco/installation/view-claim`,
   ADMIN_RESCO_VERIFY_CLAIM: `${ADMIN_BASE_URL}/jk/resco/installation/view-claim`,
   ADMIN_RESCO_CLAIM_STATUS_UPDATE: `${ADMIN_BASE_URL}/jk/resco/installation/claim-status-update`,

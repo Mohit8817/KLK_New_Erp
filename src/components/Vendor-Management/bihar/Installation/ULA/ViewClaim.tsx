@@ -508,7 +508,7 @@ const parseSiteIds = (val?: any): number[] => {
   if (typeof val === 'number') {
     if (Number.isFinite(val) && val > 0) {
       // If small number like 4 or 6 representing site count, generate dummy ids or single id
-      return val <= 20 ? Array.from({ length: Math.floor(val) }, (_, i) => 101 + i) : [Math.floor(val)];
+      return [Math.floor(val)];
     }
     return [];
   }
@@ -535,81 +535,7 @@ const parseSiteIds = (val?: any): number[] => {
 };
 
 export function BiharULAInstallationViewClaim() {
-  const [claims, setClaims] = useState<UlaClaimItem[]>([
-    {
-      id: 501,
-      payment_type: '50% First Tranche (Supply & MMS)',
-      vendor: 'ETS Networks Pvt Ltd',
-      date: '24-10-2024',
-      sites: [101, 102, 103, 104, 105, 106],
-      site_id: [101, 102, 103, 104, 105, 106],
-      invoice: 'INV-ULA-2024-089',
-      amount: 450000,
-      remarks: '50% claim raised after civil foundation completion',
-      verify_remarks: 'Verified against MMS inspection sign-off',
-      status: 'Approved',
-      status_code: 1,
-      verified_date: '2024-10-26',
-    },
-    {
-      id: 502,
-      payment_type: '50% First Tranche (Supply & MMS)',
-      vendor: 'ETS Networks Pvt Ltd',
-      date: '28-10-2024',
-      sites: [107, 108, 109, 110],
-      site_id: [107, 108, 109, 110],
-      invoice: 'INV-ULA-2024-092',
-      amount: 300000,
-      remarks: 'Fastener test certificates submitted',
-      verify_remarks: '',
-      status: 'Pending',
-      status_code: 0,
-    },
-    {
-      id: 503,
-      payment_type: '30% Second Tranche (Installation)',
-      vendor: 'Shakti Pumps Ltd',
-      date: '02-11-2024',
-      sites: [111, 112, 113, 114, 115],
-      site_id: [111, 112, 113, 114, 115],
-      invoice: 'INV-ULA-2024-101',
-      amount: 270000,
-      remarks: 'Pump commissioning discharge report attached',
-      verify_remarks: '',
-      status: 'Pending',
-      status_code: 0,
-    },
-    {
-      id: 504,
-      payment_type: '30% Second Tranche (Installation)',
-      vendor: 'Shakti Pumps Ltd',
-      date: '04-11-2024',
-      sites: [116, 117, 118, 119],
-      site_id: [116, 117, 118, 119],
-      invoice: 'INV-ULA-2024-104',
-      amount: 216000,
-      remarks: 'Inverter logs and smart meter sync validated',
-      verify_remarks: 'Approved for final finance disbursement',
-      status: 'Approved',
-      status_code: 1,
-      verified_date: '2024-11-06',
-    },
-    {
-      id: 505,
-      payment_type: '50% First Tranche (Supply & MMS)',
-      vendor: 'Tata Power Solar',
-      date: '07-11-2024',
-      sites: [120, 121, 122],
-      site_id: [120, 121, 122],
-      invoice: 'INV-ULA-2024-110',
-      amount: 225000,
-      remarks: 'Module serial discrepancies found during audit',
-      verify_remarks: 'Rejected: Serial bar code image does not match physical modules',
-      status: 'Rejected',
-      status_code: 2,
-      verified_date: '2024-11-09',
-    },
-  ]);
+  const [claims, setClaims] = useState<UlaClaimItem[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -640,6 +566,10 @@ export function BiharULAInstallationViewClaim() {
       if (res && res.data) {
         const list = Array.isArray(res.data)
           ? res.data
+          : Array.isArray(res.data?.claimrequest)
+          ? res.data.claimrequest
+          : Array.isArray(res?.claimrequest)
+          ? res.claimrequest
           : Array.isArray(res.data?.claims)
           ? res.data.claims
           : Array.isArray(res.data?.data)
@@ -649,9 +579,11 @@ export function BiharULAInstallationViewClaim() {
         if (list.length > 0) {
           setClaims(
             list.map((item: any, idx: number) => {
-              const stCode = item.status === 1 || item.status === 'Approved' || item.claim_status === 2 || item.claim_status === 'Approved'
+              const statusCode = Number(item.claim_status ?? item.status ?? 0);
+              const statusStr = String(item.claim_status ?? item.status ?? '').toLowerCase();
+              const stCode = statusCode === 2 || statusStr.includes('approv') || item.status === 1
                 ? 1
-                : item.status === 2 || item.status === 'Rejected' || item.claim_status === 3 || item.claim_status === 'Rejected'
+                : statusCode === 3 || statusStr.includes('reject')
                 ? 2
                 : 0;
 
@@ -661,15 +593,15 @@ export function BiharULAInstallationViewClaim() {
                 vendor: typeof item.vendor_name === 'string' && item.vendor_name
                   ? item.vendor_name
                   : typeof item.vendor === 'object' && item.vendor !== null
-                  ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
-                  : (item.vendor || 'ETS Networks Pvt Ltd'),
+                  ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                  : (item.vendor || '—'),
                 vendor_id: typeof item.vendor === 'object' && item.vendor !== null ? item.vendor.id : (item.vendor_id || item.vendor),
-                date: item.date || item.created_at ? fmtDate(item.date || item.created_at) : '02-11-2024',
-                sites: item.sites || item.site_id || item.site_count || 4,
+                date: item.date || item.created_at ? fmtDate(item.date || item.created_at) : '—',
+                sites: item.sites || item.site_id || item.site_count || 1,
                 site_id: item.site_id || item.sites,
                 invoice: item.invoice || item.invoice_no || `INV-ULA-${String(idx + 1).padStart(3, '0')}`,
                 file: item.file || item.invoice_file || item.claim_invoice,
-                amount: Number(item.amount || item.claim_amount || 250000),
+                amount: Number(item.amount || item.claim_amount || 0),
                 remarks: item.remarks || item.remark || '',
                 verify_remarks: item.verify_remarks || item.approved_remarks || '',
                 status: stCode === 1 ? 'Approved' : stCode === 2 ? 'Rejected' : 'Pending',
@@ -678,10 +610,15 @@ export function BiharULAInstallationViewClaim() {
               };
             })
           );
+        } else {
+          setClaims([]);
         }
+      } else {
+        setClaims([]);
       }
     } catch (err: any) {
-      console.warn('[ViewClaim ULA] Using fallback live data:', err);
+      console.warn('[ViewClaim ULA] Failed to fetch:', err);
+      setClaims([]);
     } finally {
       setLoading(false);
     }

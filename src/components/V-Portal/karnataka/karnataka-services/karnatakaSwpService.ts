@@ -10,24 +10,31 @@ export const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefine
 
 export function getKarnatakaMediaCandidates(path?: string | null): string[] {
   if (!path || typeof path !== 'string') return [];
-  const clean = path.trim();
-  if (!clean) return [];
+  const clean = path.trim().replace(/^["']|["']$/g, '');
+  if (!clean || clean === 'null' || clean === 'undefined' || clean === '—') return [];
 
   if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
     return [clean];
   }
 
-  const normalized = clean.replace(/^\/+/, '');
+  const normalized = clean.replace(/\\+/g, '/').replace(/^\/+/, '');
   const filename = normalized.split('/').pop() || normalized;
   const candidates: string[] = [];
 
   if (normalized.startsWith('uploads/')) {
     candidates.push(`${BACKEND_BASE}/${normalized}`);
+    candidates.push(`https://klkerp.com/${normalized}`);
     candidates.push(`${BACKEND_BASE}/storage/${normalized}`);
   } else {
     candidates.push(`${BACKEND_BASE}/uploads/${normalized}`);
+    candidates.push(`https://klkerp.com/uploads/${normalized}`);
     candidates.push(`${BACKEND_BASE}/storage/uploads/${normalized}`);
     candidates.push(`${BACKEND_BASE}/storage/${normalized}`);
+  }
+
+  if (filename !== normalized) {
+    candidates.push(`https://klkerp.com/uploads/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
   }
 
   if (R2_BASE) {
@@ -36,6 +43,7 @@ export function getKarnatakaMediaCandidates(path?: string | null): string[] {
   }
 
   candidates.push(`${BACKEND_BASE}/${normalized}`);
+  candidates.push(`https://klkerp.com/${normalized}`);
   return Array.from(new Set(candidates));
 }
 

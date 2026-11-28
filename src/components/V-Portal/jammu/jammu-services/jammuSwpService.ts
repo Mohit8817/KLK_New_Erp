@@ -6,15 +6,16 @@ import { getAuthHeaders } from './jammuSrt70mwService';
  */
 export function getJammuSwpMediaCandidates(path?: string | null): string[] {
   if (!path) return [];
-  const trimmed = String(path).trim();
-  if (!trimmed) return [];
+  const trimmed = String(path).trim().replace(/^["']|["']$/g, '');
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '—') return [];
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return [trimmed];
 
-  const normalized = trimmed.replace(/^\/+/, '');
+  const normalized = trimmed.replace(/\\+/g, '/').replace(/^\/+/, '');
   const filename = normalized.split('/').pop() || normalized;
   const candidates: string[] = [];
 
   candidates.push(`${ROOT_URL}/${normalized}`);
+  candidates.push(`https://klkerp.com/${normalized}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/module/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/vfd/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/running_water/${filename}`);
@@ -23,6 +24,7 @@ export function getJammuSwpMediaCandidates(path?: string | null): string[] {
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/payment/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/swp/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/${filename}`);
+  candidates.push(`https://klkerp.com/uploads/${filename}`);
 
   const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
   if (R2_BASE) {

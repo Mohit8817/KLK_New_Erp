@@ -485,14 +485,22 @@ export function BiharSRTInstallationViewPayment() {
         vendor: appliedFilters.vendor || undefined,
       });
 
-      const rawList = Array.isArray(res)
-        ? res
-        : Array.isArray(res?.data)
-        ? res.data
-        : Array.isArray(res?.payments)
-        ? res.payments
-        : Array.isArray(res?.data?.payments)
-        ? res.data.payments
+      const d = res?.data || res || {};
+      const p1 = Array.isArray(d.payments1) ? d.payments1.map((p: any) => ({ ...p, milestone: '70' })) : [];
+      const p2 = Array.isArray(d.payments2) ? d.payments2.map((p: any) => ({ ...p, milestone: '15_1' })) : [];
+      const p3 = Array.isArray(d.payments3) ? d.payments3.map((p: any) => ({ ...p, milestone: '15_2' })) : [];
+      const combinedPayments = [...p1, ...p2, ...p3];
+
+      const rawList = combinedPayments.length > 0
+        ? combinedPayments
+        : Array.isArray(d.paymentrequests)
+        ? d.paymentrequests
+        : Array.isArray(d.payments)
+        ? d.payments
+        : Array.isArray(d.data)
+        ? d.data
+        : Array.isArray(d)
+        ? d
         : [];
 
       const mapped: BiharSRTPaymentItem[] = rawList.map((item: any, idx: number) => {
@@ -683,13 +691,43 @@ export function BiharSRTInstallationViewPayment() {
       const newPaid = currentPaid + amt;
       const newStatusNum = newPaid >= totalAmount ? 2 : 1;
 
-      await biharAdminService.updateSrtPaymentStatus({
+      const m = disbursePayment.milestone;
+      const remarkText = disburseRemarks || `Disbursed ₹ ${amt.toLocaleString('en-IN')}`;
+      let payload: Record<string, any> = {
         id: disbursePayment.id,
+        status: newStatusNum,
         pay_amount: newPaid,
         payment_date: disburseDate,
-        payment_remark: disburseRemarks || `Disbursed ₹ ${amt.toLocaleString('en-IN')}`,
-        status: newStatusNum,
-      });
+        payment_remark: remarkText,
+      };
+
+      if (m === '15_1') {
+        payload = {
+          ...payload,
+          pay2_id: disbursePayment.id,
+          inst_pay2: amt,
+          inst_pay2_date: disburseDate,
+          inst_pay2_remark: remarkText,
+        };
+      } else if (m === '15_2') {
+        payload = {
+          ...payload,
+          pay3_id: disbursePayment.id,
+          inst_pay3: amt,
+          inst_pay3_date: disburseDate,
+          inst_pay3_remark: remarkText,
+        };
+      } else {
+        payload = {
+          ...payload,
+          pay1_id: disbursePayment.id,
+          inst_pay1: amt,
+          inst_pay1_date: disburseDate,
+          inst_pay1_remark: remarkText,
+        };
+      }
+
+      await biharAdminService.updateSrtPaymentStatus(payload);
 
       setSuccessMsg(`Payment of ₹ ${amt.toLocaleString('en-IN')} recorded successfully for Claim #${disbursePayment.id}!`);
       setDisbursePayment(null);

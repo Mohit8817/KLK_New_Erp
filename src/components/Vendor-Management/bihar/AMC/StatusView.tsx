@@ -765,50 +765,99 @@ export function BiharSSLAMCStatusView() {
     try {
       // 1. Fetch live sites from verify-amc or view-data
       const res = await biharAdminService.getVerifySslAmc();
-      let list: any[] = [];
-      if (res && res.data) {
-        list = Array.isArray(res.data)
-          ? res.data
-          : Array.isArray(res.data?.amc_data)
-          ? res.data.amc_data
-          : Array.isArray(res.data?.data)
-          ? res.data.data
-          : [];
+      const d = res?.data ?? res ?? {};
+
+      let rawPending: any[] = [];
+      let rawDone: any[] = [];
+
+      if (Array.isArray(d)) {
+        rawPending = d;
+      } else if (typeof d === 'object' && d !== null) {
+        if (Array.isArray(d.verify_done)) {
+          rawDone = d.verify_done;
+        }
+
+        const candidateKeys = [
+          'verify_pending',
+          'verification',
+          'pending',
+          'amc_pending',
+          'amc_verify',
+          'verify',
+          'amc_data',
+          'amcs',
+          'amc',
+          'sites',
+          'records',
+          'data',
+          'list',
+          'rows',
+        ];
+
+        for (const k of candidateKeys) {
+          if (Array.isArray(d[k]) && d[k] !== d.verify_done) {
+            rawPending = d[k];
+            break;
+          }
+        }
+
+        if (rawPending.length === 0) {
+          for (const k of Object.keys(d)) {
+            if (k !== 'verify_done' && Array.isArray(d[k]) && d[k].length > 0) {
+              rawPending = d[k];
+              break;
+            }
+          }
+        }
       }
 
-      if (list.length > 0) {
-        const mapped: BiharSslAmcSite[] = list.map((item: any, idx: number) => {
-          const isAssigned = !!(item.amc_assigned_to || item.vendor_name || item.vendor_id || item.vendor);
-          const isComplete = Number(item.amc_complete ?? item.status ?? item.amc_status ?? 0) === 1 || item.amc_date;
+      const rawCombined = [...rawPending, ...rawDone];
+
+      if (rawCombined.length > 0) {
+        const mapped: BiharSslAmcSite[] = rawCombined.map((item: any, idx: number) => {
+          const isAssigned = !!(item.amc_assigned_to || item.vendor_name || item.vendor_id || item.vendor || item.installed_by || item.installation_vendor);
+          const isComplete = Number(item.amc_complete ?? item.status ?? item.amc_status ?? item.amc_v_status ?? 0) === 1 || !!item.amc_date || !!item.amc_v_date;
           const isToday = !!item.is_today || (item.amc_date && String(item.amc_date).includes(new Date().toISOString().slice(0, 10)));
-          const vCode = item.verify_status === 1 || item.verify_status === 'Approved' ? 1 : item.verify_status === 2 || item.verify_status === 'Rejected' ? 2 : 0;
+          
+          let vCode = 0;
+          if (item._fromDoneList || (rawDone.includes(item) && !rawPending.includes(item))) {
+            const rawDoneCode = Number(item.amc_verify ?? item.verify_status ?? item.amcverify_status ?? 1);
+            vCode = rawDoneCode === 2 ? 2 : 1;
+          } else {
+            const rawVerify = item.amc_verify !== undefined && item.amc_verify !== '' && item.amc_verify !== null
+              ? Number(item.amc_verify)
+              : undefined;
+            if (rawVerify === 1) vCode = 1;
+            else if (rawVerify === 2) vCode = 2;
+            else vCode = 0;
+          }
           const vText = vCode === 1 ? 'Approved' : vCode === 2 ? 'Rejected' : 'Pending';
 
           return {
-            id: item.id || idx + 1,
-            pole_no: item.pole_no || `PL-${String(idx + 1).padStart(3, '0')}`,
-            uid: item.uid || `SSL-${item.district || 'BIH'}-${String(idx + 1).padStart(3, '0')}`,
-            state: item.state || 'Bihar',
-            phase: item.phase || 'Phase 1',
-            district: item.district || 'Patna',
+            id: Number(item.id || idx + 1),
+            pole_no: item.pole_no && item.pole_no !== 'NA' ? String(item.pole_no) : `PL-${String(idx + 1).padStart(3, '0')}`,
+            uid: String(item.unique_id || item.uid || item.excel_id || `SSL-${item.district || 'BIH'}-${String(item.id || idx + 1)}`),
+            state: item.state ? (String(item.state).toUpperCase() === 'BIHAR' ? 'Bihar' : String(item.state)) : 'Bihar',
+            phase: item.phase ? (String(item.phase).toLowerCase().includes('phase') ? String(item.phase) : `Phase ${item.phase}`) : 'Phase 1',
+            district: item.district ? String(item.district).toUpperCase() : 'Patna',
             block: item.block || 'Danapur',
-            panchayat: item.panchayat || 'Gram Panchayat',
-            ward_no: item.ward_no || item.ward || 'Ward 01',
-            vendor_id: item.vendor_id || item.amc_assigned_to,
+            panchayat: item.panchayat || item.panchyat || item.village || 'Gram Panchayat',
+            ward_no: item.ward_no && item.ward_no !== 'NA' ? String(item.ward_no) : item.ward && item.ward !== 'NA' ? String(item.ward) : 'Ward 01',
+            vendor_id: item.vendor_id || item.amc_assigned_to || item.installed_by || item.installation_vendor,
             vendor_name: item.vendor_name || (item.amc_assigned_to ? `Vendor #${item.amc_assigned_to}` : isAssigned ? 'Assigned Field Agency' : 'Unassigned'),
             assign_status: isAssigned ? 'Assigned' : 'Not Assigned',
             amc_status: isComplete ? 'Complete' : 'Pending',
             is_today: isToday,
             verify_status: vText,
             verify_status_code: vCode,
-            amc_date: item.amc_date || item.created_at,
-            assign_date: item.assign_date || item.assigned_at,
-            amc_latitude: item.amc_latitude || item.latitude,
+            amc_date: item.amc_v_date || item.amc_date || item.amc_assigned_time || item.created_at,
+            assign_date: item.assign_date || item.amc_assigned_time || item.assigned_at,
+            amc_latitude: item.amc_latittude || item.amc_latitude || item.latitude,
             amc_longitude: item.amc_longitude || item.longitude,
-            amc_image_1: item.amc_image_1 || item.image1,
-            amc_image_2: item.amc_image_2 || item.image2,
-            amc_remark: item.amc_remark || item.remark,
-            verify_remarks: item.verify_remarks || '',
+            amc_image_1: item.amc_image1 || item.amc_image_1 || item.image1 || item.image,
+            amc_image_2: item.amc_image2 || item.amc_image_2 || item.image2,
+            amc_remark: item.amc_v_remarks || item.amc_remark || item.remark,
+            verify_remarks: item.verify_remarks || item.amc_v_remarks || '',
           };
         });
         setAllSites(mapped);

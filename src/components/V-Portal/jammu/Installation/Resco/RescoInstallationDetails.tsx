@@ -302,24 +302,30 @@ function InstallationThumbnail({
 }
 
 /* ── Action Dropdown (menu is rendered in <body> via createPortal so the table never clips it) ── */
-const MENU_W = 170;
-const MENU_H_DEFAULT = 76;
-const MENU_H_WITH_DOC = 112;
+const MENU_W = 185;
 
 function RowActionDropdown({
   onEdit,
   onSubmitDoc,
-  docUrl,
+  onImportPanel,
+  onViewPanel,
+  canEdit = true,
+  canSubmitDoc = true,
 }: {
   onEdit: () => void;
   onSubmitDoc: () => void;
-  docUrl?: string | null;
+  onImportPanel: () => void;
+  onViewPanel: () => void;
+  canEdit?: boolean;
+  canSubmitDoc?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const menuH = docUrl ? MENU_H_WITH_DOC : MENU_H_DEFAULT;
+
+  const totalItems = (canEdit ? 1 : 0) + (canSubmitDoc ? 1 : 0) + 2;
+  const menuH = totalItems * 38 + 12;
 
   const toggle = () => {
     if (open) {
@@ -386,43 +392,76 @@ function RowActionDropdown({
 
       {open && pos &&
         createPortal(
-          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onEdit();
-              }}
-            >
-              Edit Details
-            </button>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onSubmitDoc();
-              }}
-            >
-              Submit Document
-            </button>
-            {docUrl && (
-              <a
-                href={docUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W, zIndex: 99999 }}>
+            {canEdit && (
+              <button
+                type="button"
                 className="ula-menu__item"
                 role="menuitem"
-                onClick={() => setOpen(false)}
-                style={{ color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
               >
-                <span>View Document</span>
-                <span style={{ fontSize: 11 }}>↗</span>
-              </a>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#2563eb' }}>
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit Details</span>
+              </button>
             )}
+            {canSubmitDoc && (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onSubmitDoc();
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#16a34a' }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <polyline points="9 15 12 12 15 15" />
+                </svg>
+                <span>Doc Submit</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onImportPanel();
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#d97706' }}>
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span>Import Panel</span>
+            </button>
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onViewPanel();
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#0284c7' }}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+              <span>View Panel</span>
+            </button>
           </div>,
           document.body
         )}
@@ -784,6 +823,19 @@ export function RescoInstallationDetails() {
   const [docError, setDocError] = useState<string | null>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
 
+  // Import Panel Modal State (API 16: POST /jk/resco-installation-panel-store/{id})
+  const [importModalSite, setImportModalSite] = useState<JammuRescoInstalledSiteItem | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importingPanels, setImportingPanels] = useState<boolean>(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  // View Panel Modal State (API 17: GET /jk/resco-installation-view-panel/{id})
+  const [viewPanelModalSite, setViewPanelModalSite] = useState<JammuRescoInstalledSiteItem | null>(null);
+  const [sitePanels, setSitePanels] = useState<Array<{ id: number | string; panel_no: string }>>([]);
+  const [loadingPanels, setLoadingPanels] = useState<boolean>(false);
+  const [panelSearch, setPanelSearch] = useState<string>('');
+
   // Load Data from API 7: GET /jk/resco-view-install-site
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -1031,9 +1083,21 @@ export function RescoInstallationDetails() {
     setDocError(null);
     try {
       const fd = new FormData();
-      fd.append('site_id', String(docModalSite.site_id || docModalSite.id));
+      const siteId = String(docModalSite.site_id || docModalSite.id);
+      fd.append('id', siteId);
+      fd.append('site_id', siteId);
+      fd.append('resco_id', siteId);
       fd.append('doc_file', docFile);
+      fd.append('inst_doc_file', docFile);
+      fd.append('document_file', docFile);
+      fd.append('image', docFile);
+      fd.append('file', docFile);
       fd.append('doc_remarks', docRemarks.trim());
+      fd.append('inst_doc_remarks', docRemarks.trim());
+      fd.append('document_remarks', docRemarks.trim());
+      fd.append('remarks', docRemarks.trim());
+      fd.append('date', new Date().toISOString().split('T')[0]);
+      fd.append('doc_date', new Date().toISOString().split('T')[0]);
 
       const res = await jammuRescoService.submitInstallationDocument(fd);
       setToastMsg({
@@ -1050,6 +1114,126 @@ export function RescoInstallationDetails() {
       setDocSubmitting(false);
     }
   };
+
+  // Import Panel handlers (API 16: POST /jk/resco-installation-panel-store/{id})
+  const handleOpenImportModal = (site: JammuRescoInstalledSiteItem) => {
+    setImportModalSite(site);
+    setImportFile(null);
+    setImportError(null);
+  };
+
+  const closeImportModal = () => {
+    setImportModalSite(null);
+    setImportFile(null);
+    setImportError(null);
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
+
+  const handleImportSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!importModalSite || !importFile) return;
+
+    setImportingPanels(true);
+    setImportError(null);
+    try {
+      const fd = new FormData();
+      const siteId = String(importModalSite.site_id || importModalSite.id);
+      fd.append('id', siteId);
+      fd.append('site_id', siteId);
+      fd.append('resco_id', siteId);
+      fd.append('image', importFile);
+      fd.append('file', importFile);
+      fd.append('panel_image', importFile);
+      fd.append('panel_file', importFile);
+      fd.append('import_file', importFile);
+
+      const res = await jammuRescoService.importPanels(siteId, fd);
+      setToastMsg({
+        type: 'success',
+        text: res.message || 'Panels imported successfully!',
+      });
+      closeImportModal();
+      await loadData();
+    } catch (err: any) {
+      console.error('[Jammu Resco Import Panels] error:', err);
+      setImportError(err?.message || 'Failed to import panels.');
+    } finally {
+      setImportingPanels(false);
+    }
+  };
+
+  // View Panel handlers (API 17: GET /jk/resco-installation-view-panel/{id})
+  const handleOpenViewPanel = async (site: JammuRescoInstalledSiteItem) => {
+    setViewPanelModalSite(site);
+    setLoadingPanels(true);
+    setPanelSearch('');
+    setSitePanels([]);
+
+    try {
+      const siteId = site.site_id || site.id;
+      const res = await jammuRescoService.getViewPanels(siteId);
+      let list: any[] = [];
+      if (res && Array.isArray(res.panels)) {
+        list = res.panels;
+      } else if (res && Array.isArray((res as any).data)) {
+        list = (res as any).data;
+      }
+
+      if (list.length === 0 && site.panel_no) {
+        if (Array.isArray(site.panel_no)) {
+          list = site.panel_no;
+        } else if (typeof site.panel_no === 'string') {
+          try {
+            const parsed = JSON.parse(site.panel_no);
+            if (Array.isArray(parsed)) list = parsed;
+            else list = site.panel_no.split(',');
+          } catch {
+            list = site.panel_no.split(',');
+          }
+        }
+      }
+
+      const normalized = list
+        .filter((item) => item !== null && item !== undefined && item !== '')
+        .map((item, idx) => {
+          if (typeof item === 'string') {
+            return { id: idx + 1, panel_no: item.trim() };
+          }
+          return {
+            id: item.id || idx + 1,
+            panel_no: String(item.panel_no || item.panel_serial_no || item.serial_no || item.number || '—').trim(),
+          };
+        });
+
+      setSitePanels(normalized);
+    } catch (err: any) {
+      console.warn('Error loading panels, falling back to local panel_no:', err);
+      if (Array.isArray(site.panel_no)) {
+        setSitePanels(site.panel_no.map((p, idx) => ({ id: idx + 1, panel_no: String(p) })));
+      } else if (typeof site.panel_no === 'string' && site.panel_no.trim()) {
+        try {
+          const parsed = JSON.parse(site.panel_no);
+          if (Array.isArray(parsed)) {
+            setSitePanels(parsed.map((p, idx) => ({ id: idx + 1, panel_no: String(p) })));
+          } else {
+            setSitePanels([{ id: 1, panel_no: site.panel_no }]);
+          }
+        } catch {
+          setSitePanels(site.panel_no.split(',').map((p, idx) => ({ id: idx + 1, panel_no: p.trim() })));
+        }
+      } else {
+        setSitePanels([]);
+      }
+    } finally {
+      setLoadingPanels(false);
+    }
+  };
+
+  const filteredPanels = useMemo(() => {
+    if (!panelSearch.trim()) return sitePanels;
+    const q = panelSearch.trim().toLowerCase();
+    return sitePanels.filter((p) => String(p.panel_no).toLowerCase().includes(q));
+  }, [sitePanels, panelSearch]);
 
   // Export Columns definition
   const exportCols: ExportColumn<JammuRescoInstalledSiteItem>[] = useMemo(
@@ -1340,7 +1524,6 @@ export function RescoInstallationDetails() {
                     row.inst_verify_file ||
                     row.file;
 
-                  const docFileUrl = docFileRaw ? resolveJammuMediaUrl(docFileRaw) : null;
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawV = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isApproved = vStatus === 1 || rawV === 'approved' || rawV === 'complete';
@@ -1450,49 +1633,16 @@ export function RescoInstallationDetails() {
                         {row.inst_doc_remarks || row.doc_remarks || row.document_remarks || DASH}
                       </td>
 
-                      {/* Action: Locked if Verify Status is Approved, otherwise RowActionDropdown */}
+                      {/* Action Dropdown */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {isApproved ? (
-                          <span
-                            className="ax-badge ax-badge--soft"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 5,
-                              padding: '5px 11px',
-                              fontSize: '11.5px',
-                              fontWeight: 600,
-                              color: 'var(--ax-text-muted, #64748b)',
-                              background: 'var(--ax-surface-subtle, #f1f5f9)',
-                              border: '1px solid var(--ax-border, #cbd5e1)',
-                              borderRadius: 6,
-                              cursor: 'not-allowed',
-                              userSelect: 'none',
-                            }}
-                            title="Installation Verified & Approved. Actions are locked."
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              style={{ width: 13, height: 13, color: '#64748b' }}
-                              aria-hidden="true"
-                            >
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            <span>Locked</span>
-                          </span>
-                        ) : (
-                          <RowActionDropdown
-                            onEdit={() => handleOpenEdit(row.id)}
-                            onSubmitDoc={() => handleOpenDocModal(row)}
-                            docUrl={docFileUrl}
-                          />
-                        )}
+                        <RowActionDropdown
+                          canEdit={!isApproved}
+                          canSubmitDoc={true}
+                          onEdit={() => handleOpenEdit(row.id)}
+                          onSubmitDoc={() => handleOpenDocModal(row)}
+                          onImportPanel={() => handleOpenImportModal(row)}
+                          onViewPanel={() => handleOpenViewPanel(row)}
+                        />
                       </td>
                     </tr>
                   );
@@ -1916,6 +2066,234 @@ export function RescoInstallationDetails() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* ── Import Panel Modal (API 16: POST /jk/resco-installation-panel-store/{id}) ── */}
+      <Modal open={!!importModalSite} onClose={closeImportModal} labelledBy="resco-import-title" dialogClass="ax-modal__dialog--md">
+        {importModalSite && (
+          <form onSubmit={handleImportSubmit}>
+            <div className="ax-modal__header">
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="resco-import-title">
+                  Import Panels
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Site: <b>{importModalSite.site_name}</b> (#{importModalSite.id})
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={closeImportModal}
+                disabled={importingPanels}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {importError && (
+                <div style={{ padding: 12, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
+                  ✕ {importError}
+                </div>
+              )}
+
+              <div style={{ fontSize: 12.5, color: '#1e40af', background: '#eff6ff', padding: '10px 14px', borderRadius: 8, border: '1px solid #bfdbfe' }}>
+                Upload panel photograph or Excel (.xlsx, .xls) / CSV file containing solar panel serial numbers.
+              </div>
+
+              {/* File Dropzone */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label">
+                  <span>Panel Image / File</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <input
+                  ref={importFileRef}
+                  id="resco_import_file_input"
+                  type="file"
+                  accept="image/*,.xlsx,.xls,.csv"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                />
+                {!importFile ? (
+                  <div
+                    className="ax-modern-dropzone"
+                    onClick={() => importFileRef.current?.click()}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="ax-modern-dropzone__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#d97706' }}>
+                        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                        Click to upload panel image or Excel file
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                        Allowed: JPG, PNG, WEBP, XLSX, XLS, CSV
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ax-modern-file-chip">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span className="ax-modern-file-chip__icon" style={{ background: '#fef3c7' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#d97706' }}>
+                          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {importFile.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                          {(importFile.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--sm"
+                      style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                      onClick={() => {
+                        setImportFile(null);
+                        if (importFileRef.current) importFileRef.current.value = '';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="ax-modal__footer">
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={closeImportModal}
+                disabled={importingPanels}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={importingPanels || !importFile}
+              >
+                {importingPanels ? 'Uploading…' : 'Upload & Import'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* ── View Panel Modal (API 17: GET /jk/resco-installation-view-panel/{id}) ── */}
+      <Modal open={!!viewPanelModalSite} onClose={() => setViewPanelModalSite(null)} labelledBy="resco-panels-title" dialogClass="ax-modal__dialog--md">
+        {viewPanelModalSite && (
+          <div>
+            <div className="ax-modal__header">
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="resco-panels-title">
+                  Installed Panels List
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Site: <b>{viewPanelModalSite.site_name}</b> (#{viewPanelModalSite.id}) · Total: <b>{sitePanels.length}</b> panels
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={() => setViewPanelModalSite(null)}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ padding: 20 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
+                <SearchInput
+                  value={panelSearch}
+                  onChange={setPanelSearch}
+                  placeholder="Search panel serial number…"
+                  size="sm"
+                  ariaLabel="Search panel numbers"
+                />
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  onClick={() => {
+                    const text = sitePanels.map((p, i) => `${i + 1}\t${p.panel_no}`).join('\n');
+                    navigator.clipboard.writeText(text);
+                    setToastMsg({ type: 'success', text: 'Panel numbers copied to clipboard!' });
+                  }}
+                  disabled={sitePanels.length === 0}
+                  style={{ whiteSpace: 'nowrap', padding: '0 12px', height: 32 }}
+                >
+                  Copy List
+                </button>
+              </div>
+
+              {loadingPanels ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                  <span className="ax-spinner" style={{ width: 18, height: 18, marginRight: 8, verticalAlign: 'middle' }} />
+                  Loading panels…
+                </div>
+              ) : filteredPanels.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
+                  {sitePanels.length === 0 ? 'No individual panel records found for this site.' : 'No panel matches your search.'}
+                </div>
+              ) : (
+                <div style={{ maxHeight: 340, overflowY: 'auto', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8 }}>
+                  <table className="ax-table ax-table--sm" style={{ width: '100%', whiteSpace: 'nowrap', margin: 0 }}>
+                    <thead className="ax-table__head" style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1 }}>
+                      <tr>
+                        <th className="ax-table__th" style={{ width: 70, textAlign: 'center' }}>Sr. No.</th>
+                        <th className="ax-table__th">Panel No.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredPanels.map((panel, pIdx) => (
+                        <tr key={panel.id || pIdx} className="ax-table__row">
+                          <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>{pIdx + 1}</td>
+                          <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600 }}>
+                            {panel.panel_no}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => {
+                  const site = viewPanelModalSite;
+                  setViewPanelModalSite(null);
+                  handleOpenImportModal(site);
+                }}
+              >
+                + Import More Panels
+              </button>
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                onClick={() => setViewPanelModalSite(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

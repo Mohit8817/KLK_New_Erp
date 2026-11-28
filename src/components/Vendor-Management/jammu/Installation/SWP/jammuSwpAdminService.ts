@@ -780,36 +780,52 @@ export const jammuAdminSwpService = {
       verify_pending: Number(rawDetail?.verify_pending ?? 0),
       verify_reject: Number(rawDetail?.verify_reject ?? 0),
     };
-    const verification = Array.isArray(payload.verification)
+    let verification = Array.isArray(payload.verification)
       ? payload.verification
       : Array.isArray(payload.pending)
       ? payload.pending
       : [];
-    const verified = Array.isArray(payload.verified)
+    let verified = Array.isArray(payload.verified)
       ? payload.verified
       : Array.isArray(payload.approved)
       ? payload.approved
       : [];
 
+    if (verification.length === 0 && verified.length === 0) {
+      const rawList = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload.sites)
+        ? payload.sites
+        : Array.isArray(payload.data)
+        ? payload.data
+        : [];
+      if (rawList.length > 0) {
+        verification = rawList.filter((x: any) => Number(x.inst_verify_status ?? 0) !== 1);
+        verified = rawList.filter((x: any) => Number(x.inst_verify_status ?? 0) === 1);
+      }
+    }
+
     const mapRowToSite = (item: any, defaultSt = 0): JammuSwpInstalledSiteItem => ({
       id: item.id,
-      vendor_name: item.vendor_name || item.vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
+      vendor_name: item.vendor_name || item.c_firm || item.vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
       f_farmer_name: item.f_farmer_name || item.farmer_name || item.applicant_name || `Farmer #${item.id}`,
-      f_farmer_id: item.f_farmer_id || item.farmer_id || `SWP-${item.id}`,
-      contact_no: item.contact_no || item.mobile || item.phone || '—',
+      f_father_name: item.f_father_name || item.father_name || '—',
+      f_farmer_id: item.f_farmer_id || item.farmer_id || item.f_app_no || `SWP-${item.id}`,
+      contact_no: item.contact_no || item.contact_number || item.mobile || item.phone || '—',
       state: item.state || 'jammu',
       district: item.district || item.f_district || '—',
-      block: item.block || item.f_block || '—',
+      block: item.post || item.block || item.f_block || item.tehsil || item.f_tehsil || item.sub_district || item.taluka || '—',
       post: item.post || '—',
       village: item.village || item.f_village || '—',
-      pump_capacity: item.pump_capacity || item.capacity || '—',
-      pump_type: item.pump_type || '—',
-      pump_subtype: item.pump_subtype || '—',
-      pump_sr_no: item.pump_sr_no || item.pump_no || '—',
-      controller_sr_no: item.controller_sr_no || item.vfd_no || item.controller_no || '—',
-      module_sr_no: Array.isArray(item.jammu_modulee || item.jammuModulee || item.modules)
-        ? (item.jammu_modulee || item.jammuModulee || item.modules).map((m: any) => m.sr_no || m.module_no || m.serial_no).filter(Boolean).join(', ')
-        : item.module_sr_no || '—',
+      pump_capacity: item.pump_capacity || item.p_pump_capacity || item.capacity || '—',
+      pump_type: item.pump_type || item.p_pump_type || '—',
+      pump_subtype: item.pump_subtype || item.p_pump_subtype || '—',
+      pump_sr_no: item.mt_pump_no || item.pump_sr_no || item.pump_no || '—',
+      motor_sr_no: item.mt_motor_no || item.motor_sr_no || item.motor_no || '—',
+      controller_sr_no: item.vfd_no || item.controller_sr_no || item.mt_controller_no || item.controller_no || '—',
+      module_sr_no: Array.isArray(item.jammu_modulee || item.jammuModulee || item.jammu_modules || item.modules)
+        ? (item.jammu_modulee || item.jammuModulee || item.jammu_modules || item.modules).map((m: any) => m.sr_no || m.module_no || m.serial_no).filter(Boolean).join(', ')
+        : item.module_sr_no || (item.mt_module_watt ? `Watt: ${item.mt_module_watt}` : '—'),
       farmer_with_module: (item.module_image || item.farmer_with_module || item.farmer_module_image) ? resolveJammuSwpMediaUrl(item.module_image || item.farmer_with_module || item.farmer_module_image) : undefined,
       inverter_vfd: (item.vfd_image || item.inverter_vfd || item.inverter_vfd_farmer_image) ? resolveJammuSwpMediaUrl(item.vfd_image || item.inverter_vfd || item.inverter_vfd_farmer_image) : undefined,
       running_water: (item.running_water_image || item.running_water || item.running_water_farmer_image) ? resolveJammuSwpMediaUrl(item.running_water_image || item.running_water || item.running_water_farmer_image) : undefined,
@@ -818,7 +834,7 @@ export const jammuAdminSwpService = {
       verify_file: (item.inst_doc || item.inst_verify_file || item.verify_file || item.file || item.verify_doc || item.document || item.doc_file) ? resolveJammuSwpMediaUrl(item.inst_doc || item.inst_verify_file || item.verify_file || item.file || item.verify_doc || item.document || item.doc_file) : undefined,
       verify_remarks: item.inst_verify_remarks || item.verify_remarks || item.remark || item.remarks || '',
       doc_verify_status: Number(item.inst_doc_status ?? 1),
-      doc_verify_remarks: item.inst_doc_remarks || item.doc_verify_remarks || '',
+      doc_verify_remarks: item.inst_doc_verify_remarks || item.inst_doc_remarks || item.doc_verify_remarks || '',
       created_at: item.created_at,
     });
 
@@ -929,7 +945,7 @@ export const jammuAdminSwpService = {
       contact_no: item.contact_no || item.mobile || item.phone || '—',
       state: item.state || 'jammu',
       district: item.district || item.f_district || '—',
-      block: item.block || item.f_block || '—',
+      block: item.block || item.f_block || item.tehsil || item.f_tehsil || item.sub_district || item.taluka || '—',
       post: item.post || '—',
       village: item.village || item.f_village || '—',
       pump_capacity: item.pump_capacity || item.capacity || '—',
@@ -947,7 +963,7 @@ export const jammuAdminSwpService = {
       verify_status: Number(item.inst_verify_status ?? 1),
       verify_remarks: item.inst_verify_remarks || '',
       doc_verify_status: Number(item.inst_doc_status ?? defaultSt),
-      doc_verify_remarks: item.remarks || item.inst_doc_remarks || item.doc_verify_remarks || '',
+      doc_verify_remarks: item.inst_doc_verify_remarks || item.inst_verify_remarks || item.inst_doc_remarks || item.doc_verify_remarks || item.remarks || '',
       created_at: item.created_at,
     });
 

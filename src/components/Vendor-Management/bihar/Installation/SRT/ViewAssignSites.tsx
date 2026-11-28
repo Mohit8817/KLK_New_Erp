@@ -172,6 +172,87 @@ const TABS: { key: FilterKey; label: string }[] = [
   { key: 'accepted', label: 'Accepted' },
 ];
 
+const extractText = (val: unknown, fallback = '—'): string => {
+  if (val === null || val === undefined || val === '') return fallback;
+  if (typeof val === 'string') return val.trim() || fallback;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (Array.isArray(val)) {
+    const first = val[0];
+    return first ? extractText(first, fallback) : fallback;
+  }
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    const candidate =
+      obj.name ??
+      obj.vendor_name ??
+      obj.company ??
+      obj.firm ??
+      obj.firm_name ??
+      obj.title ??
+      obj.label ??
+      obj.id;
+    return candidate !== undefined && candidate !== null && String(candidate).trim() !== ''
+      ? String(candidate).trim()
+      : fallback;
+  }
+  return fallback;
+};
+
+const findArrayInResponse = (d: any, res: any): any[] => {
+  const preferredKeys = [
+    'amcsrtRecords',
+    'amcSrtRecords',
+    'amcsrt_records',
+    'amcRecords',
+    'amcsrt',
+    'amcSrt',
+    'assignSrt',
+    'assignsrts',
+    'assign_srt',
+    'assigns',
+    'assigned_data',
+    'assignments',
+    'assigned_sites',
+    'records',
+    'sites',
+    'data',
+    'list',
+    'rows',
+  ];
+
+  for (const container of [d, res]) {
+    if (!container || typeof container !== 'object') continue;
+    if (Array.isArray(container)) return container;
+    for (const key of preferredKeys) {
+      if (Array.isArray(container[key])) return container[key];
+    }
+  }
+
+  for (const container of [d, res]) {
+    if (!container || typeof container !== 'object') continue;
+    for (const key of Object.keys(container)) {
+      const val = container[key];
+      if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
+        return val;
+      }
+    }
+    for (const key of Object.keys(container)) {
+      if (Array.isArray(container[key])) return container[key];
+    }
+  }
+
+  return [];
+};
+
+const formatAssignDate = (val: unknown): string => {
+  const str = extractText(val, '');
+  if (!str) return DASH;
+  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
+    return str.slice(0, 10);
+  }
+  return str;
+};
+
 export function BiharSRTInstallationViewAssignSites() {
   const [records, setRecords] = useState<BiharSRTInstAssignRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,45 +274,108 @@ export function BiharSRTInstallationViewAssignSites() {
       setLoading(true);
       setErrorMsg('');
       const res = await biharAdminService.getViewAssignSrt();
-      const d = res?.data || res || {};
+      const d = res?.data && typeof res.data === 'object' && !Array.isArray(res.data) ? res.data : res || {};
 
-      const rawList = Array.isArray(d.data)
-        ? d.data
-        : Array.isArray(d.assigned_data)
-        ? d.assigned_data
-        : Array.isArray(d.assignments)
-        ? d.assignments
-        : Array.isArray(d.assigned_sites)
-        ? d.assigned_sites
-        : Array.isArray(d.sites)
-        ? d.sites
-        : Array.isArray(res?.data)
-        ? res.data
-        : Array.isArray(res?.assignments)
-        ? res.assignments
-        : Array.isArray(res?.assigned_sites)
-        ? res.assigned_sites
-        : Array.isArray(res)
-        ? res
-        : [];
+      const rawList = findArrayInResponse(d, res);
 
       const sum = d.summary || d.kpi || res?.summary || res?.kpi || d;
       setSummaryData(sum);
 
-      const mapped: BiharSRTInstAssignRecord[] = rawList.map((item: any, idx: number) => ({
-        id: item.id ?? idx + 1,
-        vendor: item.vendor || item.vendor_name || item.agency_name || item.firm_name || item.installation_assigned_by || '—',
-        assign_date: item.assign_date || item.created_at || item.date || item.installation_assigned_date || '—',
-        state: item.state || 'Bihar',
-        district: item.district || '—',
-        site_name_deadline:
-          item.site_name_deadline ||
-          `${item.site_name || item.site || item.beneficiary_name || 'Site'}${item.deadline || item.installation_deadline ? ` - ${item.deadline || item.installation_deadline}` : ''}`,
-        site_count: Number(item.site_count || item.count || (Array.isArray(item.sites) ? item.sites.length : 1)),
-        file: item.file || item.allotment_file || item.document || '',
-        remarks: item.remarks || item.remark || item.inst_remark || '—',
-        status: item.status !== undefined ? (Number(item.status) as any) : (item.installation_status !== undefined ? Number(item.installation_status) as any : 0),
-      }));
+      const mapped: BiharSRTInstAssignRecord[] = rawList.map((item: any, idx: number) => {
+        const srt = item?.srtdata && typeof item.srtdata === 'object' ? item.srtdata : {};
+
+        const vendorText = extractText(
+          item?.vendors ??
+            item?.vendor_detail ??
+            (typeof item?.vendor === 'object' ? item.vendor : undefined) ??
+            item?.vendor_name ??
+            item?.agency_name ??
+            srt?.firm_name ??
+            srt?.inst_assigned_by ??
+            item?.firm_name ??
+            item?.installation_assigned_by ??
+            item?.vendor ??
+            srt?.inst_vendor ??
+            srt?.vendor ??
+            item?.amc_assigned_to,
+          DASH
+        );
+
+        let parsedSiteIds: string[] = [];
+        if (typeof item?.site_name === 'string' && item.site_name.trim().startsWith('[')) {
+          try {
+            const arr = JSON.parse(item.site_name);
+            if (Array.isArray(arr)) parsedSiteIds = arr.map(String);
+          } catch {
+            // ignore JSON parse errors
+          }
+        }
+
+        const rawSiteLabel = extractText(
+          srt?.site_name ??
+            (parsedSiteIds.length > 0 ? `${parsedSiteIds.length} Site(s)` : item?.site_name) ??
+            item?.site ??
+            item?.beneficiary_name,
+          'Site'
+        );
+        const deadlineText = extractText(
+          item?.deadline ?? item?.installation_deadline ?? srt?.inst_deadline,
+          ''
+        );
+
+        const siteCountVal = Array.isArray(item?.sites)
+          ? item.sites.length
+          : parsedSiteIds.length > 0
+          ? parsedSiteIds.length
+          : Number(item?.site_count || item?.count || 1) || 1;
+
+        const rawSt =
+          item?.status ??
+          item?.installation_status ??
+          (srt?.inst_accept !== undefined && srt?.inst_accept !== null && srt?.inst_accept !== ''
+            ? Number(srt.inst_accept) === 1
+              ? 2
+              : Number(srt.inst_accept)
+            : undefined) ??
+          0;
+        const rawStStr = String(rawSt).toLowerCase();
+        const statusVal: 0 | 1 | 2 =
+          rawSt === 2 || rawSt === '2' || rawStStr.includes('accept')
+            ? 2
+            : rawSt === 1 || rawSt === '1' || rawStStr.includes('approv') || rawStStr.includes('complet')
+            ? 1
+            : 0;
+
+        return {
+          id: Number(item?.id ?? srt?.id ?? idx + 1),
+          vendor: vendorText,
+          assign_date: formatAssignDate(
+            item?.assign_date ??
+              item?.amc_assigned_time ??
+              srt?.inst_assign_date ??
+              item?.created_at ??
+              item?.date ??
+              item?.installation_assigned_date
+          ),
+          state: extractText(item?.state ?? srt?.state, 'Bihar'),
+          district: extractText(item?.district ?? srt?.district, DASH),
+          site_name_deadline:
+            extractText(item?.site_name_deadline, '') ||
+            `${rawSiteLabel}${deadlineText ? ` - ${deadlineText}` : ''}`,
+          site_count: siteCountVal,
+          file: extractText(item?.file ?? item?.allotment_file ?? item?.document ?? srt?.cr_doc, ''),
+          remarks: extractText(
+            item?.remarks ??
+              item?.remark ??
+              item?.inst_remark ??
+              item?.inst_remarks ??
+              item?.amc_remark ??
+              srt?.inst_remarks,
+            DASH
+          ),
+          status: statusVal,
+        };
+      });
 
       setRecords(mapped);
     } catch (err: any) {
@@ -279,22 +423,22 @@ export function BiharSRTInstallationViewAssignSites() {
   }, [records]);
 
   // Dynamic KPIs (using API summary or computed from records)
-  const totalAssignedSites = summaryData?.totalAssignedSites ?? records.reduce((s, r) => s + (r.site_count || 1), 0);
-  const completeSites = summaryData?.completeSites ?? records.filter((r) => r.status === 2 || r.status === 1).reduce((s, r) => s + (r.site_count || 1), 0);
-  const pendingSites = summaryData?.pendingSites ?? records.filter((r) => r.status === 0).length;
-  const approveSites = summaryData?.approveSites ?? records.filter((r) => r.status === 1 || r.status === 2).length;
-  const rejectSites = summaryData?.rejectSites ?? 0;
-  const verifyPending = summaryData?.verifyPending ?? records.filter((r) => r.status === 0).length;
-  const claimApplicable = summaryData?.claimApplicable ?? 0;
-  const claimRaised = summaryData?.claimRaised ?? 0;
-  const docSubmit = summaryData?.docSubmit ?? 0;
-  const payment70 = summaryData?.payment70 ?? 0;
-  const payment15A = summaryData?.payment15A ?? 0;
+  const totalAssignedSites = summaryData?.totalsite ?? summaryData?.totalAssignedSites ?? records.reduce((s, r) => s + (r.site_count || 1), 0);
+  const completeSites = summaryData?.complete ?? summaryData?.completeSites ?? records.filter((r) => r.status === 2 || r.status === 1).reduce((s, r) => s + (r.site_count || 1), 0);
+  const pendingSites = summaryData?.pendingsite ?? summaryData?.pendingSites ?? records.filter((r) => r.status === 0).length;
+  const approveSites = summaryData?.approvedsite ?? summaryData?.approveSites ?? records.filter((r) => r.status === 1 || r.status === 2).length;
+  const rejectSites = summaryData?.rejectsite ?? summaryData?.rejectSites ?? 0;
+  const verifyPending = summaryData?.verifypending ?? summaryData?.verifyPending ?? records.filter((r) => r.status === 0).length;
+  const claimApplicable = summaryData?.claimedapplicable ?? summaryData?.claimApplicable ?? 0;
+  const claimRaised = summaryData?.claimraised ?? summaryData?.claimRaised ?? 0;
+  const docSubmit = summaryData?.docsubmit ?? summaryData?.docSubmit ?? 0;
+  const payment70 = summaryData?.payment1 ?? summaryData?.payment70 ?? 0;
+  const payment15A = summaryData?.payment2 ?? summaryData?.payment15A ?? 0;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return records.filter((r) => {
-      if (districtFilter !== 'all' && r.district.toLowerCase() !== districtFilter.toLowerCase()) return false;
+      if (districtFilter !== 'all' && String(r.district ?? '').toLowerCase() !== districtFilter.toLowerCase()) return false;
       if (statusFilter !== 'all' && statusKey(r.status) !== statusFilter) return false;
       if (!q) return true;
       return [r.vendor, r.district, r.site_name_deadline, r.remarks].some((v) =>

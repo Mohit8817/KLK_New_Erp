@@ -503,6 +503,8 @@ export function BiharSSLInstallationPaymentRequest() {
       })
       .then((res: any) => {
         const raw =
+          res?.data?.paymentrequest ||
+          res?.paymentrequest ||
           res?.data?.payments ||
           res?.data?.list ||
           res?.data ||
@@ -657,7 +659,17 @@ export function BiharSSLInstallationPaymentRequest() {
 
     setSubmittingDisburse(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      await biharAdminService.updateSslPaymentStatus({
+        update_id: disbursePayment.id,
+        id: disbursePayment.id,
+        payment_date: disburseDate,
+        date: disburseDate,
+        payment_amount: amt,
+        amount: amt,
+        payment_remarks: disburseRemarks || `Disbursed ₹ ${amt.toLocaleString('en-IN')}`,
+        remarks: disburseRemarks || `Disbursed ₹ ${amt.toLocaleString('en-IN')}`,
+      });
+
       const totalAmount = Number(disbursePayment.amount || 0);
       const currentPaid = Number(disbursePayment.pay_amount || 0);
       const newPaid = currentPaid + amt;
@@ -681,8 +693,9 @@ export function BiharSSLInstallationPaymentRequest() {
 
       setSuccessMsg(`Payment of ₹ ${amt.toLocaleString('en-IN')} recorded successfully for Claim #${disbursePayment.id}!`);
       setDisbursePayment(null);
-    } catch {
-      setErrorMsg('Failed to record disbursement payment.');
+      loadPayments();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to record disbursement payment.');
     } finally {
       setSubmittingDisburse(false);
     }

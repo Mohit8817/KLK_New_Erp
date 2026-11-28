@@ -14,6 +14,7 @@ import {
 import {
   karnatakaSwpService,
   resolveKarnatakaMediaUrl,
+  getKarnatakaMediaCandidates,
   type AssignedSiteItem,
   type AssignSiteDetailResponse,
 } from '../../karnataka-services';
@@ -438,6 +439,282 @@ const fmtDate = (val?: string | null): string => {
   return String(val).slice(0, 10);
 };
 
+const isImage = (path?: string | null): boolean => {
+  if (!path || typeof path !== 'string') return false;
+  const clean = path.trim().toLowerCase();
+  return /\.(jpe?g|png|webp|gif|svg|bmp|jfif)($|\?)/i.test(clean);
+};
+
+function extractFilePath(raw: any): string | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    let trimmed = raw.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '—' || trimmed === '-') return null;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) return extractFilePath(parsed[0]);
+      } catch {}
+    }
+    trimmed = trimmed.replace(/^["']|["']$/g, '');
+    trimmed = trimmed.replace(/\\+/g, '/');
+    return trimmed;
+  }
+  if (Array.isArray(raw) && raw.length > 0) return extractFilePath(raw[0]);
+  return null;
+}
+
+/* ── Interactive Image Thumbnail (NO Broken Icons, Real Candidates, Hover Scale) ── */
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 36,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const cleanPath = extractFilePath(src);
+  const candidates = useMemo(() => getKarnatakaMediaCandidates(cleanPath), [cleanPath]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!cleanPath || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-muted)' }}>—</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        margin: '0 auto',
+      }}
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 4,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.12)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.15)';
+          e.currentTarget.style.borderColor = 'var(--asw-primary, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => {
+          if (candidateIdx + 1 < candidates.length) {
+            setCandidateIdx((prev) => prev + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
+  );
+}
+
+/* ── Interactive Image Preview Modal (Lightbox) ── */
+const PREVIEW_ZOOM_STEPS = [1, 1.5, 2];
+
+function ImagePreviewModal({
+  url,
+  title,
+  onClose,
+}: {
+  url: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = PREVIEW_ZOOM_STEPS[zoomIdx];
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      className="ax-modal"
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div style={{ position: 'fixed', inset: 0 }} onClick={onClose} />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          background: '#ffffff',
+          borderRadius: 14,
+          border: '1px solid #cbd5e1',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+          width: '92vw',
+          maxWidth: isPdf ? 960 : 760,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 20px',
+            borderBottom: '1px solid #e2e8f0',
+            background: '#f8fafc',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{title || 'Document Preview'}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 30,
+              height: 30,
+              borderRadius: '50%',
+            }}
+            aria-label="Close dialog"
+          >
+            {X_ICON}
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0b1120',
+            overflow: 'auto',
+            minHeight: 380,
+            maxHeight: '70vh',
+          }}
+        >
+          {isPdf ? (
+            <iframe src={url} title={title} style={{ width: '100%', height: '65vh', border: 'none', background: '#fff', borderRadius: 8 }} />
+          ) : (
+            <img
+              src={url}
+              alt={title}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '65vh',
+                objectFit: 'contain',
+                transform: `scale(${zoom})`,
+                transition: 'transform 0.18s ease',
+                borderRadius: 6,
+              }}
+            />
+          )}
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 20px',
+            borderTop: '1px solid #e2e8f0',
+            background: '#f8fafc',
+          }}
+        >
+          {!isPdf ? (
+            <div style={{ display: 'flex', gap: 6 }}>
+              {PREVIEW_ZOOM_STEPS.map((z, idx) => (
+                <button
+                  key={z}
+                  type="button"
+                  className={`ax-btn ax-btn--sm ${zoomIdx === idx ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => setZoomIdx(idx)}
+                  style={{ minWidth: 42, padding: '4px 8px', fontSize: 12 }}
+                >
+                  {z}x
+                </button>
+              ))}
+            </div>
+          ) : <div />}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              style={{ fontSize: 12.5 }}
+            >
+              Open Original ↗
+            </a>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={onClose}
+              style={{ fontSize: 12.5 }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function InstallationRequest() {
 
   const [data, setData] = useState<AssignedSiteItem[]>([]);
@@ -445,6 +722,11 @@ export function InstallationRequest() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted'>('all');
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; title: string } | null>(null);
+
+  const openPreview = useCallback((url: string, title: string) => {
+    setPreviewMedia({ url, title });
+  }, []);
 
   // Details Modal search filter
   const [modalSearch, setModalSearch] = useState('');
@@ -883,6 +1165,14 @@ export function InstallationRequest() {
     return list;
   }, [data, search, statusFilter, isSiteAccepted]);
 
+  // Items with photos / image files for top quick-preview bar
+  const itemsWithFiles = useMemo(() => {
+    return filtered.filter((item) => {
+      const clean = extractFilePath(item.file);
+      return Boolean(clean && isImage(clean));
+    });
+  }, [filtered]);
+
   // Pagination hook - default 100 items per user requirement
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filtered, initialPageSize: 100 });
@@ -1194,6 +1484,66 @@ export function InstallationRequest() {
           </div>
         </div>
 
+        {/* ── Top Photo Strip (Small thumbnails matching other pages) ── */}
+        {itemsWithFiles.length > 0 && (
+          <div
+            style={{
+              padding: '10px 16px',
+              background: 'var(--ax-surface-subtle, #f8fafc)',
+              borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span style={{ fontSize: 13 }}>📷</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                Batch Photos ({itemsWithFiles.length}):
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
+              {itemsWithFiles.map((item) => {
+                const aId = getAssignId(item) || item.id;
+                const dist = item.district || (item.Names && item.Names[0]?.district) || 'Karnataka';
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      background: '#ffffff',
+                      border: '1px solid var(--ax-border, #e2e8f0)',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <InstallationThumbnail
+                      src={item.file}
+                      alt={`Assign #${aId} Photo`}
+                      onPreview={openPreview}
+                      size={28}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-strong)', whiteSpace: 'nowrap' }}>
+                        #{aId}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap' }}>
+                        {dist}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* All table columns fully scrollable horizontally - no sticky column */}
         <div className="ax-table-wrap">
           <table
@@ -1417,19 +1767,51 @@ export function InstallationRequest() {
                         {fmtDate(item.deadline_date)}
                       </td>
 
-                      {/* 9. File */}
+                      {/* 9. File (Thumbnail if Image, else File Link) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {item.file ? (
-                          <a
-                            href={resolveKarnatakaMediaUrl(item.file)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            style={{ color: 'var(--asw-primary)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
-                            title="View / Download Assignment File"
-                          >
-                            📎 File ↗
-                          </a>
+                          (() => {
+                            const cleanFile = extractFilePath(item.file);
+                            const fileUrl = resolveKarnatakaMediaUrl(cleanFile || item.file);
+                            const isImg = isImage(cleanFile || item.file);
+                            const ext = cleanFile ? cleanFile.split('.').pop()?.toUpperCase() || 'FILE' : 'FILE';
+
+                            if (isImg) {
+                              return (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                                  <InstallationThumbnail
+                                    src={item.file}
+                                    alt={`Assign #${getAssignId(item) || item.id} File`}
+                                    onPreview={openPreview}
+                                    size={36}
+                                  />
+                                  <a
+                                    href={fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ax-btn ax-btn--ghost ax-btn--xs"
+                                    style={{ color: 'var(--asw-primary, #2563eb)', padding: '2px 5px', fontSize: 11 }}
+                                    title="Open original file in new tab"
+                                  >
+                                    ↗
+                                  </a>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ax-btn ax-btn--ghost ax-btn--sm"
+                                style={{ color: 'var(--asw-primary)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
+                                title="View / Download Assignment File"
+                              >
+                                📎 {ext} ↗
+                              </a>
+                            );
+                          })()
                         ) : (
                           <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
                         )}
@@ -1547,6 +1929,87 @@ export function InstallationRequest() {
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Top Batch Overview Card with thumbnail preview */}
+            {activeItem && (
+              <div
+                style={{
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                  border: '1px solid var(--ax-border, #e2e8f0)',
+                  borderRadius: 10,
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {activeItem.file && isImage(extractFilePath(activeItem.file)) ? (
+                    <InstallationThumbnail
+                      src={activeItem.file}
+                      alt={`Assign #${getAssignId(activeItem) || activeItem.id} Document`}
+                      onPreview={openPreview}
+                      size={44}
+                    />
+                  ) : activeItem.file ? (
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 6,
+                        background: '#e0e7ff',
+                        color: '#3730a3',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 18,
+                      }}
+                    >
+                      📄
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                      Assignment #{getAssignId(activeItem) || activeItem.id}
+                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ax-text-muted)', marginLeft: 8 }}>
+                        {activeItem.district || 'Karnataka'} {activeItem.volume ? `· Vol ${activeItem.volume}` : ''}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <span>Deadline: <b>{fmtDate(activeItem.deadline_date)}</b></span>
+                      <span>Assigned: <b>{fmtDate(activeItem.assign_date || activeItem.created_at)}</b></span>
+                      {activeItem.remarks && <span>Remarks: <i>{activeItem.remarks}</i></span>}
+                    </div>
+                  </div>
+                </div>
+
+                {activeItem.file && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {isImage(extractFilePath(activeItem.file)) && (
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--secondary ax-btn--sm"
+                        onClick={() => openPreview(resolveKarnatakaMediaUrl(activeItem.file), `Assign #${getAssignId(activeItem) || activeItem.id} File`)}
+                      >
+                        Preview Image
+                      </button>
+                    )}
+                    <a
+                      href={resolveKarnatakaMediaUrl(activeItem.file)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ax-btn ax-btn--ghost ax-btn--sm"
+                      style={{ color: 'var(--asw-primary)' }}
+                    >
+                      Open File ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Search filter above the popup table */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label
@@ -1576,7 +2039,7 @@ export function InstallationRequest() {
               )}
             </div>
 
-            {/* Popup Table: Sr. No., Assign Date, State, District, Block, Village, Farmer Name, Father Name, Deadline Date */}
+            {/* Popup Table: Sr. No., Site ID, Application No, Farmer Name, Father Name, District, Block, Village, Deadline Date, Assign Date, File / Photo */}
             <div className="ax-table-wrap" style={{ maxHeight: '60vh', overflow: 'auto' }}>
               <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', width: '100%' }}>
                 <thead className="ax-table__head">
@@ -1591,6 +2054,7 @@ export function InstallationRequest() {
                     <th className="ax-table__th">Village</th>
                     <th className="ax-table__th">Deadline Date</th>
                     <th className="ax-table__th">Assign Date</th>
+                    <th className="ax-table__th" style={{ textAlign: 'center' }}>File / Photo</th>
                   </tr>
                 </thead>
                 <tbody className="ax-table__body">
@@ -1602,6 +2066,7 @@ export function InstallationRequest() {
                     const villageVal = site.village || site.f_village || '—';
                     const siteId = site.id || (parseSiteIds(activeItem?.site_id)[idx] ?? '—');
                     const appNo = site.application_no || site.app_no || '—';
+                    const sFile = site.file || site.image || activeItem?.file;
 
                     return (
                       <tr key={site.id || idx} className="ax-table__row">
@@ -1649,6 +2114,37 @@ export function InstallationRequest() {
                         <td className="ax-table__td" style={{ fontSize: '13px' }}>
                           {fmtDate(assignDate)}
                         </td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          {sFile ? (
+                            (() => {
+                              const clean = extractFilePath(sFile);
+                              const isImg = isImage(clean);
+                              if (isImg) {
+                                return (
+                                  <InstallationThumbnail
+                                    src={sFile}
+                                    alt={`Site ${siteId} File`}
+                                    onPreview={openPreview}
+                                    size={30}
+                                  />
+                                );
+                              }
+                              return (
+                                <a
+                                  href={resolveKarnatakaMediaUrl(sFile)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ax-btn ax-btn--ghost ax-btn--xs"
+                                  style={{ color: 'var(--asw-primary)', padding: '2px 6px', fontSize: 11 }}
+                                >
+                                  📎 File ↗
+                                </a>
+                              );
+                            })()
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1658,6 +2154,15 @@ export function InstallationRequest() {
           </div>
         )}
       </Modal>
+
+      {/* ── Interactive Image Preview Lightbox ── */}
+      {previewMedia && (
+        <ImagePreviewModal
+          url={previewMedia.url}
+          title={previewMedia.title}
+          onClose={() => setPreviewMedia(null)}
+        />
+      )}
     </div>
   );
 }

@@ -166,10 +166,18 @@ export const BIHAR_ADMIN_API = {
       buildCandidateUrls(`/admin/bihar/ssl/installation/vendor-wise-details/${encodeURIComponent(id)}`),
     FETCH_DISTRICT: (volume: string) =>
       buildCandidateUrls(`/admin/bihar/ssl/installation/fetch-district/${encodeURIComponent(volume)}`),
-    FETCH_BLOCK: (district: string) =>
-      buildCandidateUrls(`/admin/bihar/ssl/installation/fetch-block/${encodeURIComponent(district)}`),
-    FETCH_PANCHAYAT: (block: string) =>
-      buildCandidateUrls(`/admin/bihar/ssl/installation/fetch-panchayat/${encodeURIComponent(block)}`),
+    FETCH_BLOCK: (district: string, volume?: string) => {
+      const q = volume ? `?volume=${encodeURIComponent(volume)}` : '';
+      return buildCandidateUrls(`/admin/bihar/ssl/installation/fetch-block/${encodeURIComponent(district)}${q}`);
+    },
+    FETCH_PANCHAYAT: (block: string, district?: string, volume?: string) => {
+      const qs = new URLSearchParams();
+      if (district) qs.set('district', district);
+      if (block) qs.set('block', block);
+      if (volume) qs.set('volume', volume);
+      const q = qs.toString() ? `?${qs.toString()}` : '';
+      return buildCandidateUrls(`/admin/bihar/ssl/installation/fetch-panchayat/${encodeURIComponent(block)}${q}`);
+    },
     APPROVAL_ASSIGN: (id: string | number) =>
       buildCandidateUrls(`/admin/bihar/ssl/installation/approval-assign/${encodeURIComponent(id)}`),
     PAYMENT_FILTER: buildCandidateUrls('/admin/bihar/ssl/installation/payment-filter'),
@@ -303,7 +311,10 @@ export const BIHAR_ADMIN_API = {
     VIEW_INSTALLATION: buildCandidateUrls('/admin/bihar/ula/installation/view-installation'),
     VERIFY_INSTALLATION_STATUS: buildCandidateUrls('/admin/bihar/ula/installation/verify-installation-status'),
     VIEW_DOCUMENT: buildCandidateUrls('/admin/bihar/ula/installation/view-document'),
-    VERIFY_INSTALLATION_DOC_STATUS: buildCandidateUrls('/admin/bihar/ula/installation/verify-installation_doc-status'),
+    VERIFY_INSTALLATION_DOC_STATUS: [
+      ...buildCandidateUrls('/admin/bihar/ula/installation/verify-installation_doc-status'),
+      ...buildCandidateUrls('/admin/bihar/ula/installation/verify-installation-doc-status'),
+    ],
     VIEW_CLAIM: buildCandidateUrls('/admin/bihar/ula/installation/view-claim'),
     UPDATE_CLAIM_STATUS: buildCandidateUrls('/admin/bihar/ula/installation/update-claim-status'),
     PAYMENT_VIEW: buildCandidateUrls('/admin/bihar/ula/installation/payment-view'),
@@ -317,7 +328,10 @@ export const BIHAR_ADMIN_API = {
       buildCandidateUrls(`/admin/bihar/ula/installation/view-dashboard/districtwise/${encodeURIComponent(status)}/${encodeURIComponent(district)}`),
     VIEW_STRUCTURE: buildCandidateUrls('/admin/bihar/ula/installation/view-structure'),
     STRUCTURE_VERIFY_STATUS: buildCandidateUrls('/admin/bihar/ula/installation/structure-verify-status'),
-    MODULE_SERIAL_UPDATE: buildCandidateUrls('/admin/bihar/ula/installtion/module-serial-update'),
+    MODULE_SERIAL_UPDATE: [
+      ...buildCandidateUrls('/admin/bihar/ula/installtion/module-serial-update'),
+      ...buildCandidateUrls('/admin/bihar/ula/installation/module-serial-update'),
+    ],
   },
 
   // ── 8. Bihar SSL AMC ──
@@ -336,8 +350,18 @@ export const BIHAR_ADMIN_API = {
     UPDATE_DATA: buildCandidateUrls('/admin/bihar/ssl/installation/update-data'),
     VIEW_AMC: (id: string | number) =>
       buildCandidateUrls(`/admin/bihar/ssl/installation/view-amc/${encodeURIComponent(id)}`),
-    VERIFY_AMC: buildCandidateUrls('/admin/bihar/ssl/installation/verify-amc'),
-    VERIFY_AMC_STATUS: buildCandidateUrls('/admin/bihar/ssl/installation/verify-amc-status'),
+    VERIFY_AMC: [
+      ...buildCandidateUrls('/admin/bihar/ssl/installation/verify-amc'),
+      ...buildCandidateUrls('/admin/bihar/ssl/amc/verify-amc'),
+      ...buildCandidateUrls('/admin/bihar/ssl/amc/verify'),
+      ...buildCandidateUrls('/admin/bihar/ssl/installation/verify'),
+    ],
+    VERIFY_AMC_STATUS: [
+      ...buildCandidateUrls('/admin/bihar/ssl/installation/verify-amc-status'),
+      ...buildCandidateUrls('/admin/bihar/ssl/amc/verify-amc-status'),
+      ...buildCandidateUrls('/admin/bihar/ssl/amc/verify-status'),
+      ...buildCandidateUrls('/admin/bihar/ssl/installation/verify-status'),
+    ],
     AMC_DASHBOARD: buildCandidateUrls('/admin/bihar/ssl/installation/amc-dashboard'),
   },
 

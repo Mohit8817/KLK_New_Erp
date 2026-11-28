@@ -84,7 +84,7 @@ export const UP_COMPLAINT_API = {
       `${BASE_URL}/up/complaint/swp/complaint-delete/${encodeURIComponent(id)}`,
     CLOSE_EDIT_COMPLAINT: (id: string | number) =>
       `${BASE_URL}/up/complaint/swp/close-edit-complaint/${encodeURIComponent(id)}`,
-    CLOSE_UPDATE: `${BASE_URL}/up/complaint/swp/close-update`,
+    CLOSE_UPDATE: `${BASE_URL}/up/complaint/swp/close-update-complaint`,
   },
 
   KUSUM_B: {

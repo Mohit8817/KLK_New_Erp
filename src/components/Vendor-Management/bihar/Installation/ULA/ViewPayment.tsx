@@ -507,6 +507,10 @@ export function BiharULAInstallationViewPayment() {
 
       const rawList = Array.isArray(res)
         ? res
+        : Array.isArray(res?.data?.paymentrequest)
+        ? res.data.paymentrequest
+        : Array.isArray(res?.paymentrequest)
+        ? res.paymentrequest
         : Array.isArray(res?.data)
         ? res.data
         : Array.isArray(res?.payments)
@@ -517,8 +521,8 @@ export function BiharULAInstallationViewPayment() {
         ? res.data.data
         : [];
 
-      if (res?.summary || res?.data?.summary) {
-        const sum = res.summary || res.data.summary;
+      const sum = res?.data?.payment_detail || res?.payment_detail || res?.summary || res?.data?.summary;
+      if (sum) {
         setServerSummary({
           total: Number(sum.total ?? sum.total_payment ?? sum.paymentRequest ?? rawList.length),
           complete: Number(sum.complete ?? sum.paymentComplete ?? 0),
@@ -828,10 +832,13 @@ export function BiharULAInstallationViewPayment() {
       const payload = {
         id: disbursePayment.id,
         claim_id: disbursePayment.id,
+        amount: amt,
         pay_amount: amt,
         payment_amount: amt,
+        date: disburseDate,
         pay_date: disburseDate,
         payment_date: disburseDate,
+        remarks: disburseRemarks,
         pay_remarks: disburseRemarks,
         payment_remarks: disburseRemarks,
         status: newStatus,

@@ -525,15 +525,22 @@ export function VerifySwpDocument() {
           state: 'Jammu',
           vendorName: item.vendor_name || item.vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
           district: item.district || item.f_district || '—',
-          block: item.block || item.f_block || '—',
+          block: item.post || item.block || item.f_block || item.tehsil || item.f_tehsil || item.sub_district || item.taluka || '—',
           village: item.village || item.f_village || '—',
           applicantName: item.f_farmer_name || item.farmer_name || item.applicant_name || `Farmer #${item.id}`,
           documentFile: rawFile ? resolveJammuSwpMediaUrl(rawFile) : undefined,
-          submitDate: item.submit_date || item.doc_date || item.created_at || '—',
-          remarks: item.remarks || item.inst_remarks || '—',
+          submitDate: item.inst_doc_date || item.submit_date || item.doc_date || item.inst_date || item.created_at || '—',
+          remarks: item.inst_doc_remarks || item.remarks || item.inst_remarks || '—',
           verifyStatus,
           rawStatus,
-          verifyRemarks: item.inst_doc_remarks || item.doc_verify_remarks || item.verify_remarks || '—',
+          verifyRemarks:
+            item.inst_doc_verify_remarks ||
+            item.inst_verify_remarks ||
+            item.inst_doc_remarks ||
+            item.doc_verify_remarks ||
+            item.verify_remarks ||
+            item.doc_remarks ||
+            '—',
         };
       };
 
@@ -586,6 +593,7 @@ export function VerifySwpDocument() {
           s.district.toLowerCase().includes(q) ||
           s.block.toLowerCase().includes(q) ||
           s.village.toLowerCase().includes(q) ||
+          s.verifyRemarks.toLowerCase().includes(q) ||
           String(s.id).includes(q)
       );
     }
@@ -918,7 +926,7 @@ export function VerifySwpDocument() {
 
         {/* ── Horizontally Scrollable Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: activeTab === 'pending' ? 1400 : 1550 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1600 }}>
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>Sr. No.</th>
@@ -932,17 +940,14 @@ export function VerifySwpDocument() {
                 <th className="ax-table__th">Submit Date</th>
                 <th className="ax-table__th">Remarks</th>
                 <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Verify Status</th>
-                {activeTab === 'pending' ? (
-                  <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
-                ) : (
-                  <th className="ax-table__th">Verify Remarks</th>
-                )}
+                <th className="ax-table__th">Verify Remarks</th>
+                <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={12} style={centerCell}>
+                  <td colSpan={13} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading document verification records...</span>
@@ -951,10 +956,10 @@ export function VerifySwpDocument() {
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={centerCell}>
+                  <td colSpan={13} style={centerCell}>
                     <TableEmptyState
                       title="No Document Records Found"
-                      description={`No records found under "${activeTab === 'pending' ? 'Verification Pending' : 'Approved/Rejected Data'}" matching your criteria.`}
+                      description={`No records found under "${activeTab === 'pending' ? 'Verification Pending' : activeTab === 'processed' ? 'Approved/Rejected Data' : 'All Documents'}" matching your criteria.`}
                     />
                   </td>
                 </tr>
@@ -1098,9 +1103,25 @@ export function VerifySwpDocument() {
                         </span>
                       </td>
 
-                      {/* 12. If Pending: Action column */}
-                      {activeTab === 'pending' && (
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      {/* 12. Verify Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 220, minWidth: 140 }}>
+                        <div
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            color: row.verifyRemarks !== '—' ? '#0f172a' : '#94a3b8',
+                            fontWeight: row.verifyRemarks !== '—' ? 500 : 400,
+                          }}
+                          title={row.verifyRemarks}
+                        >
+                          {row.verifyRemarks}
+                        </div>
+                      </td>
+
+                      {/* 13. Action Column */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.verifyStatus === 'Pending' ? (
                           <button
                             type="button"
                             onClick={() => {
@@ -1114,27 +1135,45 @@ export function VerifySwpDocument() {
                               fontSize: 12,
                               fontWeight: 600,
                               background: '#2559bf',
-                              color: '#fff',
+                              color: '#ffffff',
                               border: 'none',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 4,
                             }}
+                            title="Verify Document"
                           >
                             Verify
                           </button>
-                        </td>
-                      )}
-
-                      {/* 12. If Approved/Rejected: Verify Remarks */}
-                      {activeTab === 'processed' && (
-                        <td className="ax-table__td" style={{ maxWidth: 180 }}>
-                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
-                            {row.verifyRemarks}
-                          </div>
-                        </td>
-                      )}
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            title={`Document has been ${row.verifyStatus} (Locked)`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 4,
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              background: '#f1f5f9',
+                              color: '#94a3b8',
+                              border: '1px solid #e2e8f0',
+                              fontSize: 11.5,
+                              fontWeight: 700,
+                              cursor: 'not-allowed',
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <span>Locked</span>
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })

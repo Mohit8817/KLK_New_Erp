@@ -547,186 +547,6 @@ function MediaFileThumbnail({
   );
 }
 
-// Initial fallback mock data for Bihar ULA
-const INITIAL_ULA_DOCS: UlaDocumentItem[] = [
-  {
-    id: 401,
-    state: 'Bihar',
-    vendor_name: 'ETS Networks Pvt Ltd',
-    district: 'Patna',
-    block: 'Danapur',
-    tehsil: 'Danapur',
-    village: 'Khagaul',
-    f_post: 'Khagaul SO',
-    f_pincode: '801105',
-    beneficiary_name: 'Rajendra Prasad',
-    father_name: 'Mahavir Prasad',
-    contact_number: '9876543210',
-    aadhar_no: '8834-1123-9941',
-    work_order_no: 'WO-BIH-ULA-2024-401',
-    volume: 'Phase-1',
-    work_order_date: '15-Aug-2024',
-    solar_meter_no: 'SM-PAT-4011',
-    inverter_no: 'INV-401-K3',
-    net_smart_meter_no: 'NSM-40122',
-    logger_no: 'LOG-401-PAT',
-    pump_capacity: '5 HP',
-    pump_sub_type: 'AC Submersible',
-    module_serial_no: ['MOD-ULA-401-A', 'MOD-ULA-401-B', 'MOD-ULA-401-C', 'MOD-ULA-401-D'],
-    document_file: 'jcr_handover_401.pdf',
-    complete_photo: 'ula_site_401_full.jpg',
-    module_image: 'ula_mod_401.jpg',
-    inverter_image: 'ula_inv_401.jpg',
-    running_water_image: 'ula_water_401.jpg',
-    submit_date: '2024-10-28',
-    remarks: 'Joint Commissioning Report signed by AEE & Nodal Officer',
-    verify_status: 'Approved',
-    verify_status_code: 1,
-    verify_remarks: 'All signatures verified with nodal officer seal and GPS coordinates intact.',
-    verify_date: '2024-10-29',
-    verify_by: 'QA Officer (Patna)',
-    latitude: '25.5941',
-    longitude: '85.1376',
-  },
-  {
-    id: 402,
-    state: 'Bihar',
-    vendor_name: 'ETS Networks Pvt Ltd',
-    district: 'Patna',
-    block: 'Danapur',
-    tehsil: 'Danapur',
-    village: 'Khagaul',
-    f_post: 'Khagaul SO',
-    f_pincode: '801105',
-    beneficiary_name: 'Dinesh Mandal',
-    father_name: 'Ramdhani Mandal',
-    contact_number: '9876543211',
-    aadhar_no: '7612-4590-2384',
-    work_order_no: 'WO-BIH-ULA-2024-402',
-    volume: 'Phase-1',
-    work_order_date: '18-Aug-2024',
-    solar_meter_no: 'SM-PAT-4021',
-    inverter_no: 'INV-402-K3',
-    net_smart_meter_no: 'NSM-40233',
-    logger_no: 'LOG-402-PAT',
-    pump_capacity: '3 HP',
-    pump_sub_type: 'DC Surface',
-    module_serial_no: ['MOD-ULA-402-A', 'MOD-ULA-402-B'],
-    document_file: 'farmer_undertaking_402.pdf',
-    complete_photo: 'ula_site_402_full.jpg',
-    submit_date: '2024-11-02',
-    remarks: 'Farmer affidavit and land registry certificate submitted',
-    verify_status: 'Pending',
-    verify_status_code: 0,
-    latitude: '25.6023',
-    longitude: '85.0489',
-  },
-  {
-    id: 403,
-    state: 'Bihar',
-    vendor_name: 'Shakti Pumps Ltd',
-    district: 'Gaya',
-    block: 'Bodh Gaya',
-    tehsil: 'Bodh Gaya',
-    village: 'Bakrour',
-    f_post: 'Bodh Gaya SO',
-    f_pincode: '824231',
-    beneficiary_name: 'Satish Kumar',
-    father_name: 'Kamal Kishore',
-    contact_number: '9876543212',
-    aadhar_no: '9182-3401-7782',
-    work_order_no: 'WO-BIH-ULA-2024-403',
-    volume: 'Phase-2',
-    work_order_date: '22-Aug-2024',
-    solar_meter_no: 'SM-GAY-4031',
-    inverter_no: 'INV-403-S5',
-    net_smart_meter_no: 'NSM-40344',
-    logger_no: 'LOG-403-GAY',
-    pump_capacity: '7.5 HP',
-    pump_sub_type: 'AC Submersible',
-    module_serial_no: ['MOD-ULA-403-1', 'MOD-ULA-403-2', 'MOD-ULA-403-3', 'MOD-ULA-403-4', 'MOD-ULA-403-5'],
-    document_file: 'pump_test_cert_403.pdf',
-    complete_photo: 'ula_site_403_full.jpg',
-    submit_date: '2024-11-04',
-    remarks: 'Pump head, flow-rate curve and water discharge report verified at site',
-    verify_status: 'Pending',
-    verify_status_code: 0,
-    latitude: '24.6961',
-    longitude: '84.9913',
-  },
-  {
-    id: 404,
-    state: 'Bihar',
-    vendor_name: 'ETS Networks Pvt Ltd',
-    district: 'Nalanda',
-    block: 'Bihar Sharif',
-    tehsil: 'Bihar Sharif',
-    village: 'Pawapuri',
-    f_post: 'Pawapuri SO',
-    f_pincode: '803115',
-    beneficiary_name: 'Manoj Verma',
-    father_name: 'Suresh Verma',
-    contact_number: '9876543213',
-    aadhar_no: '6543-9812-3456',
-    work_order_no: 'WO-BIH-ULA-2024-404',
-    volume: 'Phase-1',
-    work_order_date: '25-Aug-2024',
-    solar_meter_no: 'SM-NAL-4041',
-    inverter_no: 'INV-404-E2',
-    net_smart_meter_no: 'NSM-40455',
-    logger_no: 'LOG-404-NAL',
-    pump_capacity: '5 HP',
-    pump_sub_type: 'AC Submersible',
-    module_serial_no: ['MOD-ULA-404-A', 'MOD-ULA-404-B', 'MOD-ULA-404-C'],
-    document_file: 'jcr_warranty_404.pdf',
-    complete_photo: 'ula_site_404_full.jpg',
-    submit_date: '2024-11-05',
-    remarks: 'Comprehensive 5-year AMC contract copy & equipment guarantee',
-    verify_status: 'Approved',
-    verify_status_code: 1,
-    verify_remarks: 'Duly approved and logged in central registry with warranty card signed.',
-    verify_date: '2024-11-06',
-    verify_by: 'QA Lead (Bihar)',
-    latitude: '25.1982',
-    longitude: '85.5186',
-  },
-  {
-    id: 405,
-    state: 'Bihar',
-    vendor_name: 'Tata Power Solar Systems',
-    district: 'Muzaffarpur',
-    block: 'Kanti',
-    tehsil: 'Kanti',
-    village: 'Damodarpur',
-    f_post: 'Kanti SO',
-    f_pincode: '843109',
-    beneficiary_name: 'Umesh Choudhary',
-    father_name: 'Ganesh Choudhary',
-    contact_number: '9876543214',
-    aadhar_no: '4321-7890-1122',
-    work_order_no: 'WO-BIH-ULA-2024-405',
-    volume: 'Phase-2',
-    work_order_date: '01-Sep-2024',
-    solar_meter_no: 'SM-MUZ-4051',
-    inverter_no: 'INV-405-T4',
-    net_smart_meter_no: 'NSM-40566',
-    logger_no: 'LOG-405-MUZ',
-    pump_capacity: '5 HP',
-    pump_sub_type: 'AC Submersible',
-    module_serial_no: ['MOD-ULA-405-1', 'MOD-ULA-405-2'],
-    document_file: 'affidavit_405.pdf',
-    submit_date: '2024-11-06',
-    remarks: 'Missing Aadhaar verification barcode and unreadable stamp',
-    verify_status: 'Rejected',
-    verify_status_code: 2,
-    verify_remarks: 'Rejected due to blurry Aadhaar scan and missing farmer signature on page 2. Re-upload required.',
-    verify_date: '2024-11-07',
-    verify_by: 'Senior Auditor',
-    latitude: '26.1209',
-    longitude: '85.3647',
-  },
-];
-
 export function BiharULAInstallationViewDocument() {
   const [verificationPending, setVerificationPending] = useState<UlaDocumentItem[]>([]);
   const [verifiedList, setVerifiedList] = useState<UlaDocumentItem[]>([]);
@@ -768,10 +588,78 @@ export function BiharULAInstallationViewDocument() {
     try {
       const res = await biharAdminService.getViewUlaDocument();
       if (res && res.data) {
-        // If API returns bifurcated data structure
-        if (Array.isArray(res.data.verification) || Array.isArray(res.data.verified)) {
-          setVerificationPending(res.data.verification || []);
-          setVerifiedList(res.data.verified || []);
+        // If API returns bifurcated data structure (verification / verified)
+        const pendingRaw = Array.isArray(res.data.verification)
+          ? res.data.verification
+          : Array.isArray(res.data.verify_pending)
+          ? res.data.verify_pending
+          : [];
+        const completeRaw = Array.isArray(res.data.verified)
+          ? res.data.verified
+          : Array.isArray(res.data.verify_complete)
+          ? res.data.verify_complete
+          : [];
+
+        if (pendingRaw.length > 0 || completeRaw.length > 0) {
+          const mapDoc = (item: any, idx: number, defaultCode: number): UlaDocumentItem => {
+            const code =
+              item.verify_status_code !== undefined
+                ? Number(item.verify_status_code)
+                : item.verify_status === 1 || item.verify_status === 'Approved' || item.verify_status === 'Complete'
+                ? 1
+                : item.verify_status === 2 || item.verify_status === 'Reject' || item.verify_status === 'Rejected'
+                ? 2
+                : defaultCode;
+
+            const statusText = code === 1 ? 'Approved' : code === 2 ? 'Rejected' : 'Pending';
+
+            return {
+              id: item.id || idx + 1,
+              state: item.state || 'Bihar',
+              vendor_name: typeof item.vendor_name === 'string' && item.vendor_name
+                ? item.vendor_name
+                : typeof item.vendor === 'object' && item.vendor !== null
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                : (item.vendor || '—'),
+              district: item.district || '—',
+              block: item.block || '—',
+              tehsil: item.tehsil || item.block || '—',
+              village: item.village || '—',
+              f_post: item.f_post || item.post || '',
+              f_pincode: item.f_pincode || item.pincode || '',
+              beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
+              father_name: item.father_name || item.f_father_name || '—',
+              contact_number: item.contact_number || item.phone || item.contact || '—',
+              aadhar_no: item.aadhar_no || item.aadhar || '—',
+              work_order_no: item.work_order_no || item.wo_no || `WO-BIH-ULA-2024-${item.id || idx + 1}`,
+              volume: item.volume || item.phase || 'Phase-1',
+              work_order_date: item.work_order_date || item.wo_date || '',
+              solar_meter_no: item.solar_meter_no || item.meter_no || '—',
+              inverter_no: item.inverter_no || '—',
+              net_smart_meter_no: item.net_smart_meter_no || '—',
+              logger_no: item.logger_no || '—',
+              pump_capacity: item.pump_capacity || '—',
+              pump_sub_type: item.pump_sub_type || '—',
+              module_serial_no: item.module_serial_no || [],
+              document_file: item.document_file || item.file || item.inst_doc || '',
+              complete_photo: item.complete_photo || item.photo || '',
+              module_image: item.module_image || '',
+              inverter_image: item.inverter_image || '',
+              running_water_image: item.running_water_image || '',
+              submit_date: item.submit_date || item.created_at || '',
+              remarks: item.remarks || '',
+              verify_status: statusText,
+              verify_status_code: code,
+              verify_remarks: item.verify_remarks || '',
+              verify_date: item.verify_date || '',
+              verify_by: item.verify_by || '',
+              latitude: item.latitude || '',
+              longitude: item.longitude || '',
+            };
+          };
+
+          setVerificationPending(pendingRaw.map((d: any, i: number) => mapDoc(d, i, 0)));
+          setVerifiedList(completeRaw.map((d: any, i: number) => mapDoc(d, i, 1)));
           if (res.data.detail) setDetailSummary(res.data.detail);
         } else {
           // If API returns flat list
@@ -802,17 +690,17 @@ export function BiharULAInstallationViewDocument() {
                 vendor_name: typeof item.vendor_name === 'string' && item.vendor_name
                   ? item.vendor_name
                   : typeof item.vendor === 'object' && item.vendor !== null
-                  ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
-                  : (item.vendor || 'ETS Networks Pvt Ltd'),
-                district: item.district || 'Patna',
-                block: item.block || 'Danapur',
+                  ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                  : (item.vendor || '—'),
+                district: item.district || '—',
+                block: item.block || '—',
                 tehsil: item.tehsil || item.block || '—',
-                village: item.village || 'Khagaul',
+                village: item.village || '—',
                 f_post: item.f_post || item.post || '',
                 f_pincode: item.f_pincode || item.pincode || '',
-                beneficiary_name: item.beneficiary_name || item.farmer_name || 'Farmer Beneficiary',
+                beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
                 father_name: item.father_name || item.f_father_name || '—',
-                contact_number: item.contact_number || item.phone || item.contact || '9876543210',
+                contact_number: item.contact_number || item.phone || item.contact || '—',
                 aadhar_no: item.aadhar_no || item.aadhar || '—',
                 work_order_no: item.work_order_no || item.wo_no || `WO-BIH-ULA-2024-${item.id || idx + 1}`,
                 volume: item.volume || item.phase || 'Phase-1',
@@ -821,15 +709,15 @@ export function BiharULAInstallationViewDocument() {
                 inverter_no: item.inverter_no || '—',
                 net_smart_meter_no: item.net_smart_meter_no || '—',
                 logger_no: item.logger_no || '—',
-                pump_capacity: item.pump_capacity || '5 HP',
-                pump_sub_type: item.pump_sub_type || 'AC Submersible',
+                pump_capacity: item.pump_capacity || '—',
+                pump_sub_type: item.pump_sub_type || '—',
                 module_serial_no: item.module_serial_no || [],
                 document_file: item.document_file || item.file || item.inst_doc || '',
                 complete_photo: item.complete_photo || item.photo || '',
                 module_image: item.module_image || '',
                 inverter_image: item.inverter_image || '',
                 running_water_image: item.running_water_image || '',
-                submit_date: item.submit_date || item.created_at || '2024-11-01',
+                submit_date: item.submit_date || item.created_at || '',
                 remarks: item.remarks || '',
                 verify_status: statusText,
                 verify_status_code: code,
@@ -844,33 +732,31 @@ export function BiharULAInstallationViewDocument() {
             setVerificationPending(mapped.filter((d) => d.verify_status_code === 0));
             setVerifiedList(mapped.filter((d) => d.verify_status_code === 1 || d.verify_status_code === 2));
           } else {
-            // Populate fallback items
-            setVerificationPending(INITIAL_ULA_DOCS.filter((d) => d.verify_status_code === 0));
-            setVerifiedList(INITIAL_ULA_DOCS.filter((d) => d.verify_status_code === 1 || d.verify_status_code === 2));
+            setVerificationPending([]);
+            setVerifiedList([]);
           }
 
           if (res.data.total !== undefined) {
             setDetailSummary({
-              total: Number(res.data.total) || 47,
-              assigned: Number(res.data.assigned) || 25,
-              not_assigned: Number(res.data.notAssigned || res.data.not_assigned) || 21,
-              complete: Number(res.data.installationComplete || res.data.complete) || 11,
-              pending: Number(res.data.installationPending || res.data.pending) || 14,
-              doc_pending: Number(res.data.documentPending || res.data.doc_pending) || 2,
-              doc_approved: Number(res.data.verifyComplete || res.data.doc_approved) || 2,
-              doc_reject: Number(res.data.verifyReject || res.data.doc_reject) || 1,
+              total: Number(res.data.total) || 0,
+              assigned: Number(res.data.assigned) || 0,
+              not_assigned: Number(res.data.notAssigned || res.data.not_assigned) || 0,
+              complete: Number(res.data.installationComplete || res.data.complete) || 0,
+              pending: Number(res.data.installationPending || res.data.pending) || 0,
+              doc_pending: Number(res.data.documentPending || res.data.doc_pending) || 0,
+              doc_approved: Number(res.data.verifyComplete || res.data.doc_approved) || 0,
+              doc_reject: Number(res.data.verifyReject || res.data.doc_reject) || 0,
             });
           }
         }
       } else {
-        // Fallback default
-        setVerificationPending(INITIAL_ULA_DOCS.filter((d) => d.verify_status_code === 0));
-        setVerifiedList(INITIAL_ULA_DOCS.filter((d) => d.verify_status_code === 1 || d.verify_status_code === 2));
+        setVerificationPending([]);
+        setVerifiedList([]);
       }
     } catch (err: any) {
-      console.warn('Bihar ULA document load warning (using mock/fallback):', err);
-      setVerificationPending(INITIAL_ULA_DOCS.filter((d) => d.verify_status_code === 0));
-      setVerifiedList(INITIAL_ULA_DOCS.filter((d) => d.verify_status_code === 1 || d.verify_status_code === 2));
+      console.warn('Bihar ULA document load warning:', err);
+      setVerificationPending([]);
+      setVerifiedList([]);
     } finally {
       setLoading(false);
     }

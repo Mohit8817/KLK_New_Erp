@@ -516,52 +516,126 @@ export function BiharSSLAMCVerrifyAMC() {
     setErrorMsg('');
     try {
       const res = await biharAdminService.getVerifySslAmc();
-      if (res && res.data) {
-        const list = Array.isArray(res.data)
-          ? res.data
-          : Array.isArray(res.data?.amc_data)
-          ? res.data.amc_data
-          : Array.isArray(res.data?.data)
-          ? res.data.data
-          : [];
-        if (list.length > 0) {
-          setItems(
-            list.map((item: any, idx: number) => ({
-              id: item.id || idx + 1,
-              uid: item.uid || `SSL-${item.district || 'PAT'}-${String(idx + 1).padStart(3, '0')}`,
-              state: item.state || 'Bihar',
-              phase: item.phase || 'Phase 1',
-              district: item.district || 'Patna',
-              block: item.block || 'Danapur',
-              panchayat: item.panchayat || 'Gram Panchayat',
-              ward_no: item.ward_no || item.ward || 'Ward No. 01',
-              pole_no: item.pole_no || `PL-${idx + 100}`,
-              amc_date: item.amc_date || item.created_at || '02-11-2024',
-              amc_latitude: item.amc_latitude || '25.5941',
-              amc_longitude: item.amc_longitude || '85.1376',
-              amc_image_1: item.amc_image_1 || item.image1,
-              amc_image_2: item.amc_image_2 || item.image2,
-              amc_remark: item.amc_remark || item.remark || '',
-              verify_status:
-                item.verify_status === 1 || item.verify_status === 'Approved'
-                  ? 'Approved'
-                  : item.verify_status === 2 || item.verify_status === 'Rejected'
-                  ? 'Rejected'
-                  : 'Pending',
-              verify_status_code:
-                item.verify_status === 1 || item.verify_status === 'Approved'
-                  ? 1
-                  : item.verify_status === 2 || item.verify_status === 'Rejected'
-                  ? 2
-                  : 0,
-              verify_remarks: item.verify_remarks || '',
-            }))
-          );
+      const d = res?.data ?? res ?? {};
+
+      let rawPending: any[] = [];
+      let rawDone: any[] = [];
+
+      if (Array.isArray(d)) {
+        rawPending = d;
+      } else if (typeof d === 'object' && d !== null) {
+        if (Array.isArray(d.verify_done)) {
+          rawDone = d.verify_done;
+        }
+
+        const candidateKeys = [
+          'verify_pending',
+          'verification',
+          'pending',
+          'amc_pending',
+          'amc_verify',
+          'verify',
+          'amc_data',
+          'amcs',
+          'amc',
+          'sites',
+          'records',
+          'data',
+          'list',
+          'rows',
+        ];
+
+        for (const k of candidateKeys) {
+          if (Array.isArray(d[k]) && d[k] !== d.verify_done) {
+            rawPending = d[k];
+            break;
+          }
+        }
+
+        if (rawPending.length === 0) {
+          for (const k of Object.keys(d)) {
+            if (k !== 'verify_done' && Array.isArray(d[k]) && d[k].length > 0) {
+              rawPending = d[k];
+              break;
+            }
+          }
+        }
+
+        if (rawPending.length === 0) {
+          for (const k of Object.keys(d)) {
+            if (k !== 'verify_done' && Array.isArray(d[k])) {
+              rawPending = d[k];
+              break;
+            }
+          }
         }
       }
+
+      const mapItem = (item: any, idx: number, isFromDone: boolean): SslAmcVerifyItem => {
+        const idVal = Number(item.id ?? idx + 1);
+        const uidVal = String(item.unique_id || item.uid || item.excel_id || `SSL-${item.district || 'PAT'}-${String(idVal)}`);
+        const stateVal = item.state ? (String(item.state).toUpperCase() === 'BIHAR' ? 'Bihar' : String(item.state)) : 'Bihar';
+        const phaseVal = item.phase ? (String(item.phase).toLowerCase().includes('phase') ? String(item.phase) : `Phase ${item.phase}`) : '—';
+        const districtVal = item.district ? String(item.district).toUpperCase() : '—';
+        const blockVal = item.block || '—';
+        const panchayatVal = item.panchayat || item.panchyat || item.village || '—';
+        const wardVal = item.ward_no && item.ward_no !== 'NA' ? String(item.ward_no) : item.ward && item.ward !== 'NA' ? String(item.ward) : '—';
+        const poleVal = item.pole_no && item.pole_no !== 'NA' ? String(item.pole_no) : '—';
+        const dateVal = item.amc_v_date || item.amc_date || item.amc_assigned_time || item.created_at || '—';
+        const latVal = item.amc_latittude || item.amc_latitude || item.latitude || '—';
+        const lngVal = item.amc_longitude || item.longitude || '—';
+        const img1Val = item.amc_image1 || item.amc_image_1 || item.image1 || item.image || item.light_file || '';
+        const img2Val = item.amc_image2 || item.amc_image_2 || item.image2 || '';
+        const remarkVal = item.amc_v_remarks || item.amc_remark || item.remark || item.remarks || '—';
+
+        let vCode = 0;
+        if (isFromDone) {
+          const rawDoneCode = Number(item.amc_verify ?? item.verify_status ?? item.amcverify_status ?? 1);
+          vCode = rawDoneCode === 2 ? 2 : 1;
+        } else {
+          const rawVerify = item.amc_verify !== undefined && item.amc_verify !== '' && item.amc_verify !== null
+            ? Number(item.amc_verify)
+            : undefined;
+          if (rawVerify === 1) vCode = 1;
+          else if (rawVerify === 2) vCode = 2;
+          else vCode = 0;
+        }
+
+        const vText = vCode === 1 ? 'Approved' : vCode === 2 ? 'Rejected' : 'Pending';
+
+        return {
+          id: idVal,
+          uid: uidVal,
+          state: stateVal,
+          phase: phaseVal,
+          district: districtVal,
+          block: blockVal,
+          panchayat: panchayatVal,
+          ward_no: wardVal,
+          pole_no: poleVal,
+          amc_date: dateVal,
+          amc_latitude: latVal,
+          amc_longitude: lngVal,
+          amc_image_1: img1Val,
+          amc_image_2: img2Val,
+          amc_remark: remarkVal,
+          verify_status: vText,
+          verify_status_code: vCode,
+          verify_remarks: item.verify_remarks || item.amc_v_remarks || '',
+          beneficiary_name: item.amc_beneficiary_name || item.beneficiary_name,
+          vendor_id: item.amc_assigned_to || item.installed_by || item.installation_vendor,
+        };
+      };
+
+      const mappedPending = rawPending.map((it: any, i: number) => mapItem(it, i, false));
+      const mappedDone = rawDone.map((it: any, i: number) => mapItem(it, mappedPending.length + i, true));
+      const allMapped = [...mappedPending, ...mappedDone];
+
+      setItems(allMapped);
     } catch (err: any) {
-      console.warn('[VerifyAMC SSL] Fallback live data active:', err);
-      // Keep initial items if API unavailable
+      console.warn('[VerifyAMC SSL] Error loading live data:', err);
+      setErrorMsg(err?.message || 'Failed to load SSL AMC verification records from server.');
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -588,7 +662,11 @@ export function BiharSSLAMCVerrifyAMC() {
       await biharAdminService.verifySslAmcStatus({
         id: verifyingItem.id,
         status: code,
+        verify_status: code,
+        amc_verify: code,
         remarks: verifyRemarks,
+        verify_remarks: verifyRemarks,
+        amc_v_remarks: verifyRemarks,
       });
 
       const updatedText = code === 1 ? 'Approved' : 'Rejected';
@@ -601,6 +679,7 @@ export function BiharSSLAMCVerrifyAMC() {
       );
       setSuccessMsg(`SSL Pole #${verifyingItem.pole_no} (${verifyingItem.uid}) marked as ${updatedText} successfully!`);
       setVerifyingItem(null);
+      await fetchData();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to update SSL AMC verification status.');
     } finally {

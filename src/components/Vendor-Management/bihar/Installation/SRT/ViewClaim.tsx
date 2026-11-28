@@ -54,6 +54,10 @@ export function BiharSRTInstallationViewClaim() {
       const res = await biharAdminService.getViewSrtClaims();
       const rawList = Array.isArray(res)
         ? res
+        : Array.isArray(res?.data?.claimrequest)
+        ? res.data.claimrequest
+        : Array.isArray(res?.claimrequest)
+        ? res.claimrequest
         : Array.isArray(res?.data)
         ? res.data
         : Array.isArray(res?.claims)
@@ -64,11 +68,13 @@ export function BiharSRTInstallationViewClaim() {
 
       const mapped: BiharSRTClaimItem[] = rawList.map((item: any, idx: number) => {
         const rawStatus = String(item.claim_status ?? item.status ?? '').toLowerCase();
-        const statusVal: 'Approved' | 'Pending' | 'Rejected' = rawStatus.includes('approv') || rawStatus === '1'
-          ? 'Approved'
-          : rawStatus.includes('reject') || rawStatus === '2'
-          ? 'Rejected'
-          : 'Pending';
+        const statusCode = Number(item.claim_status ?? item.status ?? 0);
+        const statusVal: 'Approved' | 'Pending' | 'Rejected' =
+          statusCode === 2 || rawStatus.includes('approv')
+            ? 'Approved'
+            : statusCode === 3 || rawStatus.includes('reject')
+            ? 'Rejected'
+            : 'Pending';
 
         return {
           id: item.id ?? idx + 1,
@@ -109,9 +115,12 @@ export function BiharSRTInstallationViewClaim() {
     try {
       setSubmitting(true);
       const isApprove = claimStatusChoice === '1';
+      const statusToSend = isApprove ? 2 : 1;
       await biharAdminService.updateSrtClaimStatus({
-        id: actionItem.id,
-        claim_status: isApprove ? 1 : 2,
+        id: Number(actionItem.id),
+        status: statusToSend,
+        claim_status: statusToSend,
+        remarks: actionRemark,
         remark: actionRemark,
       });
 

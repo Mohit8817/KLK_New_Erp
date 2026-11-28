@@ -35,6 +35,29 @@ import {
   exportRowsPDF,
 } from '../../../up/Installation/upInstallationShared';
 
+const getClaimStatusCode = (claim: RescoClaimRecord): number => {
+  const candidates = [
+    claim.claim_status,
+    (claim as any).inst_claim_status,
+    (claim as any).status,
+    (claim as any).verify_status,
+  ];
+  for (const val of candidates) {
+    if (val !== undefined && val !== null && val !== '' && typeof val !== 'boolean') {
+      const n = Number(val);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return 1;
+};
+
+const getClaimStatusLabel = (status: number): string => {
+  if (status === 2) return 'Approved';
+  if (status === 3) return 'Rejected';
+  if (status === 1) return 'Pending';
+  return 'Not Raised';
+};
+
 export function ViewRescoClaim() {
   const [claims, setClaims] = useState<RescoClaimRecord[]>([]);
   const [summary, setSummary] = useState<{
@@ -63,23 +86,28 @@ export function ViewRescoClaim() {
 
   const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
 
-  const fetchClaims = useCallback(async () => {
+  const fetchClaims = useCallback(async (preserveError = false) => {
     setLoading(true);
-    setErrorMsg('');
+    if (!preserveError) setErrorMsg('');
     try {
       const res = await jammuRescoAdminService.getViewClaim();
       const list: RescoClaimRecord[] = Array.isArray(res?.claims) ? res.claims : [];
       setClaims(list);
       const details = res?.claim_details;
+      const approvedCount = list.filter((c) => getClaimStatusCode(c) === 2).length;
+      const pendingCount = list.filter((c) => getClaimStatusCode(c) === 1).length;
+      const rejectCount = list.filter((c) => getClaimStatusCode(c) === 3).length;
       setSummary({
-        total: Number(details?.total ?? list.length),
-        claim_approved: Number(details?.claim_approved ?? list.filter((c) => Number(c.claim_status) === 2 || Number(c.claim_status) === 1).length),
-        claim_pending: Number(details?.claim_pending ?? list.filter((c) => Number(c.claim_status ?? 0) === 0).length),
-        claim_reject: Number(details?.claim_reject ?? list.filter((c) => Number(c.claim_status) === 3).length),
+        total: list.length > 0 ? list.length : Number(details?.total ?? 0),
+        claim_approved: list.length > 0 ? approvedCount : Number(details?.claim_approved ?? 0),
+        claim_pending: list.length > 0 ? pendingCount : Number(details?.claim_pending ?? 0),
+        claim_reject: list.length > 0 ? rejectCount : Number(details?.claim_reject ?? 0),
       });
     } catch (err: any) {
       console.error('Failed to fetch Jammu RESCO claim requests:', err);
-      setErrorMsg(err?.message || 'Failed to fetch Jammu RESCO claim requests.');
+      if (!preserveError) {
+        setErrorMsg(err?.message || 'Failed to fetch Jammu RESCO claim requests.');
+      }
       setClaims([]);
       setSummary({ total: 0, claim_approved: 0, claim_pending: 0, claim_reject: 0 });
     } finally {
@@ -93,7 +121,7 @@ export function ViewRescoClaim() {
 
   const handleVerifyClaim = async (e: FormEvent) => {
     e.preventDefault();
-    if (!actionClaim) return;
+    if (!actionClaim || submitting) return;
     setSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -103,12 +131,22 @@ export function ViewRescoClaim() {
         Number(claimStatus),
         claimRemarks.trim() || undefined
       );
+      if (!res.success) {
+        setErrorMsg(res.message || 'Failed to update claim status.');
+        setActionClaim(null);
+        setClaimRemarks('');
+        await fetchClaims(true);
+        return;
+      }
       setSuccessMsg(res.message || 'Claim status updated successfully.');
       setActionClaim(null);
       setClaimRemarks('');
-      fetchClaims();
+      await fetchClaims();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to update claim status.');
+      setActionClaim(null);
+      setClaimRemarks('');
+      await fetchClaims(true);
     } finally {
       setSubmitting(false);
     }
@@ -118,8 +156,8 @@ export function ViewRescoClaim() {
     let list = claims;
     if (statusFilter !== 'all') {
       list = list.filter((c) => {
-        const st = Number(c.claim_status ?? 0);
-        if (statusFilter === '1' || statusFilter === '0') return st === 0 || st === 1;
+        const st = getClaimStatusCode(c);
+        if (statusFilter === '1') return st === 1;
         if (statusFilter === '2') return st === 2;
         if (statusFilter === '3') return st === 3;
         return String(st) === statusFilter;
@@ -153,7 +191,7 @@ export function ViewRescoClaim() {
 
   const exportCols = useMemo<ExportColumn<RescoClaimRecord>[]>(
     () => [
-      { header: 'Sr. No.', accessor: ((_r: RescoClaimRecord, idx?: number) => (idx !== undefined ? idx + 1 : '')) as any },
+      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
       { header: 'State', accessor: () => 'JAMMU' },
       {
         header: 'District',
@@ -175,10 +213,7 @@ export function ViewRescoClaim() {
       { header: 'Claim Update Date', accessor: (r) => fmtDate((r as any).updated_at || r.date) },
       {
         header: 'Claim Status',
-        accessor: (r) => {
-          const st = Number(r.claim_status);
-          return st === 2 ? 'Approved' : st === 3 ? 'Rejected' : 'Pending';
-        },
+        accessor: (r) => getClaimStatusLabel(getClaimStatusCode(r)),
       },
       { header: 'Claim Verify Remarks', accessor: (r) => r.verify_remarks || r.approved_remarks || DASH },
     ],
@@ -319,7 +354,7 @@ export function ViewRescoClaim() {
                 pagination.paged.map((row, idx) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const invoicePath = row.invoice_file || (row as any).invoice || (row as any).file;
-                  const st = Number(row.claim_status ?? (row as any).inst_claim_status ?? 0);
+                  const st = getClaimStatusCode(row);
                   const siteTitle = Array.isArray(row.sites) && row.sites.length > 0
                     ? row.sites.map((s) => s.site_name).join(', ')
                     : String(row.site_id || `Site #${row.id}`);
@@ -349,19 +384,21 @@ export function ViewRescoClaim() {
                       <td className="ax-table__td" style={{ fontWeight: 700 }}>{fmtCurrency(row.amount)}</td>
                       <td className="ax-table__td">{fmtDate((row as any).updated_at || row.date)}</td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {st === 2 || st === 1 ? (
+                        {st === 2 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
                         ) : st === 3 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
-                        ) : (
+                        ) : st === 1 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
+                        ) : (
+                          <span className="ax-badge ax-badge--soft ax-badge--neutral">Not Raised</span>
                         )}
                       </td>
                       <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {row.verify_remarks || row.approved_remarks || DASH}
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {st === 0 || st === 1 ? (
+                        {st === 1 ? (
                           <button
                             type="button"
                             className="ax-btn ax-btn--primary ax-btn--xs"
@@ -374,7 +411,9 @@ export function ViewRescoClaim() {
                             Verify Claim
                           </button>
                         ) : (
-                          <span style={{ fontSize: 12, color: '#64748b' }}>Processed</span>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>
+                            {st === 2 || st === 3 ? 'Processed' : 'Not Raised'}
+                          </span>
                         )}
                       </td>
                     </tr>

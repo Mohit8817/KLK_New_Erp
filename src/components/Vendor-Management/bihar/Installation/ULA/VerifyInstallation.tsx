@@ -459,12 +459,12 @@ export function BiharULAInstallationViewSite() {
   const [verifyPending, setVerifyPending] = useState<UlaInstallSiteItem[]>([]);
   const [verifyComplete, setVerifyComplete] = useState<UlaInstallSiteItem[]>([]);
   const [stats, setStats] = useState({
-    totalAssignedSites: 25,
-    completeSites: 11,
-    pendingSites: 14,
-    approveSites: 6,
+    totalAssignedSites: 0,
+    completeSites: 0,
+    pendingSites: 0,
+    approveSites: 0,
     rejectSites: 0,
-    verifyPending: 5,
+    verifyPending: 0,
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -488,137 +488,6 @@ export function BiharULAInstallationViewSite() {
 
   // Lightbox Photo preview
   const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null);
-
-  // Initial Mock Fallback Data
-  const fallbackList: UlaInstallSiteItem[] = useMemo(
-    () => [
-      {
-        id: 301,
-        unique_id: 'ULA-PAT-001',
-        volume: 'Phase-1',
-        vendor: 'ETS Networks Pvt Ltd',
-        state: 'Bihar',
-        district: 'Patna',
-        block: 'Danapur',
-        village: 'Khagaul',
-        beneficiary_name: 'Rajendra Prasad',
-        contact_number: '9876543210',
-        solar_meter_no: 'SM-884912',
-        inverter_no: 'INV-4421',
-        net_smart_meter_no: 'NSM-99120',
-        logger_no: 'LOG-7721',
-        complete_photo: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        inverter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        earthing_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        acdb_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        solar_meter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        la_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        latitude: '25.5941',
-        longitude: '85.1376',
-        remark: 'Commissioned successfully with good flow rate',
-        verify_status: 'Approved',
-        verify_status_code: 1,
-        verify_remarks: 'QA inspected and all technical parameters approved',
-        verify_date: '2026-11-08',
-      },
-      {
-        id: 302,
-        unique_id: 'ULA-PAT-002',
-        volume: 'Phase-1',
-        vendor: 'ETS Networks Pvt Ltd',
-        state: 'Bihar',
-        district: 'Patna',
-        block: 'Danapur',
-        village: 'Khagaul',
-        beneficiary_name: 'Dinesh Mandal',
-        contact_number: '9876543211',
-        solar_meter_no: 'SM-884913',
-        inverter_no: 'INV-4422',
-        net_smart_meter_no: 'NSM-99121',
-        logger_no: 'LOG-7722',
-        complete_photo: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        inverter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        earthing_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        acdb_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        solar_meter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        la_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        latitude: '25.5945',
-        longitude: '85.1380',
-        remark: 'Pump installed, awaiting flow test certificate',
-        verify_status: 'Pending',
-        verify_status_code: 0,
-      },
-      {
-        id: 303,
-        unique_id: 'ULA-GAY-003',
-        volume: 'Phase-2',
-        vendor: 'Shakti Pumps Ltd',
-        state: 'Bihar',
-        district: 'Gaya',
-        block: 'Bodh Gaya',
-        village: 'Bakrour',
-        beneficiary_name: 'Satish Kumar',
-        contact_number: '9876543212',
-        solar_meter_no: 'SM-884914',
-        inverter_no: 'INV-4423',
-        net_smart_meter_no: 'NSM-99122',
-        logger_no: 'LOG-7723',
-        complete_photo: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        inverter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        earthing_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        acdb_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        solar_meter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        la_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        latitude: '24.7964',
-        longitude: '85.0039',
-        remark: 'All safety clearances complete',
-        verify_status: 'Pending',
-        verify_status_code: 0,
-      },
-      {
-        id: 304,
-        unique_id: 'ULA-MUZ-004',
-        volume: 'Phase-2',
-        vendor: 'Shakti Pumps Ltd',
-        state: 'Bihar',
-        district: 'Muzaffarpur',
-        block: 'Kanti',
-        village: 'Damodarpur',
-        beneficiary_name: 'Manoj Tiwari',
-        contact_number: '9876543215',
-        solar_meter_no: 'SM-884915',
-        inverter_no: 'INV-4424',
-        net_smart_meter_no: 'NSM-99123',
-        logger_no: 'LOG-7724',
-        complete_photo: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        inverter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        earthing_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        acdb_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        solar_meter_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        la_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-        latitude: '26.1209',
-        longitude: '85.3647',
-        remark: 'Lightning arrester re-installation requested',
-        verify_status: 'Rejected',
-        verify_status_code: 2,
-        verify_remarks: 'Ground earthing pit missing chemical compound; rectify and re-submit',
-        verify_date: '2026-11-09',
-      },
-    ],
-    []
-  );
 
   // Fetch API data
   const fetchData = useCallback(async () => {
@@ -653,18 +522,18 @@ export function BiharULAInstallationViewSite() {
               vendor: typeof item.vendor_name === 'string' && item.vendor_name
                 ? item.vendor_name
                 : typeof item.vendor === 'object' && item.vendor !== null
-                ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
-                : (item.vendor || 'ETS Networks Pvt Ltd'),
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                : (item.vendor || '—'),
               state: item.state || 'Bihar',
-              district: item.district || 'Patna',
-              block: item.block || 'Danapur',
-              village: item.village || 'Khagaul',
-              beneficiary_name: item.beneficiary_name || item.farmer_name || 'Farmer Beneficiary',
-              contact_number: item.contact_number || item.contact_no || item.phone || '9876543210',
-              solar_meter_no: item.solar_meter_no || item.meter_no || 'SM-001',
-              inverter_no: item.inverter_no || 'INV-001',
-              net_smart_meter_no: item.net_smart_meter_no || 'NSM-001',
-              logger_no: item.logger_no || 'LOG-001',
+              district: item.district || '—',
+              block: item.block || '—',
+              village: item.village || '—',
+              beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
+              contact_number: item.contact_number || item.contact_no || item.phone || '—',
+              solar_meter_no: item.solar_meter_no || item.meter_no || '—',
+              inverter_no: item.inverter_no || '—',
+              net_smart_meter_no: item.net_smart_meter_no || '—',
+              logger_no: item.logger_no || '—',
               complete_photo: item.complete_photo || item.system_image,
               foundation_fastener_image: item.foundation_fastener_image,
               structure_image: item.structure_image || item.panel_image,
@@ -674,8 +543,8 @@ export function BiharULAInstallationViewSite() {
               acdb_image: item.acdb_image,
               solar_meter_image: item.solar_meter_image || item.nm_sm_image,
               la_image: item.la_image,
-              latitude: item.latitude || item.inst_latitude || '25.5941',
-              longitude: item.longitude || item.inst_longitude || '85.1376',
+              latitude: item.latitude || item.inst_latitude || '—',
+              longitude: item.longitude || item.inst_longitude || '—',
               remark: item.remarks || item.remark || item.inst_remarks || '',
               verify_status: stCode === 1 ? 'Approved' : stCode === 2 ? 'Rejected' : 'Pending',
               verify_status_code: stCode,
@@ -710,18 +579,18 @@ export function BiharULAInstallationViewSite() {
                 vendor: typeof item.vendor_name === 'string' && item.vendor_name
                 ? item.vendor_name
                 : typeof item.vendor === 'object' && item.vendor !== null
-                ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
-                : (item.vendor || 'ETS Networks Pvt Ltd'),
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                : (item.vendor || '—'),
                 state: item.state || 'Bihar',
-                district: item.district || 'Patna',
-                block: item.block || 'Danapur',
-                village: item.village || 'Khagaul',
-                beneficiary_name: item.beneficiary_name || item.farmer_name || 'Farmer Beneficiary',
-                contact_number: item.contact_number || item.contact_no || item.phone || '9876543210',
-                solar_meter_no: item.solar_meter_no || item.meter_no || 'SM-001',
-                inverter_no: item.inverter_no || 'INV-001',
-                net_smart_meter_no: item.net_smart_meter_no || 'NSM-001',
-                logger_no: item.logger_no || 'LOG-001',
+                district: item.district || '—',
+                block: item.block || '—',
+                village: item.village || '—',
+                beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
+                contact_number: item.contact_number || item.contact_no || item.phone || '—',
+                solar_meter_no: item.solar_meter_no || item.meter_no || '—',
+                inverter_no: item.inverter_no || '—',
+                net_smart_meter_no: item.net_smart_meter_no || '—',
+                logger_no: item.logger_no || '—',
                 complete_photo: item.complete_photo || item.system_image,
                 foundation_fastener_image: item.foundation_fastener_image,
                 structure_image: item.structure_image || item.panel_image,
@@ -731,8 +600,8 @@ export function BiharULAInstallationViewSite() {
                 acdb_image: item.acdb_image,
                 solar_meter_image: item.solar_meter_image || item.nm_sm_image,
                 la_image: item.la_image,
-                latitude: item.latitude || item.inst_latitude || '25.5941',
-                longitude: item.longitude || item.inst_longitude || '85.1376',
+                latitude: item.latitude || item.inst_latitude || '—',
+                longitude: item.longitude || item.inst_longitude || '—',
                 remark: item.remarks || item.remark || item.inst_remarks || '',
                 verify_status: stCode === 1 ? 'Approved' : stCode === 2 ? 'Rejected' : 'Pending',
                 verify_status_code: stCode,
@@ -744,35 +613,33 @@ export function BiharULAInstallationViewSite() {
             setVerifyPending(allItems.filter((s) => s.verify_status_code === 0));
             setVerifyComplete(allItems.filter((s) => s.verify_status_code === 1 || s.verify_status_code === 2));
           } else {
-            // Apply mock fallbacks
-            setVerifyPending(fallbackList.filter((s) => s.verify_status_code === 0));
-            setVerifyComplete(fallbackList.filter((s) => s.verify_status_code === 1 || s.verify_status_code === 2));
+            setVerifyPending([]);
+            setVerifyComplete([]);
           }
         }
 
         if (res.data.totalAssignedSites !== undefined || res.data.totalsite !== undefined) {
           setStats({
-            totalAssignedSites: Number(res.data.totalAssignedSites ?? res.data.totalsite ?? 25),
-            completeSites: Number(res.data.completeSites ?? res.data.complete ?? 11),
-            pendingSites: Number(res.data.pendingSites ?? res.data.pendingsite ?? 14),
-            approveSites: Number(res.data.approveSites ?? res.data.approvedsite ?? 6),
+            totalAssignedSites: Number(res.data.totalAssignedSites ?? res.data.totalsite ?? 0),
+            completeSites: Number(res.data.completeSites ?? res.data.complete ?? 0),
+            pendingSites: Number(res.data.pendingSites ?? res.data.pendingsite ?? 0),
+            approveSites: Number(res.data.approveSites ?? res.data.approvedsite ?? 0),
             rejectSites: Number(res.data.rejectSites ?? res.data.rejectsite ?? 0),
-            verifyPending: Number(res.data.verifyPending ?? res.data.verifypending ?? 5),
+            verifyPending: Number(res.data.verifyPending ?? res.data.verifypending ?? 0),
           });
         }
       } else {
-        // Fallback
-        setVerifyPending(fallbackList.filter((s) => s.verify_status_code === 0));
-        setVerifyComplete(fallbackList.filter((s) => s.verify_status_code === 1 || s.verify_status_code === 2));
+        setVerifyPending([]);
+        setVerifyComplete([]);
       }
     } catch (err: any) {
-      console.warn('[VerifyInstallation ULA] Using fallback live data:', err);
-      setVerifyPending(fallbackList.filter((s) => s.verify_status_code === 0));
-      setVerifyComplete(fallbackList.filter((s) => s.verify_status_code === 1 || s.verify_status_code === 2));
+      console.warn('[VerifyInstallation ULA] Failed to fetch:', err);
+      setVerifyPending([]);
+      setVerifyComplete([]);
     } finally {
       setLoading(false);
     }
-  }, [fallbackList]);
+  }, []);
 
   useEffect(() => {
     fetchData();

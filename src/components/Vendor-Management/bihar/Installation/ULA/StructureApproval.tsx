@@ -425,110 +425,7 @@ export interface StructureItem {
   verified_date?: string;
 }
 
-const INITIAL_FALLBACK_ITEMS: StructureItem[] = [
-  {
-    id: 201,
-    unique_id: 'ULA-PAT-001',
-    vendor: 'ETS Networks Pvt Ltd',
-    state: 'Bihar',
-    district: 'Patna',
-    block: 'Danapur',
-    village: 'Khagaul',
-    beneficiary_name: 'Rajendra Prasad',
-    contact_number: '9876543210',
-    ca_no: 'CA-2024-9981',
-    module_serial_no: 'MMS-2024-001A, MMS-2024-001B',
-    module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    latitude: '25.5941',
-    longitude: '85.1376',
-    status: 'Approved',
-    status_code: 1,
-  },
-  {
-    id: 202,
-    unique_id: 'ULA-PAT-002',
-    vendor: 'ETS Networks Pvt Ltd',
-    state: 'Bihar',
-    district: 'Patna',
-    block: 'Danapur',
-    village: 'Khagaul',
-    beneficiary_name: 'Dinesh Mandal',
-    contact_number: '9876543211',
-    ca_no: 'CA-2024-9982',
-    module_serial_no: 'MMS-2024-002A',
-    module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    latitude: '25.5945',
-    longitude: '85.1380',
-    status: 'Pending',
-    status_code: 0,
-  },
-  {
-    id: 203,
-    unique_id: 'ULA-GAY-003',
-    vendor: 'Shakti Pumps Ltd',
-    state: 'Bihar',
-    district: 'Gaya',
-    block: 'Bodh Gaya',
-    village: 'Bakrour',
-    beneficiary_name: 'Satish Kumar',
-    contact_number: '9876543212',
-    ca_no: 'CA-2024-9983',
-    module_serial_no: 'MMS-2024-003A',
-    module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    latitude: '24.7964',
-    longitude: '85.0039',
-    status: 'Pending',
-    status_code: 0,
-  },
-  {
-    id: 204,
-    unique_id: 'ULA-NAL-004',
-    vendor: 'ETS Networks Pvt Ltd',
-    state: 'Bihar',
-    district: 'Nalanda',
-    block: 'Bihar Sharif',
-    village: 'Pawapuri',
-    beneficiary_name: 'Manoj Verma',
-    contact_number: '9876543213',
-    ca_no: 'CA-2024-9984',
-    module_serial_no: 'MMS-2024-004A',
-    module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    latitude: '25.1983',
-    longitude: '85.5149',
-    status: 'Rejected',
-    status_code: 2,
-    remarks: 'Civil foundation depth insufficient as per MNRE guideline',
-  },
-  {
-    id: 205,
-    unique_id: 'ULA-MUZ-005',
-    vendor: 'Tata Power Solar Systems',
-    state: 'Bihar',
-    district: 'Muzaffarpur',
-    block: 'Kanti',
-    village: 'Damodarpur',
-    beneficiary_name: 'Umesh Choudhary',
-    contact_number: '9876543214',
-    ca_no: 'CA-2024-9985',
-    module_serial_no: 'MMS-2024-005A',
-    module_serial_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    foundation_fastener_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    structure_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=400',
-    latitude: '26.1209',
-    longitude: '85.3647',
-    status: 'Pending',
-    status_code: 0,
-  },
-];
-
+const INITIAL_FALLBACK_ITEMS: StructureItem[] = [];
 export function BiharULAInstallationStructureApproval() {
   const [items, setItems] = useState<StructureItem[]>(INITIAL_FALLBACK_ITEMS);
   const [loading, setLoading] = useState<boolean>(true);
@@ -564,13 +461,28 @@ export function BiharULAInstallationStructureApproval() {
   });
 
   // Fetch View ULA Structure Installation Data
+  // GET /admin/bihar/ula/installation/view-structure
+  // Response: {success:true, data:{[session], verification:[rows], verified:[rows]}}
   const fetchData = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
       const res = await biharAdminService.getViewUlaStructure();
       if (res && res.data) {
-        const list = Array.isArray(res.data)
+        const pendingRaw = Array.isArray(res.data.verification)
+          ? res.data.verification
+          : Array.isArray(res.data.verify_pending)
+          ? res.data.verify_pending
+          : [];
+        const completeRaw = Array.isArray(res.data.verified)
+          ? res.data.verified
+          : Array.isArray(res.data.verify_complete)
+          ? res.data.verify_complete
+          : [];
+
+        const rawList = (pendingRaw.length > 0 || completeRaw.length > 0)
+          ? [...pendingRaw.map((x: any) => ({ ...x, _forcedCode: 0 })), ...completeRaw.map((x: any) => ({ ...x, _forcedCode: 1 }))]
+          : Array.isArray(res.data)
           ? res.data
           : Array.isArray(res.data?.structures)
           ? res.data.structures
@@ -578,11 +490,13 @@ export function BiharULAInstallationStructureApproval() {
           ? res.data.data
           : [];
 
-        if (list.length > 0) {
-          const mapped: StructureItem[] = list.map((item: any, idx: number) => {
+        if (rawList.length > 0) {
+          const mapped: StructureItem[] = rawList.map((item: any, idx: number) => {
             const rawStatus = item.status;
             const statusCode =
-              item.status_code !== undefined
+              item._forcedCode !== undefined
+                ? item._forcedCode
+                : item.status_code !== undefined
                 ? Number(item.status_code)
                 : rawStatus === 1 || rawStatus === '1' || rawStatus === 'Approved'
                 ? 1
@@ -597,21 +511,21 @@ export function BiharULAInstallationStructureApproval() {
               vendor: typeof item.vendor_name === 'string' && item.vendor_name
                 ? item.vendor_name
                 : typeof item.vendor === 'object' && item.vendor !== null
-                ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
-                : (item.vendor || 'ETS Networks Pvt Ltd'),
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                : (item.vendor || '—'),
               state: item.state || 'Bihar',
-              district: item.district || 'Patna',
-              block: item.block || 'Danapur',
-              village: item.village || 'Khagaul',
-              beneficiary_name: item.beneficiary_name || 'Farmer Beneficiary',
-              contact_number: item.contact_number || item.phone || '9876543210',
+              district: item.district || '—',
+              block: item.block || '—',
+              village: item.village || '—',
+              beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
+              contact_number: item.contact_number || item.phone || item.contact || '—',
               ca_no: item.ca_no || `CA-2024-${item.id || idx + 1}`,
-              module_serial_no: item.module_serial_no || item.serial_no || 'MMS-2024-001',
+              module_serial_no: item.module_serial_no || item.serial_no || '',
               module_serial_image: item.module_serial_image,
               foundation_fastener_image: item.foundation_fastener_image,
               structure_image: item.structure_image,
-              latitude: item.latitude || '25.5941',
-              longitude: item.longitude || '85.1376',
+              latitude: item.latitude || '',
+              longitude: item.longitude || '',
               status: statusText,
               status_code: statusCode,
               remarks: item.remarks || '',
@@ -620,22 +534,26 @@ export function BiharULAInstallationStructureApproval() {
             };
           });
           setItems(mapped);
+        } else {
+          setItems([]);
         }
 
-        if (res.data.totalAssigned !== undefined) {
-          setStats((prev) => ({
-            ...prev,
-            totalAssigned: Number(res.data.totalAssigned) || prev.totalAssigned,
-            completeStructure: Number(res.data.completeStructure) || prev.completeStructure,
-            pendingStructure: Number(res.data.pendingStructure) || prev.pendingStructure,
-            approveStructure: Number(res.data.approveStructure) || prev.approveStructure,
-            rejectStructure: Number(res.data.rejectStructure) || prev.rejectStructure,
-            verifyPendingStructure: Number(res.data.verifyPendingStructure) || prev.verifyPendingStructure,
-          }));
+        if (res.data.totalAssigned !== undefined || res.data.total !== undefined) {
+          setStats({
+            totalAssigned: Number(res.data.totalAssigned ?? res.data.total ?? 0),
+            completeStructure: Number(res.data.completeStructure ?? res.data.complete ?? 0),
+            pendingStructure: Number(res.data.pendingStructure ?? res.data.pending ?? 0),
+            approveStructure: Number(res.data.approveStructure ?? res.data.approvedsite ?? 0),
+            rejectStructure: Number(res.data.rejectStructure ?? res.data.rejectsite ?? 0),
+            verifyPendingStructure: Number(res.data.verifyPendingStructure ?? res.data.verifypending ?? 0),
+          });
         }
+      } else {
+        setItems([]);
       }
     } catch (err: any) {
-      console.warn('[StructureApproval ULA] Live data warning, fallback retained:', err);
+      console.warn('[StructureApproval ULA] Live data warning:', err);
+      setItems([]);
     } finally {
       setLoading(false);
     }

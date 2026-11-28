@@ -364,6 +364,64 @@ export function BiharSRTInstallationDashboard() {
     setLoading(true);
     setApiError(null);
     try {
+      let dashData: any = null;
+      try {
+        const dRes = await biharAdminService.getSrtDashboard();
+        const d = dRes?.data ?? dRes;
+        if (d?.srtdatas || d?.districtwise || d?.vendorswise) {
+          dashData = d;
+        }
+      } catch (err) {
+        console.warn('SRT dashboard endpoint fallback:', err);
+      }
+
+      if (dashData && dashData.srtdatas) {
+        const s = dashData.srtdatas;
+        setRawStats({
+          totalsite: Number(s.site_count ?? s.totalsite ?? 0),
+          complete: Number(s.complete ?? 0),
+          pendingsite: Number(s.pending ?? s.pendingsite ?? 0),
+          approvedsite: Number(s.verify_approved ?? s.approvedsite ?? 0),
+          verifypending: Number(s.verify_pending ?? s.verifypending ?? 0),
+          rejectsite: Number(s.verify_reject ?? s.rejectsite ?? 0),
+          claimedapplicable: Number(s.claim_applicable ?? s.claimedapplicable ?? 0),
+          claimraised: Number(s.claim_raised ?? s.claimraised ?? 0),
+          docsubmit: Number(s.inst_doc_complete ?? s.docsubmit ?? 0),
+          paymentsitecount: Number(s.inst_pay1 ?? 0) + Number(s.inst_pay2 ?? 0) + Number(s.inst_pay3 ?? 0),
+          payment1: Number(s.inst_pay1 ?? 0),
+          payment2: Number(s.inst_pay2 ?? 0),
+          payment3: Number(s.inst_pay3 ?? 0),
+        });
+
+        if (Array.isArray(dashData.districtwise)) {
+          setDistrictData(
+            dashData.districtwise.map((d: any) => ({
+              district: d.district || 'Unknown',
+              totalSites: Number(d.site_count ?? d.total_assigned ?? 0),
+              completed: Number(d.inst_complete ?? 0),
+              pending: Number(d.inst_pending ?? 0),
+              approved: Number(d.inst_complete ?? 0),
+              rejected: 0,
+              sanctionLoadTotal: 0,
+            }))
+          );
+        }
+
+        if (Array.isArray(dashData.vendorswise)) {
+          setVendorData(
+            dashData.vendorswise.map((v: any) => ({
+              vendor: v.name || v.vendor || `Vendor #${v.inst_vendor}`,
+              assignedSites: Number(v.site_count ?? 0),
+              completed: Number(v.inst_complete ?? 0),
+              pending: Number(v.inst_pending ?? 0),
+              approved: Number(v.inst_complete ?? 0),
+              rejected: 0,
+            }))
+          );
+        }
+        return;
+      }
+
       const [instRes] = await Promise.allSettled([
         biharAdminService.getViewSrtInstallation(),
         biharAdminService.getViewAssignSrt(),

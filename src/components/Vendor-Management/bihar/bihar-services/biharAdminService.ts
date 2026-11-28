@@ -251,12 +251,12 @@ export class BiharAdminService {
     return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.FETCH_DISTRICT(volume));
   }
 
-  async getSslBlocksByDistrict(district: string) {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.FETCH_BLOCK(district));
+  async getSslBlocksByDistrict(district: string, volume?: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.FETCH_BLOCK(district, volume));
   }
 
-  async getSslPanchayatsByBlock(block: string) {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.FETCH_PANCHAYAT(block));
+  async getSslPanchayatsByBlock(block: string, district?: string, volume?: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.FETCH_PANCHAYAT(block, district, volume));
   }
 
   async storeSslAssign(body: FormData | object) {
@@ -332,14 +332,24 @@ export class BiharAdminService {
     });
   }
 
-  async getViewSslPayments(filters?: { from?: string; to?: string; vendor?: string }) {
+  async getViewSslPayments(filters?: { from?: string; to?: string; from_date?: string; to_date?: string; vendor?: string }) {
     let urls = BIHAR_ADMIN_API.SSL_INSTALLATION.PAYMENT_VIEW;
-    if (filters && (filters.from || filters.to || filters.vendor)) {
+    if (filters) {
+      const fromVal = filters.from_date || filters.from;
+      const toVal = filters.to_date || filters.to;
       const qs = new URLSearchParams();
-      if (filters.from) qs.set('from', filters.from);
-      if (filters.to) qs.set('to', filters.to);
+      if (fromVal) {
+        qs.set('from_date', fromVal);
+        qs.set('from', fromVal);
+      }
+      if (toVal) {
+        qs.set('to_date', toVal);
+        qs.set('to', toVal);
+      }
       if (filters.vendor) qs.set('vendor', filters.vendor);
-      urls = urls.map((u) => `${u}?${qs.toString()}`);
+      if (qs.toString()) {
+        urls = urls.map((u) => `${u}?${qs.toString()}`);
+      }
     }
     return fetchWithCandidateUrls(urls);
   }
@@ -372,6 +382,24 @@ export class BiharAdminService {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  }
+
+  // 5.6 SSL Dashboard
+  async getSslDashboard(volume: string = 'all') {
+    const urls = BIHAR_ADMIN_API.SSL_INSTALLATION.DASHBOARD.map((u) => `${u}?volume=${encodeURIComponent(volume)}`);
+    return fetchWithCandidateUrls(urls);
+  }
+
+  async getSslDashboardViewData(volume: string = 'all', status?: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.DASHBOARD_VIEW_DATA(volume, status));
+  }
+
+  async getSslVendorwiseViewData(status: string, vendor: string, volume?: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.VENDORWISE_VIEW_DATA(status, vendor, volume));
+  }
+
+  async getSslDistrictwiseViewData(status: string, district: string, volume?: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.DISTRICTWISE_VIEW_DATA(status, district, volume));
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -462,14 +490,24 @@ export class BiharAdminService {
     });
   }
 
-  async getViewSrtPayments(filters?: { from?: string; to?: string; vendor?: string }) {
+  async getViewSrtPayments(filters?: { from?: string; to?: string; from_date?: string; to_date?: string; vendor?: string }) {
     let urls = BIHAR_ADMIN_API.SRT_INSTALLATION.PAYMENT_VIEW;
-    if (filters && (filters.from || filters.to || filters.vendor)) {
+    if (filters) {
+      const fromVal = filters.from_date || filters.from;
+      const toVal = filters.to_date || filters.to;
       const qs = new URLSearchParams();
-      if (filters.from) qs.set('from', filters.from);
-      if (filters.to) qs.set('to', filters.to);
+      if (fromVal) {
+        qs.set('from_date', fromVal);
+        qs.set('from', fromVal);
+      }
+      if (toVal) {
+        qs.set('to_date', toVal);
+        qs.set('to', toVal);
+      }
       if (filters.vendor) qs.set('vendor', filters.vendor);
-      urls = urls.map((u) => `${u}?${qs.toString()}`);
+      if (qs.toString()) {
+        urls = urls.map((u) => `${u}?${qs.toString()}`);
+      }
     }
     return fetchWithCandidateUrls(urls);
   }
@@ -488,6 +526,23 @@ export class BiharAdminService {
     });
   }
 
+  // SRT Dashboard
+  async getSrtDashboard() {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.DASHBOARD);
+  }
+
+  async getSrtDashboardViewData(status: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.DASHBOARD_VIEW_DATA(status));
+  }
+
+  async getSrtVendorwiseData(status: string, vendor: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.VENDORWISE_DATA(status, vendor));
+  }
+
+  async getSrtDistrictwiseData(status: string, district: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.DISTRICTWISE_DATA(status, district));
+  }
+
   /* ─────────────────────────────────────────────────────────────────────────
      7. BIHAR ULA INSTALLATION
      ───────────────────────────────────────────────────────────────────────── */
@@ -504,20 +559,11 @@ export class BiharAdminService {
   }
 
   async getUlaBlocks(arg1?: any, arg2?: any) {
-    const district = typeof arg1 === 'string' ? (arg2 || arg1) : arg1?.district;
+    const district = typeof arg1 === 'string' ? (arg2 || arg1) : (arg1?.district || arg2?.district);
+    const volume = typeof arg1 === 'object' ? arg1?.volume : (typeof arg2 === 'string' ? arg2 : undefined);
     let urls = BIHAR_ADMIN_API.ULA_INSTALLATION.FETCH_BLOCK;
-    if (district) {
-      urls = urls.map((u) => `${u}?district=${encodeURIComponent(district)}`);
-    }
-    return fetchWithCandidateUrls(urls);
-  }
-
-  async getUlaVillages(arg1?: any, arg2?: any) {
-    const block = typeof arg1 === 'string' ? arg1 : arg1?.block;
-    const district = typeof arg2 === 'string' ? arg2 : arg1?.district;
-    let urls = BIHAR_ADMIN_API.ULA_INSTALLATION.FETCH_VILLAGE;
     const qs = new URLSearchParams();
-    if (block) qs.set('block', block);
+    if (volume) qs.set('volume', volume);
     if (district) qs.set('district', district);
     if (qs.toString()) {
       urls = urls.map((u) => `${u}?${qs.toString()}`);
@@ -525,15 +571,32 @@ export class BiharAdminService {
     return fetchWithCandidateUrls(urls);
   }
 
-  async getUlaBeneficiaries(arg1?: any, arg2?: any) {
+  async getUlaVillages(arg1?: any, arg2?: any, arg3?: any) {
+    const block = typeof arg1 === 'string' ? arg1 : arg1?.block;
+    const district = typeof arg2 === 'string' ? arg2 : (arg1?.district || arg3?.district);
+    const volume = typeof arg3 === 'string' ? arg3 : arg1?.volume;
+    let urls = BIHAR_ADMIN_API.ULA_INSTALLATION.FETCH_VILLAGE;
+    const qs = new URLSearchParams();
+    if (volume) qs.set('volume', volume);
+    if (district) qs.set('district', district);
+    if (block) qs.set('block', block);
+    if (qs.toString()) {
+      urls = urls.map((u) => `${u}?${qs.toString()}`);
+    }
+    return fetchWithCandidateUrls(urls);
+  }
+
+  async getUlaBeneficiaries(arg1?: any, arg2?: any, arg3?: any, arg4?: any) {
     const village = typeof arg1 === 'string' ? arg1 : arg1?.village;
-    const block = typeof arg2 === 'string' ? arg2 : arg1?.block;
-    const district = arg1?.district;
+    const block = typeof arg2 === 'string' ? arg2 : (arg1?.block || arg3?.block);
+    const district = typeof arg3 === 'string' ? arg3 : (arg1?.district || arg4?.district);
+    const volume = typeof arg4 === 'string' ? arg4 : arg1?.volume;
     let urls = BIHAR_ADMIN_API.ULA_INSTALLATION.FETCH_BENEFICIARY_NAME;
     const qs = new URLSearchParams();
-    if (village) qs.set('village', village);
-    if (block) qs.set('block', block);
+    if (volume) qs.set('volume', volume);
     if (district) qs.set('district', district);
+    if (block) qs.set('block', block);
+    if (village) qs.set('village', village);
     if (qs.toString()) {
       urls = urls.map((u) => `${u}?${qs.toString()}`);
     }
@@ -594,12 +657,20 @@ export class BiharAdminService {
     });
   }
 
-  async getViewUlaPayments(filters?: { from?: string; to?: string; vendor?: string; status?: string }) {
+  async getViewUlaPayments(filters?: { from?: string; to?: string; from_date?: string; to_date?: string; vendor?: string; status?: string }) {
     let urls = BIHAR_ADMIN_API.ULA_INSTALLATION.PAYMENT_VIEW;
     if (filters) {
+      const fromVal = filters.from_date || filters.from;
+      const toVal = filters.to_date || filters.to;
       const qs = new URLSearchParams();
-      if (filters.from) qs.set('from', filters.from);
-      if (filters.to) qs.set('to', filters.to);
+      if (fromVal) {
+        qs.set('from_date', fromVal);
+        qs.set('from', fromVal);
+      }
+      if (toVal) {
+        qs.set('to_date', toVal);
+        qs.set('to', toVal);
+      }
       if (filters.vendor) qs.set('vendor', filters.vendor);
       if (filters.status) qs.set('status', filters.status);
       if (qs.toString()) {

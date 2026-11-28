@@ -516,15 +516,7 @@ export interface DrillSiteRecord {
 }
 
 // Default initial Bihar districts fallback
-const DEFAULT_BIHAR_DISTRICT_ITEMS: UlaDistrictDetail[] = [
-  { district: 'Patna', totalSites: 14, structureComplete: 8, structurePending: 6, completed: 5, pending: 9, approved: 4, rejected: 0, claim_approved: 3, inst_pay_complete: 2 },
-  { district: 'Gaya', totalSites: 10, structureComplete: 6, structurePending: 4, completed: 3, pending: 7, approved: 2, rejected: 0, claim_approved: 2, inst_pay_complete: 1 },
-  { district: 'Nalanda', totalSites: 8, structureComplete: 5, structurePending: 3, completed: 2, pending: 6, approved: 2, rejected: 0, claim_approved: 1, inst_pay_complete: 1 },
-  { district: 'Muzaffarpur', totalSites: 6, structureComplete: 3, structurePending: 3, completed: 1, pending: 5, approved: 1, rejected: 0, claim_approved: 1, inst_pay_complete: 0 },
-  { district: 'Samastipur', totalSites: 5, structureComplete: 2, structurePending: 3, completed: 0, pending: 5, approved: 0, rejected: 0, claim_approved: 0, inst_pay_complete: 0 },
-  { district: 'Rohtas', totalSites: 4, structureComplete: 1, structurePending: 3, completed: 0, pending: 4, approved: 0, rejected: 0, claim_approved: 0, inst_pay_complete: 0 },
-];
-
+const DEFAULT_BIHAR_DISTRICT_ITEMS: UlaDistrictDetail[] = [];
 export function BiharULAInstallationDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
@@ -663,7 +655,7 @@ export function BiharULAInstallationDashboard() {
       if (ula) {
         const n = (v: any, def = 0) => (v !== undefined && v !== null && !isNaN(Number(v)) ? Number(v) : def);
 
-        const totalSites = n(ula.site_count ?? ula.total_sites ?? ula.totalSites, 47);
+        const totalSites = n(ula.site_count ?? ula.total_sites ?? ula.totalSites, 0);
         const structureInstalled = n(ula.structure_complete ?? ula.structure_installed, 25);
         const structurePending = n(ula.structure_pending, Math.max(0, totalSites - structureInstalled));
         const structureApproved = n(ula.structure_verify_approved ?? ula.structure_approved, 18);

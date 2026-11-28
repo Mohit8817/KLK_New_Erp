@@ -7,7 +7,7 @@ import {
   resolveJammuMediaUrl,
   getJammuMediaCandidates,
   type JammuRescoPaymentItem,
-  type JammuRescoClaimData,
+  type JammuRescoSiteNameItem,
 } from '../../jammu-services';
 import {
   Pagination,
@@ -519,7 +519,7 @@ export function RescoClaimRequest() {
   const [raiseModalOpen, setRaiseModalOpen] = useState<boolean>(false);
   const [submittingClaim, setSubmittingClaim] = useState<boolean>(false);
   const [sitesDropdown, setSitesDropdown] = useState<any[]>([]);
-  const [loadingSites] = useState<boolean>(false);
+  const [loadingSites, setLoadingSites] = useState<boolean>(false);
 
   const [claimPayType, setClaimPayType] = useState<number>(1);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
@@ -677,25 +677,36 @@ export function RescoClaimRequest() {
   );
 
   // Open Raise Claim Modal directly using live API response data
-  const handleOpenRaiseModal = (initialPayType?: number, initialSiteId?: string) => {
+  const handleOpenRaiseModal = (
+    initialPayType?: number,
+    initialSiteId?: string
+  ) => {
     const targetPayType =
       initialPayType ||
-      (activeTab === 'pay40' ? 1 : activeTab === 'pay30_1' ? 2 : activeTab === 'pay30_2' ? 3 : 1);
+      (activeTab === 'pay40'
+        ? 1
+        : activeTab === 'pay30_1'
+          ? 2
+          : activeTab === 'pay30_2'
+            ? 3
+            : 1);
+
     setClaimPayType(targetPayType);
+
     setClaimPurpose(targetPayType === 1 ? 40 : 30);
 
-    const eligible = getEligibleSitesForPayType(targetPayType);
-    setSitesDropdown(eligible);
+    // Only pay1, pay2, pay3
+    const eligibleSites = getEligibleSitesForPayType(targetPayType);
 
-    if (initialSiteId) {
-      setSelectedSiteId(String(initialSiteId));
-    } else {
-      setSelectedSiteId('');
-    }
+    setSitesDropdown(eligibleSites);
+
+    setSelectedSiteId(initialSiteId || '');
+
     setClaimAmount('');
     setClaimInvoiceFile(null);
     setClaimRemarks('');
     setClaimError(null);
+
     if (claimFileRef.current) {
       claimFileRef.current.value = '';
     }
@@ -832,143 +843,138 @@ export function RescoClaimRequest() {
   };
 
   // Helper to normalize a real claim record from payments into table item
-  const normalizeClaimToItem = useCallback((c: any): JammuRescoPaymentItem => {
-    const pType = Number(c.payment_type || c.pay_type || 1);
-    const siteIds = getClaimSiteIds(c);
-    const siteName =
-      Array.isArray(c.site_details) && c.site_details.length > 0
-        ? c.site_details.map((sd: any) => sd.site_name || `Site ${sd.id}`).join(', ')
-        : c.site_name || (siteIds.length > 0 ? `Site ${siteIds.join(', ')}` : `Claim ${c.id}`);
+  // Normalize only actual claim records
+  const normalizeClaimToItem = useCallback(
+    (c: any): JammuRescoPaymentItem => {
+      const pType = Number(
+        c.payment_type || c.pay_type || 1
+      );
 
-    const district =
-      Array.isArray(c.site_details) && c.site_details.length > 0 && c.site_details[0]?.district
-        ? c.site_details[0].district
-        : c.district || DASH;
+      const siteIds = getClaimSiteIds(c);
 
-    const invoice = c.file || c.invoice || c.invoice_file || null;
-    const claimStatus = Number(c.claim_status ?? c.status ?? 1);
-    const disbursement = Array.isArray(c.allpayment) && c.allpayment.length > 0 ? c.allpayment[0] : null;
+      const siteName =
+        Array.isArray(c.site_details) &&
+          c.site_details.length > 0
+          ? c.site_details
+            .map(
+              (sd: any) =>
+                sd.site_name || `Site ${sd.id}`
+            )
+            .join(', ')
+          : c.site_name ||
+          (siteIds.length > 0
+            ? `Site ${siteIds.join(', ')}`
+            : `Claim ${c.id}`);
 
-    return {
-      id: Number(c.id),
-      site_id: siteIds.length > 0 ? siteIds[0] : Number(c.id),
-      site_ids: siteIds,
-      site_name: siteName,
-      district: district,
-      state: c.state || 'jammu',
-      date: c.date || c.created_at || null,
-      created_at: c.created_at || null,
-      amount: c.amount || '',
-      file: invoice,
-      invoice: invoice,
-      remarks: c.remarks || '',
-      status: claimStatus,
-      pay_type: (pType as 1 | 2 | 3),
-      purpose: Number(c.purpose) || (pType === 1 ? 40 : 30),
-      payment_amount: disbursement?.amount || '',
-      payment_balance: disbursement?.balance || '',
-      payment_date: disbursement?.payment_date || null,
-      payment_remarks: disbursement?.payment_remarks || disbursement?.remarks || '',
-      payment_status: Number(disbursement?.pay_status ?? c.pay_status ?? 0),
-      is_site_record: false,
-      has_claim: true,
-    };
-  }, [getClaimSiteIds]);
+      const district =
+        Array.isArray(c.site_details) &&
+          c.site_details.length > 0 &&
+          c.site_details[0]?.district
+          ? c.site_details[0].district
+          : c.district || DASH;
 
-  // Helper to normalize an unraised eligible site into table item
-  const normalizeUnraisedSiteToItem = useCallback((s: any, payType: 1 | 2 | 3): JammuRescoPaymentItem => {
-    const siteId = Number(s.id ?? s.site_id);
-    const siteName = s.site_name || s.name || `site${siteId}`;
-    return {
-      id: siteId,
-      site_id: siteId,
-      site_name: siteName,
-      district: s.district || DASH,
-      state: s.state || 'jammu',
-      date: s.inst_date || s.created_at || null,
-      created_at: s.created_at || null,
-      amount: '',
-      file: undefined,
-      invoice: undefined,
-      remarks: s.inst_remarks || s.remarks || '',
-      status: 0, // 0 = Not Raised
-      pay_type: payType,
-      purpose: payType === 1 ? 40 : 30,
-      payment_amount: '',
-      payment_balance: '',
-      payment_date: undefined,
-      payment_remarks: '',
-      payment_status: 0,
-      is_site_record: true,
-      has_claim: false,
-    };
-  }, []);
+      const invoice =
+        c.file || c.invoice || c.invoice_file || null;
+
+      const claimStatus = Number(
+        c.claim_status ?? c.status ?? 1
+      );
+
+      const disbursement =
+        Array.isArray(c.allpayment) && c.allpayment.length > 0
+          ? c.allpayment[0]
+          : null;
+
+      return {
+        id: Number(c.id),
+        site_id: siteIds[0] || 0,
+        site_ids: siteIds,
+        site_name: siteName,
+        district,
+        state: c.state || 'jammu',
+        date: c.date || c.created_at || null,
+        created_at: c.created_at || null,
+        amount: c.amount || '',
+        file: invoice,
+        invoice,
+        remarks: c.remarks || '',
+        status: claimStatus,
+        pay_type: pType as 1 | 2 | 3,
+        purpose:
+          Number(c.purpose) || (pType === 1 ? 40 : 30),
+        payment_amount: disbursement?.amount || '',
+        payment_balance: disbursement?.balance || '',
+        payment_date: disbursement?.payment_date || null,
+        payment_remarks:
+          disbursement?.payment_remarks ||
+          disbursement?.remarks ||
+          '',
+        payment_status: Number(
+          disbursement?.pay_status ?? c.pay_status ?? 0
+        ),
+        is_site_record: false,
+        has_claim: true,
+      };
+    },
+    [getClaimSiteIds]
+  );
+
+
+
+
+
+
+
+
+
+
+
+
 
   // 1. Payment 40 % (Milestone 1)
+  // Payment 40% - Only payments API data
   const pay40List = useMemo(() => {
-    const m1Claims = payments
-      .filter((c) => Number(c.payment_type || c.pay_type || 0) === 1 || Number(c.purpose || 0) === 40)
+    return payments
+      .filter((c: any) => {
+        const pt = Number(
+          c.payment_type || c.pay_type || 0
+        );
+
+        const purpose = Number(c.purpose || 0);
+
+        return pt === 1 || purpose === 40;
+      })
       .map(normalizeClaimToItem);
+  }, [payments, normalizeClaimToItem]);
 
-    const claimedM1SiteIds = new Set<number>();
-    payments.forEach((c) => {
-      if (Number(c.payment_type || c.pay_type || 0) === 1 || Number(c.purpose || 0) === 40) {
-        getClaimSiteIds(c).forEach((id) => claimedM1SiteIds.add(id));
-      }
-    });
-
-    const rawPay1 = Array.isArray(claimData.pay1) ? claimData.pay1 : [];
-    const unraised = rawPay1
-      .filter((s: any) => !claimedM1SiteIds.has(Number(s.id ?? s.site_id)))
-      .map((s: any) => normalizeUnraisedSiteToItem(s, 1));
-
-    return [...m1Claims, ...unraised];
-  }, [payments, claimData.pay1, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
-
-  // 2. Payment 30 % (Milestone 2) - Only available if 40% claim is APPROVED!
+  // Payment 30% - Milestone 2
   const pay30_1List = useMemo(() => {
-    const m2Claims = payments
-      .filter((c) => Number(c.payment_type || c.pay_type || 0) === 2)
+    return payments
+      .filter((c: any) => {
+        return Number(
+          c.payment_type || c.pay_type || 0
+        ) === 2;
+      })
       .map(normalizeClaimToItem);
+  }, [payments, normalizeClaimToItem]);
 
-    const claimedM2SiteIds = new Set<number>();
-    payments.forEach((c) => {
-      if (Number(c.payment_type || c.pay_type || 0) === 2) {
-        getClaimSiteIds(c).forEach((id) => claimedM2SiteIds.add(id));
-      }
-    });
-
-    const unraised = eligiblePay2Sites
-      .filter((s: any) => !claimedM2SiteIds.has(Number(s.id ?? s.site_id)))
-      .map((s: any) => normalizeUnraisedSiteToItem(s, 2));
-
-    return [...m2Claims, ...unraised];
-  }, [payments, eligiblePay2Sites, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
-
-  // 3. Payment 30 % (Milestone 3) - Only available if Milestone 2 claim is APPROVED!
+  // Payment 30% - Milestone 3
   const pay30_2List = useMemo(() => {
-    const m3Claims = payments
-      .filter((c) => Number(c.payment_type || c.pay_type || 0) === 3)
+    return payments
+      .filter((c: any) => {
+        return Number(
+          c.payment_type || c.pay_type || 0
+        ) === 3;
+      })
       .map(normalizeClaimToItem);
+  }, [payments, normalizeClaimToItem]);
 
-    const claimedM3SiteIds = new Set<number>();
-    payments.forEach((c) => {
-      if (Number(c.payment_type || c.pay_type || 0) === 3) {
-        getClaimSiteIds(c).forEach((id) => claimedM3SiteIds.add(id));
-      }
-    });
-
-    const unraised = eligiblePay3Sites
-      .filter((s: any) => !claimedM3SiteIds.has(Number(s.id ?? s.site_id)))
-      .map((s: any) => normalizeUnraisedSiteToItem(s, 3));
-
-    return [...m3Claims, ...unraised];
-  }, [payments, eligiblePay3Sites, getClaimSiteIds, normalizeClaimToItem, normalizeUnraisedSiteToItem]);
-
-  // 4. Combined List for 'all' (Resco Installation Payment)
+  // All Payment Records
   const allList = useMemo(() => {
-    return [...pay40List, ...pay30_1List, ...pay30_2List];
-  }, [pay40List, pay30_1List, pay30_2List]);
+    return payments.map(normalizeClaimToItem);
+  }, [payments, normalizeClaimToItem]);
+
+
 
   const tabFilteredPayments = useMemo(() => {
     if (activeTab === 'pay40') return pay40List;
@@ -1067,7 +1073,7 @@ export function RescoClaimRequest() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuRescoPaymentItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') },
+      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
       { header: 'Date', accessor: (r) => txt(r, 'date') || txt(r, 'claim_date') || txt(r, 'created_at') },
       { header: 'Claim', accessor: (r) => (r.is_site_record && !r.has_claim ? `Site ${r.site_id || r.id}` : `Claim ${r.id}`) },
       { header: 'Milestone', accessor: (r) => (Number(r.pay_type) === 1 ? 'Payment 40 %' : Number(r.pay_type) === 2 ? 'Payment 30 %' : Number(r.pay_type) === 3 ? 'Payment 30 %' : 'Payment 40 %') },
@@ -1384,7 +1390,7 @@ export function RescoClaimRequest() {
                   a.click();
                 }}
                 onExportExcel={() => {
-                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header ?? c.label ?? '')}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
                   const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
                   const blob = new Blob([`\ufeff${html}`], { type: 'application/vnd.ms-excel' });
                   const url = URL.createObjectURL(blob);
@@ -1470,17 +1476,17 @@ export function RescoClaimRequest() {
                               Number(row.pay_type) === 1
                                 ? '#2563eb'
                                 : Number(row.pay_type) === 2
-                                ? '#0891b2'
-                                : '#7c3aed',
+                                  ? '#0891b2'
+                                  : '#7c3aed',
                           }}
                         >
                           {Number(row.pay_type) === 1
                             ? '40% (M1)'
                             : Number(row.pay_type) === 2
-                            ? '30% (M2)'
-                            : Number(row.pay_type) === 3
-                            ? '30% (M3)'
-                            : '40%'}
+                              ? '30% (M2)'
+                              : Number(row.pay_type) === 3
+                                ? '30% (M3)'
+                                : '40%'}
                         </span>
                       </td>
                       <td className="ax-table__td">
@@ -1588,7 +1594,7 @@ export function RescoClaimRequest() {
                               >
                                 + Raise Claim
                               </button>
-                           
+
                             </>
                           ) : (
                             <>
@@ -1657,8 +1663,8 @@ export function RescoClaimRequest() {
                 {claimPayType === 1
                   ? 'Add 1st Payment 40%'
                   : claimPayType === 2
-                  ? 'Add 2nd Payment 30%'
-                  : 'Add 3rd Payment 30%'}
+                    ? 'Add 2nd Payment 30%'
+                    : 'Add 3rd Payment 30%'}
               </h4>
             </div>
             <button

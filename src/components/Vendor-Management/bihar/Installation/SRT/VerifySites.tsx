@@ -392,184 +392,6 @@ const IMAGE_COLS: { key: 'system_image' | 'inverter_image' | 'panel_image' | 'nm
   { key: 'loger_image', label: 'Logger Image' },
 ];
 
-/* ───────── Fallback initial mock data if API returns empty ───────── */
-const INITIAL_FALLBACK_PENDING: BiharSRTInstallationItem[] = [
-  {
-    id: 101,
-    unique_id: 'BH-SRT-2026-01',
-    company_id: 'CMP-101',
-    firm_name: 'ETS Networks Pvt Ltd',
-    vendor: 'ETS Networks Pvt Ltd',
-    state: 'Bihar',
-    district: 'Patna',
-    dept_name: 'Collectorate Campus',
-    site_name: 'Patna Collectorate Solar Plant',
-    location: 'Gandhi Maidan Road, Patna',
-    ca_no: 'CA-PAT-2024-01',
-    sanction_load: '50',
-    plant_sc: '50',
-    contact_person: 'Amit Kumar',
-    contact_number: '+91 98765 43210',
-    solarmeter_no: 'SM-PAT-9912',
-    inverter_no: 'INV-PAT-4401',
-    nm_sm_no: 'NM-PAT-8812',
-    loger_no: 'LOG-PAT-3301',
-    system_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-    inverter_image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-    panel_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
-    nm_sm_image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-    loger_image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&auto=format&fit=crop&q=80',
-    cr_doc: 'uploads/bihar/srt/cr_patna_101.pdf',
-    inst_latitude: '25.6122',
-    inst_longitude: '85.1436',
-    inst_date: '2026-11-08',
-    inst_remarks: '50kW rooftop installation complete, grid synch tested with SBPDCL',
-    inst_verify_status: '0',
-    created_at: '2026-11-08',
-  },
-  {
-    id: 102,
-    unique_id: 'BH-SRT-2026-02',
-    company_id: 'CMP-102',
-    firm_name: 'Shakti Solar Solutions',
-    vendor: 'Shakti Solar Solutions',
-    state: 'Bihar',
-    district: 'Gaya',
-    dept_name: 'Health Dept',
-    site_name: 'Gaya District Hospital Rooftop',
-    location: 'Civil Lines, Gaya',
-    ca_no: 'CA-GAY-2024-01',
-    sanction_load: '60',
-    plant_sc: '60',
-    contact_person: 'Dr. S. K. Verma',
-    contact_number: '+91 94310 11223',
-    solarmeter_no: 'SM-GAY-7721',
-    inverter_no: 'INV-GAY-3312',
-    nm_sm_no: 'NM-GAY-6610',
-    loger_no: 'LOG-GAY-2209',
-    system_image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop&q=80',
-    inverter_image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-    panel_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-    nm_sm_image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-    loger_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
-    cr_doc: 'uploads/bihar/srt/cr_gaya_102.pdf',
-    inst_latitude: '24.7914',
-    inst_longitude: '85.0002',
-    inst_date: '2026-11-09',
-    inst_remarks: 'Hospital main block and trauma unit commissioning complete',
-    inst_verify_status: '0',
-    created_at: '2026-11-09',
-  },
-  {
-    id: 103,
-    unique_id: 'BH-SRT-2026-03',
-    company_id: 'CMP-103',
-    firm_name: 'Tata Power Solar Systems',
-    vendor: 'Tata Power Solar Systems',
-    state: 'Bihar',
-    district: 'Muzaffarpur',
-    dept_name: 'Urban Development',
-    site_name: 'Muzaffarpur Municipal Corporation',
-    location: 'Company Bagh, Muzaffarpur',
-    ca_no: 'CA-MUZ-2024-01',
-    sanction_load: '90',
-    plant_sc: '90',
-    contact_person: 'Rajesh Mishra',
-    contact_number: '+91 91223 45678',
-    solarmeter_no: 'SM-MUZ-8841',
-    inverter_no: 'INV-MUZ-5512',
-    nm_sm_no: 'NM-MUZ-7711',
-    loger_no: 'LOG-MUZ-4419',
-    system_image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&auto=format&fit=crop&q=80',
-    inverter_image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-    panel_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-    nm_sm_image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-    loger_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
-    cr_doc: 'uploads/bihar/srt/cr_muz_103.pdf',
-    inst_latitude: '26.1209',
-    inst_longitude: '85.3647',
-    inst_date: '2026-11-10',
-    inst_remarks: 'Municipal head office building rooftop arrays connected',
-    inst_verify_status: '0',
-    created_at: '2026-11-10',
-  },
-];
-
-const INITIAL_FALLBACK_VERIFIED: BiharSRTInstallationItem[] = [
-  {
-    id: 104,
-    unique_id: 'BH-SRT-2026-04',
-    company_id: 'CMP-104',
-    firm_name: 'Vikram Solar Limited',
-    vendor: 'Vikram Solar Limited',
-    state: 'Bihar',
-    district: 'Nalanda',
-    dept_name: 'Home Dept',
-    site_name: 'Nalanda Police Line Solar Installation',
-    location: 'Bihar Sharif, Nalanda',
-    ca_no: 'CA-NAL-2024-01',
-    sanction_load: '40',
-    plant_sc: '40',
-    contact_person: 'Inspector R. K. Singh',
-    contact_number: '+91 93344 55667',
-    solarmeter_no: 'SM-NAL-5511',
-    inverter_no: 'INV-NAL-2201',
-    nm_sm_no: 'NM-NAL-4409',
-    loger_no: 'LOG-NAL-1102',
-    system_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-    inverter_image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-    panel_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
-    nm_sm_image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-    loger_image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&auto=format&fit=crop&q=80',
-    cr_doc: 'uploads/bihar/srt/cr_nalanda_104.pdf',
-    inst_latitude: '25.1982',
-    inst_longitude: '85.5149',
-    inst_date: '2026-11-05',
-    inst_remarks: 'Installation tested and approved by BREDA field officer',
-    inst_verify_status: '1',
-    inst_verify_remarks: 'All modules, meters, earthing, and documentation approved.',
-    inst_verify_date: '2026-11-07',
-    inst_verify_by: 'Super Admin',
-    created_at: '2026-11-05',
-  },
-  {
-    id: 105,
-    unique_id: 'BH-SRT-2026-05',
-    company_id: 'CMP-105',
-    firm_name: 'Adani Solar EPC',
-    vendor: 'Adani Solar EPC',
-    state: 'Bihar',
-    district: 'Bhagalpur',
-    dept_name: 'Science & Tech Dept',
-    site_name: 'Bhagalpur Engineering College',
-    location: 'Sabour, Bhagalpur',
-    ca_no: 'CA-BHA-2024-01',
-    sanction_load: '85',
-    plant_sc: '85',
-    contact_person: 'Prof. Alok Gupta',
-    contact_number: '+91 97711 22334',
-    solarmeter_no: 'SM-BHA-4412',
-    inverter_no: 'INV-BHA-1109',
-    nm_sm_no: 'NM-BHA-3301',
-    loger_no: 'LOG-BHA-0098',
-    system_image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop&q=80',
-    inverter_image: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-    panel_image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-    nm_sm_image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-    loger_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
-    cr_doc: 'uploads/bihar/srt/cr_bha_105.pdf',
-    inst_latitude: '25.2425',
-    inst_longitude: '86.9842',
-    inst_date: '2026-11-06',
-    inst_remarks: 'Engineering campus academic block installation complete',
-    inst_verify_status: '1',
-    inst_verify_remarks: 'Field inspection verified. Inverter efficiency up to standard.',
-    inst_verify_date: '2026-11-08',
-    inst_verify_by: 'Super Admin',
-    created_at: '2026-11-06',
-  },
-];
-
 export function BiharSRTInstallationVerifySites() {
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [pendingList, setPendingList] = useState<Row[]>([]);
@@ -626,18 +448,14 @@ export function BiharSRTInstallationVerifySites() {
         }
       });
 
-      if (pList.length === 0 && vList.length === 0) {
-        setPendingList(INITIAL_FALLBACK_PENDING);
-        setVerifiedList(INITIAL_FALLBACK_VERIFIED);
-      } else {
-        setPendingList(pList);
-        setVerifiedList(vList);
-      }
+      setPendingList(pList);
+      setVerifiedList(vList);
       setKpiData(d);
     } catch (err: any) {
-      console.warn('Using fallback data for Bihar SRT installation verification:', err);
-      setPendingList(INITIAL_FALLBACK_PENDING);
-      setVerifiedList(INITIAL_FALLBACK_VERIFIED);
+      console.error('Failed to load Bihar SRT installation verification:', err);
+      setErrorMsg(err?.message || 'Failed to load installation verification data from server.');
+      setPendingList([]);
+      setVerifiedList([]);
     } finally {
       setLoading(false);
     }

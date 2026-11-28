@@ -1036,17 +1036,7 @@ export function ViewSwpPayment() {
                               Disburse
                             </button>
                           )}
-                          {row.allpayment.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedInstallmentsModal(row)}
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ fontSize: 11, color: '#2559bf', padding: '3px 6px' }}
-                              title="View past installments"
-                            >
-                              History ({row.allpayment.length})
-                            </button>
-                          )}
+                        
                           {isComplete && row.allpayment.length === 0 && (
                             <span style={{ fontSize: 12, color: '#64748b' }}>Settled</span>
                           )}

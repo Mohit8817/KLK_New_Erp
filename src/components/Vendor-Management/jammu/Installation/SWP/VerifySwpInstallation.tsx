@@ -14,6 +14,7 @@ import {
 import {
   jammuAdminSwpService,
   resolveJammuSwpMediaUrl,
+  getJammuSwpMediaCandidates,
 } from './jammuSwpAdminService';
 
 /* ───────── Responsive page CSS (Exact Solar ERP / Jammu SRT 70MW reference) ───────── */
@@ -387,6 +388,8 @@ function Modal({
 }
 
 /* ───────── Image & Document Lightbox Modal ───────── */
+const PREVIEW_ZOOM_STEPS = [1, 1.5, 2];
+
 function LightboxModal({
   open,
   onClose,
@@ -398,7 +401,13 @@ function LightboxModal({
   url: string;
   title: string;
 }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = PREVIEW_ZOOM_STEPS[zoomIdx];
   const isPdf = /\.pdf($|\?)/i.test(url);
+
+  useEffect(() => {
+    setZoomIdx(0);
+  }, [url]);
 
   if (!open) return null;
 
@@ -408,42 +417,148 @@ function LightboxModal({
       <div
         className="ax-modal__dialog"
         style={{
-          maxWidth: isPdf ? 1000 : 800,
+          maxWidth: isPdf ? 1000 : 820,
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
         <div className="ax-modal__header">
           <div>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
-            <span style={{ fontSize: 11.5, color: '#64748b' }}>Media Inspection</span>
+            <span style={{ fontSize: 11.5, color: '#64748b' }}>Technical Inspection Media</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!isPdf && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {PREVIEW_ZOOM_STEPS.map((z, idx) => (
+                  <button
+                    key={z}
+                    type="button"
+                    className={`ax-btn ax-btn--sm ${zoomIdx === idx ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                    onClick={() => setZoomIdx(idx)}
+                    style={{ minWidth: 38, padding: '2px 8px', fontSize: 11.5 }}
+                  >
+                    {z}x
+                  </button>
+                ))}
+              </div>
+            )}
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
               style={{ fontSize: 12 }}
             >
               Open Original ↗
             </a>
-            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
               {X_ICON}
             </button>
           </div>
         </div>
-        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', background: '#0b1120', minHeight: 460 }}>
+        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#0b1120', minHeight: 460, overflow: 'auto' }}>
           {isPdf ? (
             <iframe src={url} title={title} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8, background: '#fff' }} />
           ) : (
-            <img src={url} alt={title} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 8 }} />
+            <img
+              src={url}
+              alt={title}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '72vh',
+                objectFit: 'contain',
+                borderRadius: 8,
+                transform: `scale(${zoom})`,
+                transition: 'transform 0.18s ease',
+              }}
+            />
           )}
         </div>
       </div>
     </div>,
     document.body
+  );
+}
+
+/* ── Interactive Image Thumbnail with Fallback Candidates ── */
+function SwpMediaThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 44,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getJammuSwpMediaCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: '#94a3b8' }}>—</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        margin: '0 auto',
+      }}
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.12)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.15)';
+          e.currentTarget.style.borderColor = '#2559bf';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = '#cbd5e1';
+        }}
+        onError={() => {
+          if (candidateIdx + 1 < candidates.length) {
+            setCandidateIdx((prev) => prev + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to zoom photograph"
+      />
+    </div>
   );
 }
 
@@ -456,6 +571,8 @@ export interface JammuSwpVerifyInstallationItem {
   block: string;
   village: string;
   applicantName: string;
+  fatherName?: string;
+  applicationNo?: string;
   vfdNo: string;
   motorNo: string;
   pumpNo: string;
@@ -534,11 +651,13 @@ export function VerifySwpInstallation() {
           item.hoc_photo;
 
         let moduleSerials = '—';
-        const modArr = item.jammu_modulee || item.jammuModulee || item.modules;
+        const modArr = item.jammu_modulee || item.jammuModulee || item.jammu_modules || item.modules;
         if (Array.isArray(modArr) && modArr.length > 0) {
           moduleSerials = modArr.map((m: any) => m.sr_no || m.module_no || m.serial_no).filter(Boolean).join(', ');
         } else if (item.module_sr_no) {
           moduleSerials = String(item.module_sr_no);
+        } else if (item.mt_module_watt) {
+          moduleSerials = `Watt: ${item.mt_module_watt}`;
         }
 
         const rawModuleImg = item.module_image || item.farmer_with_module || item.farmer_module_image || item.image1;
@@ -546,24 +665,48 @@ export function VerifySwpInstallation() {
         const rawWaterImg = item.running_water_image || item.running_water || item.running_water_farmer_image || item.image3;
         const rawPoleImg = item.pole_image || item.pole_farmer_image || item.pole_with_farmer_image || item.hoc_photo || item.image4;
 
+        // Vendor Name resolution
+        const vendorVal =
+          item.vendor_name ||
+          item.c_firm ||
+          (item.inst_vendor
+            ? (item.c_firm ? `${item.c_firm} (#${item.inst_vendor})` : `Vendor #${item.inst_vendor}`)
+            : (item.c_contractor_name
+                ? `Vendor #${item.c_contractor_name}`
+                : (item.vendor ? `Vendor #${item.vendor}` : '—')));
+
+        // Block resolution (user specified: "post hee block hai reponse mai post hai but fileds ka name maine block dia h wahi fetch krna ia")
+        const blockVal = item.post || item.block || item.f_block || item.tehsil || item.f_tehsil || '—';
+
+        // Motor No. resolution (user specified: "mt_motor_no")
+        const motorNoVal = item.mt_motor_no || item.motor_sr_no || item.motor_no || item.m_motor_no || '—';
+
+        // Pump No. resolution (user specified: "mt_pump_no")
+        const pumpNoVal = item.mt_pump_no || item.pump_sr_no || item.pump_no || item.p_pump_no || '—';
+
+        // VFD / Controller No. resolution
+        const vfdNoVal = item.vfd_no || item.controller_sr_no || item.mt_controller_no || item.vfd_sr_no || item.controller_no || '—';
+
         return {
           id: item.id,
-          state: 'Jammu',
-          vendorName: item.vendor_name || item.vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
+          state: item.state ? (String(item.state).charAt(0).toUpperCase() + String(item.state).slice(1)) : 'Jammu',
+          vendorName: vendorVal,
           district: item.district || item.f_district || '—',
           tehsil: item.tehsil || item.f_tehsil || item.sub_district || '—',
-          block: item.block || item.f_block || '—',
+          block: blockVal,
           village: item.village || item.f_village || '—',
           applicantName: item.f_farmer_name || item.farmer_name || item.applicant_name || `Farmer #${item.id}`,
-          vfdNo: item.controller_sr_no || item.vfd_no || item.vfd_sr_no || item.controller_no || '—',
-          motorNo: item.motor_sr_no || item.motor_no || '—',
-          pumpNo: item.pump_sr_no || item.pump_no || '—',
+          fatherName: item.f_father_name || item.father_name || undefined,
+          applicationNo: item.f_app_no || item.application_no || undefined,
+          vfdNo: vfdNoVal,
+          motorNo: motorNoVal,
+          pumpNo: pumpNoVal,
           moduleSerialNo: moduleSerials,
           farmerWithModuleImage: rawModuleImg ? resolveJammuSwpMediaUrl(rawModuleImg) : undefined,
           inverterVfdFarmerImage: rawVfdImg ? resolveJammuSwpMediaUrl(rawVfdImg) : undefined,
           runningWaterFarmerImage: rawWaterImg ? resolveJammuSwpMediaUrl(rawWaterImg) : undefined,
           poleFarmerImage: rawPoleImg ? resolveJammuSwpMediaUrl(rawPoleImg) : undefined,
-          instRemarks: item.remarks || item.inst_remarks || '—',
+          instRemarks: item.inst_remarks || item.remarks || item.remark || '—',
           verifyStatus,
           rawStatus,
           verifyFile: rawVerifyFile ? resolveJammuSwpMediaUrl(rawVerifyFile) : undefined,
@@ -571,9 +714,21 @@ export function VerifySwpInstallation() {
         };
       };
 
+      let verificationList = resp.verification || [];
+      let verifiedList = resp.verified || [];
+      if (verificationList.length === 0 && verifiedList.length === 0) {
+        if (Array.isArray(resp.sites) && resp.sites.length > 0) {
+          verificationList = resp.sites.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) !== 1);
+          verifiedList = resp.sites.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) === 1);
+        } else if (Array.isArray(resp.data) && resp.data.length > 0) {
+          verificationList = resp.data.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) !== 1);
+          verifiedList = resp.data.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) === 1);
+        }
+      }
+
       const combined: JammuSwpVerifyInstallationItem[] = [
-        ...(resp.verification || []).map((x: any) => mapItem(x, 0)),
-        ...(resp.verified || []).map((x: any) => mapItem(x, 1)),
+        ...verificationList.map((x: any) => mapItem(x, 0)),
+        ...verifiedList.map((x: any) => mapItem(x, 1)),
       ];
       setItems(combined);
     } catch (err: any) {
@@ -1080,7 +1235,17 @@ export function VerifySwpInstallation() {
 
                       {/* 8. Applicant Name */}
                       <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>
-                        {row.applicantName}
+                        <div>{row.applicantName}</div>
+                        {row.fatherName && (
+                          <div style={{ fontSize: 11.5, fontWeight: 400, color: '#64748b', marginTop: 1 }}>
+                            S/o {row.fatherName}
+                          </div>
+                        )}
+                        {row.applicationNo && (
+                          <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8', marginTop: 1 }}>
+                            App: {row.applicationNo}
+                          </div>
+                        )}
                       </td>
 
                       {/* 9. VFD No. */}
@@ -1105,82 +1270,42 @@ export function VerifySwpInstallation() {
 
                       {/* 13. Farmer With Module Image */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.farmerWithModuleImage ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl({ url: row.farmerWithModuleImage!, title: `Farmer With Module - ${row.applicantName}` })}
-                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
-                            title="Click to view Farmer With Module Image"
-                          >
-                            <img
-                              src={row.farmerWithModuleImage}
-                              alt="Farmer With Module"
-                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
-                            />
-                          </button>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        )}
+                        <SwpMediaThumbnail
+                          src={row.farmerWithModuleImage}
+                          alt={`Farmer With Module - ${row.applicantName}`}
+                          onPreview={(url, title) => setLightboxUrl({ url, title })}
+                          size={44}
+                        />
                       </td>
 
                       {/* 14. Inverter and VFD with Farmer Image */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.inverterVfdFarmerImage ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl({ url: row.inverterVfdFarmerImage!, title: `Inverter/VFD with Farmer - ${row.applicantName}` })}
-                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
-                            title="Click to view Inverter and VFD with Farmer Image"
-                          >
-                            <img
-                              src={row.inverterVfdFarmerImage}
-                              alt="Inverter & VFD"
-                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
-                            />
-                          </button>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        )}
+                        <SwpMediaThumbnail
+                          src={row.inverterVfdFarmerImage}
+                          alt={`Inverter and VFD with Farmer - ${row.applicantName}`}
+                          onPreview={(url, title) => setLightboxUrl({ url, title })}
+                          size={44}
+                        />
                       </td>
 
                       {/* 15. Running Water With Farmer Image */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.runningWaterFarmerImage ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl({ url: row.runningWaterFarmerImage!, title: `Running Water With Farmer - ${row.applicantName}` })}
-                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
-                            title="Click to view Running Water With Farmer Image"
-                          >
-                            <img
-                              src={row.runningWaterFarmerImage}
-                              alt="Running Water"
-                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
-                            />
-                          </button>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        )}
+                        <SwpMediaThumbnail
+                          src={row.runningWaterFarmerImage}
+                          alt={`Running Water With Farmer - ${row.applicantName}`}
+                          onPreview={(url, title) => setLightboxUrl({ url, title })}
+                          size={44}
+                        />
                       </td>
 
                       {/* 16. Pole With Farmer Image */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.poleFarmerImage ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl({ url: row.poleFarmerImage!, title: `Pole With Farmer - ${row.applicantName}` })}
-                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
-                            title="Click to view Pole With Farmer Image"
-                          >
-                            <img
-                              src={row.poleFarmerImage}
-                              alt="Pole With Farmer"
-                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
-                            />
-                          </button>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        )}
+                        <SwpMediaThumbnail
+                          src={row.poleFarmerImage}
+                          alt={`Pole With Farmer - ${row.applicantName}`}
+                          onPreview={(url, title) => setLightboxUrl({ url, title })}
+                          size={44}
+                        />
                       </td>
 
                       {/* 17. Inst. Remarks */}
@@ -1230,28 +1355,12 @@ export function VerifySwpInstallation() {
                         {row.verifyFile ? (
                           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                             {/\.(jpe?g|png|webp|gif|svg)($|\?)/i.test(row.verifyFile) ? (
-                              <button
-                                type="button"
-                                onClick={() => setLightboxUrl({ url: row.verifyFile!, title: `Verify File - ${row.applicantName}` })}
-                                style={{
-                                  border: '1px solid #cbd5e1',
-                                  borderRadius: 6,
-                                  padding: 2,
-                                  background: '#fff',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                }}
-                                title="Click to preview Verify File"
-                              >
-                                <img
-                                  src={row.verifyFile}
-                                  alt="Verify File"
-                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
-                                  onError={(e) => {
-                                    (e.currentTarget as HTMLElement).style.display = 'none';
-                                  }}
-                                />
-                              </button>
+                              <SwpMediaThumbnail
+                                src={row.verifyFile}
+                                alt={`Verify File - ${row.applicantName}`}
+                                onPreview={(url, title) => setLightboxUrl({ url, title })}
+                                size={44}
+                              />
                             ) : (
                               <a
                                 href={row.verifyFile}

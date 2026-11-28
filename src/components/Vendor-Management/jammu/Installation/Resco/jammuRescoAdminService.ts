@@ -253,7 +253,7 @@ async function apiRequest<T = any>(
         } catch {}
 
         return {
-          success: json?.success !== false,
+          success: json?.success !== false && json?.status !== false,
           data: json?.data !== undefined ? json.data : json,
           message: json?.message || 'Success',
           raw: json,
@@ -264,15 +264,28 @@ async function apiRequest<T = any>(
         continue;
       }
 
-      lastError = new Error(json?.message || `HTTP ${res.status}: ${res.statusText}`);
+      const firstFieldError =
+        json?.errors && typeof json.errors === 'object'
+          ? Object.values(json.errors).flat().find((msg) => typeof msg === 'string' && msg.trim())
+          : undefined;
+      lastError = new Error(json?.message || String(firstFieldError || '') || `HTTP ${res.status}: ${res.statusText}`);
+
+      if (res.status >= 400 && res.status < 500 && res.status !== 404) {
+        break;
+      }
     } catch (err: any) {
       lastError = err;
     }
   }
 
+  const firstLastError =
+    lastJson?.errors && typeof lastJson.errors === 'object'
+      ? Object.values(lastJson.errors).flat().find((msg) => typeof msg === 'string' && msg.trim())
+      : undefined;
+
   return {
     success: false,
-    message: lastJson?.message || lastError?.message || 'Failed to fetch from Jammu RESCO API',
+    message: lastJson?.message || String(firstLastError || '') || lastError?.message || 'Failed to fetch from Jammu RESCO API',
     errors: lastJson?.errors || lastError,
     raw: lastJson,
   };
@@ -402,6 +415,14 @@ export interface RescoInstallationSite {
 
 export interface RescoDocItem {
   id: number;
+  site_id?: number | string;
+  siteId?: number | string;
+  resco_id?: number | string;
+  srt_id?: number | string;
+  survey_id?: number | string;
+  installation_id?: number | string;
+  inst_id?: number | string;
+  rawItem?: any;
   vendor_name?: string;
   vendor?: string;
   state: string;
@@ -1027,10 +1048,23 @@ class JammuRescoAdminService {
         d.inst_doc ||
         d.document ||
         d.hoc_photo ||
+        d.jcr_photo ||
+        d.verify_file ||
+        d.inst_verify_file ||
         null;
+      const effectiveSiteId = d.site_id ?? d.siteId ?? d.resco_id ?? d.srt_id ?? d.survey_id ?? d.id;
+      const effectiveInstId = d.installation_id ?? d.inst_id ?? d.id;
       return {
         ...d,
         id: Number(d.id),
+        site_id: d.site_id ?? effectiveSiteId,
+        siteId: d.siteId ?? effectiveSiteId,
+        resco_id: d.resco_id ?? effectiveSiteId,
+        srt_id: d.srt_id ?? effectiveSiteId,
+        survey_id: d.survey_id,
+        installation_id: effectiveInstId,
+        inst_id: effectiveInstId,
+        rawItem: d,
         vendor_name: d.vendor_name || d.vendor || d.firm_name || (d.inst_vendor ? `Vendor #${d.inst_vendor}` : '') || d.vendors?.name || '',
         state: 'jammu',
         district: d.district || 'Jammu',
@@ -1064,40 +1098,298 @@ class JammuRescoAdminService {
   }
 
   /**
-   * 12. POST /jammu/resco/installation/verify-document-status
-   * Params: { id, status: 1 | 2 | 3, remarks?: string }
+   * 12. POST /jk/resco/installation/verify-document-status
+   * Comprehensive resilience: supports JSON & FormData, all ID aliases (id, site_id, resco_id, installation_id),
+   * status mapping (2/3 and 1/2), path-parameter routes, and alternative candidate URLs.
    */
   async verifyDocumentStatus(data: {
     id: number | string;
+    site_id?: number | string;
+    siteId?: number | string;
+    resco_id?: number | string;
+    srt_id?: number | string;
+    survey_id?: number | string;
+    installation_id?: number | string;
+    inst_id?: number | string;
+    rawItem?: any;
     status: number;
     remarks?: string;
   }): Promise<{ success: boolean; status?: boolean; message: string; data?: any }> {
-    const fd = new FormData();
-    fd.append('id', String(data.id));
-    fd.append('status', String(data.status));
-    if (data.remarks) fd.append('remarks', data.remarks);
+    const rawId = String(data.id ?? '').trim();
+    const siteId = String(
+      data.site_id ??
+      data.siteId ??
+      data.resco_id ??
+      data.srt_id ??
+      data.survey_id ??
+      data.rawItem?.site_id ??
+      data.rawItem?.siteId ??
+      data.rawItem?.resco_id ??
+      data.rawItem?.srt_id ??
+      data.rawItem?.survey_id ??
+      data.rawItem?.id ??
+      data.id ??
+      ''
+    ).trim();
+    const instId = String(
+      data.installation_id ??
+      data.inst_id ??
+      data.rawItem?.installation_id ??
+      data.rawItem?.inst_id ??
+      data.rawItem?.id ??
+      data.id ??
+      ''
+    ).trim();
 
-    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_RESCO_VERIFY_DOC, {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      body: fd,
+    const stNum = Number(data.status); // 2 = Approved, 3 = Rejected
+    // Alternative status mapping: 1 = Approved, 2 = Rejected
+    const altStatus = stNum === 2 ? 1 : stNum === 3 ? 2 : stNum;
+    const rem = (data.remarks || '').trim();
+
+    // Candidate URLs
+    const baseCandidateUrls: string[] = [
+      JAMMU_VENDOR_API.ADMIN_RESCO_VERIFY_DOC,
+      `${ADMIN_ROOT_URL}/jk/resco/installation/verify-document-status`,
+      `${ADMIN_ROOT_URL}/jammu/resco/installation/verify-document-status`,
+      `${ADMIN_ROOT_URL}/jk/resco/installation/verify-installation-doc-status`,
+      `${ADMIN_ROOT_URL}/jammu/resco/installation/verify-installation-doc-status`,
+      `${ADMIN_ROOT_URL}/jk/resco/installation/verify-installation-document`,
+      `${ADMIN_ROOT_URL}/jammu/resco/installation/verify-installation-document`,
+      `${BASE_API_URL}/admin/jk/resco/installation/verify-document-status`,
+      `${BASE_API_URL}/admin/jammu/resco/installation/verify-document-status`,
+    ];
+
+    const pathParamUrls: string[] = [];
+    for (const base of [
+      `${ADMIN_ROOT_URL}/jk/resco/installation/verify-document-status`,
+      `${ADMIN_ROOT_URL}/jammu/resco/installation/verify-document-status`,
+      `${ADMIN_ROOT_URL}/jk/resco/installation/verify-installation-doc-status`,
+      `${ADMIN_ROOT_URL}/jammu/resco/installation/verify-installation-doc-status`,
+      `${ADMIN_ROOT_URL}/jk/resco/installation/verify-installation-document`,
+      `${ADMIN_ROOT_URL}/jammu/resco/installation/verify-installation-document`,
+    ]) {
+      if (siteId) pathParamUrls.push(`${base}/${encodeURIComponent(siteId)}`);
+      if (rawId && rawId !== siteId) pathParamUrls.push(`${base}/${encodeURIComponent(rawId)}`);
+    }
+
+    const allUrls = Array.from(new Set([...baseCandidateUrls, ...pathParamUrls]));
+
+    const tryPost = async (url: string, body: any, isMultipart = false): Promise<any> => {
+      try {
+        const headers: Record<string, string> = {
+          ...getAuthHeaders(isMultipart),
+        };
+        const res = await fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body,
+        });
+
+        let json: any = null;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          json = await res.json().catch(() => null);
+        } else {
+          const txt = await res.text().catch(() => '');
+          try {
+            json = txt ? JSON.parse(txt) : {};
+          } catch {
+            json = { rawText: txt };
+          }
+        }
+
+        const isSuccess = Boolean(
+          res.ok &&
+          json &&
+          json.success !== false &&
+          json.status !== false &&
+          (res.status === 200 || res.status === 201)
+        );
+
+        return {
+          ok: isSuccess,
+          status: res.status,
+          json,
+          message: json?.message || (isSuccess ? 'Success' : `HTTP ${res.status}`),
+        };
+      } catch (err: any) {
+        return {
+          ok: false,
+          status: 0,
+          json: null,
+          message: err?.message || 'Network error',
+        };
+      }
+    };
+
+    let lastFailedMessage = '';
+
+    // Build payload object with all aliases
+    const makePayload = (primaryId: string, statusVal: number) => ({
+      id: primaryId,
+      site_id: siteId || primaryId,
+      siteId: siteId || primaryId,
+      resco_id: siteId || primaryId,
+      srt_id: siteId || primaryId,
+      installation_id: instId || primaryId,
+      inst_id: instId || primaryId,
+      status: statusVal,
+      inst_doc_status: statusVal,
+      doc_status: statusVal,
+      verify_status: statusVal,
+      remarks: rem,
+      remark: rem,
+      inst_doc_remarks: rem,
+      inst_doc_verify_remarks: rem,
+      doc_verify_remarks: rem,
+      verify_remarks: rem,
     });
+
+    const buildFd = (primaryId: string, statusVal: number) => {
+      const fd = new FormData();
+      fd.append('id', primaryId);
+      if (siteId) {
+        fd.append('site_id', siteId);
+        fd.append('siteId', siteId);
+        fd.append('resco_id', siteId);
+        fd.append('srt_id', siteId);
+      }
+      if (instId) {
+        fd.append('installation_id', instId);
+        fd.append('inst_id', instId);
+      }
+      fd.append('status', String(statusVal));
+      fd.append('inst_doc_status', String(statusVal));
+      fd.append('doc_status', String(statusVal));
+      fd.append('verify_status', String(statusVal));
+      if (rem) {
+        fd.append('remarks', rem);
+        fd.append('remark', rem);
+        fd.append('inst_doc_remarks', rem);
+        fd.append('inst_doc_verify_remarks', rem);
+        fd.append('doc_verify_remarks', rem);
+        fd.append('verify_remarks', rem);
+      }
+      return fd;
+    };
+
+    // Attempt Phase 1: JSON with siteId as primary ID (Status 2/3)
+    const jsonSite = makePayload(siteId || rawId, stNum);
+    for (const url of allUrls) {
+      const res = await tryPost(url, JSON.stringify(jsonSite), false);
+      if (res.ok) {
+        return {
+          success: true,
+          status: true,
+          message: res.message || (stNum === 2 ? 'Documents Approved Successfully.' : 'Documents Rejected Successfully.'),
+          data: res.json?.data,
+        };
+      }
+      if (res.json?.message) lastFailedMessage = res.json.message;
+    }
+
+    // Attempt Phase 2: JSON with rawId as primary ID (Status 2/3)
+    if (rawId && rawId !== siteId) {
+      const jsonRaw = makePayload(rawId, stNum);
+      for (const url of allUrls) {
+        const res = await tryPost(url, JSON.stringify(jsonRaw), false);
+        if (res.ok) {
+          return {
+            success: true,
+            status: true,
+            message: res.message || (stNum === 2 ? 'Documents Approved Successfully.' : 'Documents Rejected Successfully.'),
+            data: res.json?.data,
+          };
+        }
+        if (res.json?.message) lastFailedMessage = res.json.message;
+      }
+    }
+
+    // Attempt Phase 3: FormData with siteId as primary ID (Status 2/3)
+    for (const url of allUrls) {
+      const fd = buildFd(siteId || rawId, stNum);
+      const res = await tryPost(url, fd, true);
+      if (res.ok) {
+        return {
+          success: true,
+          status: true,
+          message: res.message || (stNum === 2 ? 'Documents Approved Successfully.' : 'Documents Rejected Successfully.'),
+          data: res.json?.data,
+        };
+      }
+      if (res.json?.message) lastFailedMessage = res.json.message;
+    }
+
+    // Attempt Phase 4: Try with alternative status mapping (1=Approve, 2=Reject)
+    if (altStatus !== stNum) {
+      // JSON with siteId and altStatus
+      const jsonAlt = makePayload(siteId || rawId, altStatus);
+      for (const url of allUrls) {
+        const res = await tryPost(url, JSON.stringify(jsonAlt), false);
+        if (res.ok) {
+          return {
+            success: true,
+            status: true,
+            message: res.message || (stNum === 2 ? 'Documents Approved Successfully.' : 'Documents Rejected Successfully.'),
+            data: res.json?.data,
+          };
+        }
+        if (res.json?.message) lastFailedMessage = res.json.message;
+      }
+
+      // JSON with rawId and altStatus
+      if (rawId && rawId !== siteId) {
+        const jsonRawAlt = makePayload(rawId, altStatus);
+        for (const url of allUrls) {
+          const res = await tryPost(url, JSON.stringify(jsonRawAlt), false);
+          if (res.ok) {
+            return {
+              success: true,
+              status: true,
+              message: res.message || (stNum === 2 ? 'Documents Approved Successfully.' : 'Documents Rejected Successfully.'),
+              data: res.json?.data,
+            };
+          }
+          if (res.json?.message) lastFailedMessage = res.json.message;
+        }
+      }
+
+      // FormData with altStatus
+      for (const url of allUrls.slice(0, 4)) {
+        const fdAlt = buildFd(siteId || rawId, altStatus);
+        const res = await tryPost(url, fdAlt, true);
+        if (res.ok) {
+          return {
+            success: true,
+            status: true,
+            message: res.message || (stNum === 2 ? 'Documents Approved Successfully.' : 'Documents Rejected Successfully.'),
+            data: res.json?.data,
+          };
+        }
+        if (res.json?.message) lastFailedMessage = res.json.message;
+      }
+    }
+
     return {
-      success: Boolean(res.success || (res as any).status),
-      status: Boolean(res.success || (res as any).status),
+      success: false,
+      status: false,
       message:
-        res.message ||
-        (res.success
-          ? Number(data.status) === 2 || Number(data.status) === 1
-            ? 'Documents Approved Successfully.'
-            : 'Documents Rejected Successfully.'
-          : 'Failed to verify documents.'),
-      data: res.data,
+        lastFailedMessage ||
+        'Failed to verify document status. Site not found or not eligible for document verification.',
     };
   }
 
   async verifyInstallationDocument(data: {
     id: number | string;
+    site_id?: number | string;
+    siteId?: number | string;
+    resco_id?: number | string;
+    srt_id?: number | string;
+    survey_id?: number | string;
+    installation_id?: number | string;
+    inst_id?: number | string;
+    rawItem?: any;
     status: number;
     remarks?: string;
   }): Promise<{ success: boolean; status?: boolean; message: string; data?: any }> {
@@ -1120,40 +1412,60 @@ class JammuRescoAdminService {
       : (Array.isArray(payload) ? payload : []);
     const details = payload.claim_details || payload.stats || {};
 
+    const resolveClaimStatus = (c: any): number => {
+      const candidates = [c?.claim_status, c?.inst_claim_status, c?.status, c?.verify_status];
+      for (const val of candidates) {
+        if (val !== undefined && val !== null && val !== '' && typeof val !== 'boolean') {
+          const n = Number(val);
+          if (Number.isFinite(n)) return n;
+        }
+      }
+      return 1;
+    };
+
     const cleanClaims: RescoClaimRecord[] = claims.map((c: any) => ({
+      ...c,
       id: Number(c.id),
       vendor_id: c.vendor_id || c.vendor || '',
       date: c.date || c.inst_claim_date || c.created_at || '',
       amount: c.amount || c.inst_claim_amount || 0,
       payment_type: Number(c.payment_type || 1),
-      claim_status: Number(c.claim_status ?? c.inst_claim_status ?? 0),
+      claim_status: resolveClaimStatus(c),
       pay_status: Number(c.pay_status || 0),
       site_id: c.site_id || [],
       vendors: c.vendors || (c.vendor_name ? { id: c.vendor_id, name: c.vendor_name } : undefined),
       sites: Array.isArray(c.sites)
         ? c.sites.map((s: any) => ({
+            ...s,
             id: Number(s.id),
             state: 'jammu',
             district: s.district || 'Jammu',
             address: s.address || '',
             site_name: s.site_name || s.farmer_name || '',
-            ...s,
           }))
         : [],
       invoice_file: c.invoice_file || c.file || null,
       remarks: c.remarks || '',
       approved_remarks: c.approved_remarks || c.verify_remarks || '',
       verify_remarks: c.verify_remarks || c.approved_remarks || '',
-      ...c,
     }));
 
     return {
       claims: cleanClaims,
       claim_details: {
-        total: Number(details.total || cleanClaims.length),
-        claim_approved: Number(details.claim_approved || cleanClaims.filter((x) => x.claim_status === 2 || x.claim_status === 1).length),
-        claim_pending: Number(details.claim_pending || cleanClaims.filter((x) => x.claim_status === 0).length),
-        claim_reject: Number(details.claim_reject || cleanClaims.filter((x) => x.claim_status === 3).length),
+        total: cleanClaims.length > 0 ? cleanClaims.length : Number(details.total ?? 0),
+        claim_approved:
+          cleanClaims.length > 0
+            ? cleanClaims.filter((x) => x.claim_status === 2).length
+            : Number(details.claim_approved ?? 0),
+        claim_pending:
+          cleanClaims.length > 0
+            ? cleanClaims.filter((x) => x.claim_status === 1).length
+            : Number(details.claim_pending ?? 0),
+        claim_reject:
+          cleanClaims.length > 0
+            ? cleanClaims.filter((x) => x.claim_status === 3).length
+            : Number(details.claim_reject ?? 0),
       },
     };
   }
@@ -1314,6 +1626,9 @@ class JammuRescoAdminService {
     amount?: number | string;
     date?: string;
     remarks?: string;
+    inst_pay?: number | string;
+    inst_pay_date?: string;
+    inst_pay_remark?: string;
     pay80_id?: number | string;
     inst_pay80?: number | string;
     inst_pay80_date?: string;
@@ -1324,9 +1639,9 @@ class JammuRescoAdminService {
     inst_pay20_remark?: string;
   }): Promise<{ success: boolean; message: string; data?: any }> {
     const targetId = data.id ?? data.pay80_id ?? data.pay20_id;
-    const targetAmount = data.amount ?? data.inst_pay80 ?? data.inst_pay20 ?? 0;
-    const targetDate = data.date ?? data.inst_pay80_date ?? data.inst_pay20_date ?? new Date().toISOString().split('T')[0];
-    const targetRemarks = data.remarks ?? data.inst_pay80_remark ?? data.inst_pay20_remark ?? '';
+    const targetAmount = data.amount ?? data.inst_pay ?? data.inst_pay80 ?? data.inst_pay20 ?? 0;
+    const targetDate = data.date ?? data.inst_pay_date ?? data.inst_pay80_date ?? data.inst_pay20_date ?? new Date().toISOString().split('T')[0];
+    const targetRemarks = data.remarks ?? data.inst_pay_remark ?? data.inst_pay80_remark ?? data.inst_pay20_remark ?? '';
 
     const fd = new FormData();
     fd.append('id', String(targetId));
@@ -1334,14 +1649,17 @@ class JammuRescoAdminService {
     if (data.pay80_id) fd.append('pay80_id', String(data.pay80_id));
     if (data.pay20_id) fd.append('pay20_id', String(data.pay20_id));
     fd.append('amount', String(targetAmount));
+    if (data.inst_pay !== undefined) fd.append('inst_pay', String(data.inst_pay));
     if (data.inst_pay80) fd.append('inst_pay80', String(data.inst_pay80));
     if (data.inst_pay20) fd.append('inst_pay20', String(data.inst_pay20));
     fd.append('date', targetDate);
+    if (data.inst_pay_date) fd.append('inst_pay_date', data.inst_pay_date);
     if (data.inst_pay80_date) fd.append('inst_pay80_date', data.inst_pay80_date);
     if (data.inst_pay20_date) fd.append('inst_pay20_date', data.inst_pay20_date);
     if (targetRemarks) {
       fd.append('remarks', targetRemarks);
       fd.append('pay_remarks', targetRemarks);
+      if (data.inst_pay_remark) fd.append('inst_pay_remark', data.inst_pay_remark);
       if (data.inst_pay80_remark) fd.append('inst_pay80_remark', data.inst_pay80_remark);
       if (data.inst_pay20_remark) fd.append('inst_pay20_remark', data.inst_pay20_remark);
     }

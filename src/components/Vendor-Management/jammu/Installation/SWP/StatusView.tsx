@@ -161,9 +161,9 @@ export function StatusView() {
         r.vendor_name || r.vendor,
         r.pump_capacity,
         r.pump_type,
-        r.controller_sr_no || r.vfd_no,
-        r.motor_sr_no || r.motor_no,
-        r.pump_sr_no || r.pump_no,
+        r.vfd_no || r.controller_sr_no,
+        r.mt_motor_no || r.motor_sr_no || r.motor_no,
+        r.mt_pump_no || r.pump_sr_no || r.pump_no,
       ]
         .filter(Boolean)
         .join(' ')
@@ -207,16 +207,16 @@ export function StatusView() {
       { header: 'State', accessor: () => 'JAMMU' },
       { header: 'Vendor Name', accessor: (r) => r.vendor_name || (r.inst_vendor ? `Vendor #${r.inst_vendor}` : DASH) },
       { header: 'District', accessor: (r) => r.f_district || r.district || DASH },
-      { header: 'Block', accessor: (r) => r.f_block || r.block || DASH },
+      { header: 'Block', accessor: (r) => r.post || r.f_block || r.block || DASH },
       { header: 'Village', accessor: (r) => r.f_village || r.village || DASH },
       { header: 'Farmer Name', accessor: (r) => r.f_farmer_name || r.farmer_name || `Farmer #${r.id}` },
       { header: 'Farmer ID', accessor: (r) => r.f_farmer_id || r.farmer_id || DASH },
       { header: 'Contact', accessor: (r) => r.contact_no || r.mobile || DASH },
       { header: 'Pump Capacity', accessor: (r) => r.pump_capacity || DASH },
       { header: 'Pump Type', accessor: (r) => r.pump_type || DASH },
-      { header: 'Controller / VFD No.', accessor: (r) => r.controller_sr_no || r.vfd_no || DASH },
-      { header: 'Motor No.', accessor: (r) => r.motor_sr_no || r.motor_no || DASH },
-      { header: 'Pump Serial No.', accessor: (r) => r.pump_sr_no || r.pump_no || DASH },
+      { header: 'Controller / VFD No.', accessor: (r) => r.vfd_no || r.controller_sr_no || DASH },
+      { header: 'Motor No.', accessor: (r) => r.mt_motor_no || r.motor_sr_no || r.motor_no || DASH },
+      { header: 'Pump Serial No.', accessor: (r) => r.mt_pump_no || r.pump_sr_no || r.pump_no || DASH },
       { header: 'Installation Date', accessor: (r) => fmtDate(r.installation_date || r.inst_date) },
       { header: 'Installation Status', accessor: (r) => getInstStatusLabel(r.inst_status) },
       { header: 'Verify Date', accessor: (r) => fmtDate(r.inst_verify_date) },
@@ -493,13 +493,13 @@ export function StatusView() {
                         {row.pump_type || DASH}
                       </td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.controller_sr_no || row.vfd_no || DASH}
+                        {row.vfd_no || row.controller_sr_no || DASH}
                       </td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.motor_sr_no || row.motor_no || DASH}
+                        {row.mt_motor_no || row.motor_sr_no || row.motor_no || DASH}
                       </td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.pump_sr_no || row.pump_no || DASH}
+                        {row.mt_pump_no || row.pump_sr_no || row.pump_no || DASH}
                       </td>
                       <td className="ax-table__td">
                         <MediaFileThumbnail

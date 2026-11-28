@@ -447,6 +447,14 @@ function LightboxModal({
 
 export interface JammuRescoVerifyDocumentItem {
   id: number;
+  site_id?: number | string;
+  siteId?: number | string;
+  resco_id?: number | string;
+  srt_id?: number | string;
+  survey_id?: number | string;
+  installation_id?: number | string;
+  inst_id?: number | string;
+  rawItem?: any;
   state: string;
   vendorName: string;
   district: string;
@@ -541,7 +549,10 @@ export function VerifyRescoDocument() {
           item.file ||
           item.inst_doc ||
           item.document ||
-          item.hoc_photo;
+          item.hoc_photo ||
+          item.jcr_photo ||
+          item.verify_file ||
+          item.inst_verify_file;
         const cleanFile = extractFilePath(rawCandidate);
 
         const displayName =
@@ -552,8 +563,28 @@ export function VerifyRescoDocument() {
           item.beneficiary_name ||
           `Site #${item.id}`;
 
+        const effectiveSiteId =
+          item.site_id ??
+          item.siteId ??
+          item.resco_id ??
+          item.srt_id ??
+          item.survey_id ??
+          item.id;
+        const effectiveInstId =
+          item.installation_id ??
+          item.inst_id ??
+          item.id;
+
         return {
           id: Number(item.id),
+          site_id: item.site_id ?? effectiveSiteId,
+          siteId: item.siteId ?? effectiveSiteId,
+          resco_id: item.resco_id ?? effectiveSiteId,
+          srt_id: item.srt_id ?? effectiveSiteId,
+          survey_id: item.survey_id,
+          installation_id: effectiveInstId,
+          inst_id: effectiveInstId,
+          rawItem: item,
           state: 'Jammu',
           vendorName: item.vendor_name || item.vendor || item.firm_name || (item.vendors?.name ? item.vendors.name : (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—')),
           district: item.district || item.f_district || 'Jammu',
@@ -731,6 +762,14 @@ export function VerifyRescoDocument() {
       const targetStatus = Number(actionStatus); // 2 = Approved, 3 = Rejected
       const res = await jammuRescoAdminService.verifyInstallationDocument({
         id: selectedDocForAction.id,
+        site_id: selectedDocForAction.site_id ?? selectedDocForAction.siteId,
+        siteId: selectedDocForAction.siteId ?? selectedDocForAction.site_id,
+        resco_id: selectedDocForAction.resco_id,
+        srt_id: selectedDocForAction.srt_id,
+        survey_id: selectedDocForAction.survey_id,
+        installation_id: selectedDocForAction.installation_id,
+        inst_id: selectedDocForAction.inst_id,
+        rawItem: selectedDocForAction.rawItem,
         status: targetStatus,
         remarks: actionRemarks,
       });
@@ -741,7 +780,8 @@ export function VerifyRescoDocument() {
 
         setItems((prev) =>
           prev.map((s) =>
-            s.id === selectedDocForAction.id
+            s.id === selectedDocForAction.id ||
+            (selectedDocForAction.site_id && s.site_id === selectedDocForAction.site_id)
               ? {
                   ...s,
                   rawStatus: targetStatus,
@@ -763,10 +803,12 @@ export function VerifyRescoDocument() {
         setActionStatus('2');
         setActionRemarks('');
         alert(res.message || 'Document verification status updated successfully.');
+        loadData().catch(() => {});
       } else {
         alert(res.message || 'Failed to update document status.');
       }
     } catch (err: any) {
+      console.error('Error submitting document verification:', err);
       alert(err?.message || 'Error updating document status.');
     } finally {
       setSubmittingAction(false);
@@ -969,11 +1011,9 @@ export function VerifyRescoDocument() {
                 <th className="ax-table__th">Submit Date</th>
                 <th className="ax-table__th">Remarks</th>
                 <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Verify Status</th>
-                {activeTab === 'pending' ? (
-                  <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
-                ) : (
-                  <th className="ax-table__th">Verify Remarks</th>
-                )}
+                <th className="ax-table__th" style={{ width: activeTab === 'pending' ? 90 : 160, textAlign: activeTab === 'pending' ? 'center' : 'left' }}>
+                  {activeTab === 'pending' ? 'Action' : activeTab === 'processed' ? 'Verify Remarks' : 'Action / Remarks'}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1135,8 +1175,8 @@ export function VerifyRescoDocument() {
                         </span>
                       </td>
 
-                      {/* 12. If Pending: Action column */}
-                      {activeTab === 'pending' && (
+                      {/* 12. Action or Remarks column */}
+                      {activeTab === 'pending' ? (
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
                             type="button"
@@ -1162,14 +1202,43 @@ export function VerifyRescoDocument() {
                             Verify
                           </button>
                         </td>
-                      )}
-
-                      {/* 12. If Approved/Rejected: Verify Remarks */}
-                      {activeTab === 'processed' && (
+                      ) : activeTab === 'processed' ? (
                         <td className="ax-table__td" style={{ maxWidth: 180 }}>
                           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
                             {row.verifyRemarks}
                           </div>
+                        </td>
+                      ) : (
+                        <td className="ax-table__td" style={{ textAlign: row.verifyStatus === 'Pending' ? 'center' : 'left', maxWidth: 180 }}>
+                          {row.verifyStatus === 'Pending' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDocForAction(row);
+                                setActionStatus('2');
+                                setActionRemarks(row.verifyRemarks !== '—' ? row.verifyRemarks : '');
+                              }}
+                              style={{
+                                padding: '5px 12px',
+                                borderRadius: 6,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                background: '#2559bf',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              Verify
+                            </button>
+                          ) : (
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
+                              {row.verifyRemarks}
+                            </div>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -1209,7 +1278,41 @@ export function VerifyRescoDocument() {
         subtitle={selectedDocForAction ? `Site: ${selectedDocForAction.applicantName} (${selectedDocForAction.district})` : undefined}
       >
         <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {selectedDocForAction?.documentFile && (
+          {selectedDocForAction && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '8px 14px',
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                fontSize: 12.5,
+              }}
+            >
+              <div>
+                <span style={{ color: '#64748b' }}>Site / Applicant: </span>
+                <strong style={{ color: '#0f172a' }}>{selectedDocForAction.applicantName}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Site ID: </span>
+                <strong style={{ color: '#0f172a' }}>
+                  #{selectedDocForAction.site_id || selectedDocForAction.id}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>District: </span>
+                <strong style={{ color: '#0f172a' }}>{selectedDocForAction.district}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Vendor: </span>
+                <strong style={{ color: '#0f172a' }}>{selectedDocForAction.vendorName}</strong>
+              </div>
+            </div>
+          )}
+
+          {selectedDocForAction?.documentFile ? (
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {/\.(jpe?g|png|webp|gif|svg)($|\?)/i.test(selectedDocForAction.documentFile) ? (
@@ -1245,6 +1348,10 @@ export function VerifyRescoDocument() {
                   Open ↗
                 </a>
               </div>
+            </div>
+          ) : (
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', fontSize: 12.5, color: '#b45309' }}>
+              ⚠️ No document file attached with this installation record.
             </div>
           )}
           <div>

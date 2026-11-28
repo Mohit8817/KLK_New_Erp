@@ -239,23 +239,37 @@ export function BiharSSLInstallationClaimRequest() {
       .getViewSslClaims()
       .then((res: any) => {
         const raw =
+          res?.data?.claimrequest ||
+          res?.claimrequest ||
           res?.data?.claims ||
+          res?.claims ||
           res?.data?.list ||
           res?.data ||
           (Array.isArray(res) ? res : []);
 
         const list: BiharSSLClaimItem[] = Array.isArray(raw)
-          ? raw.map((r: any, idx: number) => ({
-              id: r.id || idx + 1,
-              state: r.state || 'Bihar',
-              vendor_name: r.vendor_name || r.vendor || 'Vendor',
-              claim_raised_date: r.claim_raised_date || r.claim_date || r.created_at || '—',
-              site_count: Number(r.site_count || r.sitecount || 1),
-              claim_invoice: r.claim_invoice || r.invoice || `INV-${r.id || idx + 1}`,
-              claim_amount: r.claim_amount ? (String(r.claim_amount).startsWith('₹') ? r.claim_amount : `₹ ${Number(r.claim_amount).toLocaleString('en-IN')}`) : '—',
-              claim_update_date: r.claim_update_date || r.updated_at || '—',
-              status: r.status === 1 || r.status === 'Approved' ? 'Approved' : r.status === 2 || r.status === 'Rejected' ? 'Rejected' : 'Pending',
-            }))
+          ? raw.map((r: any, idx: number) => {
+              const statusCode = Number(r.claim_status ?? r.status ?? 0);
+              const statusStr = String(r.claim_status ?? r.status ?? '').toLowerCase();
+              const finalStatus: 'Approved' | 'Pending' | 'Rejected' =
+                statusCode === 2 || statusStr.includes('approv') || r.status === 1
+                  ? 'Approved'
+                  : statusCode === 3 || statusStr.includes('reject')
+                  ? 'Rejected'
+                  : 'Pending';
+
+              return {
+                id: r.id || idx + 1,
+                state: r.state || 'Bihar',
+                vendor_name: r.vendor_name || r.vendor || 'Vendor',
+                claim_raised_date: r.claim_raised_date || r.claim_date || r.created_at || '—',
+                site_count: Number(r.site_count || r.sitecount || 1),
+                claim_invoice: r.claim_invoice || r.invoice || `INV-${r.id || idx + 1}`,
+                claim_amount: r.claim_amount ? (String(r.claim_amount).startsWith('₹') ? r.claim_amount : `₹ ${Number(r.claim_amount).toLocaleString('en-IN')}`) : '—',
+                claim_update_date: r.claim_update_date || r.updated_at || '—',
+                status: finalStatus,
+              };
+            })
           : [];
 
         setClaims(list);

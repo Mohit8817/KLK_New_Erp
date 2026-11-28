@@ -488,118 +488,7 @@ export interface UlaAssignItem {
 }
 
 export function BiharULAInstallationViewAssignSites() {
-  const [data, setData] = useState<UlaAssignItem[]>([
-    {
-      id: 101,
-      vendor: 'ETS Networks Pvt Ltd',
-      assign_date: '12-10-2024',
-      state: 'Bihar',
-      district: 'Patna',
-      block: 'Danapur',
-      village: 'Khagaul',
-      beneficiary_name: 'Rajendra Prasad',
-      deadline: '15-11-2024',
-      count: 5,
-      file: 'ula_allotment_101.pdf',
-      remarks: 'Primary irrigation feeder allotment',
-      status: 'Approved',
-      site_details: [
-        { id: 1, unique_id: 'ULA-PAT-001', ca_no: 'CA-PAT-2024-01', beneficiary_name: 'Rajendra Prasad', contact: '9835012345', capacity: '5 HP', district: 'Patna', block: 'Danapur', village: 'Khagaul', status: 'Approved' },
-        { id: 2, unique_id: 'ULA-PAT-002', ca_no: 'CA-PAT-2024-02', beneficiary_name: 'Surendra Singh', contact: '9835012346', capacity: '5 HP', district: 'Patna', block: 'Danapur', village: 'Khagaul', status: 'Approved' },
-        { id: 3, unique_id: 'ULA-PAT-003', ca_no: 'CA-PAT-2024-03', beneficiary_name: 'Anil Kumar Yadav', contact: '9835012347', capacity: '7.5 HP', district: 'Patna', block: 'Danapur', village: 'Khagaul', status: 'Approved' },
-        { id: 4, unique_id: 'ULA-PAT-004', ca_no: 'CA-PAT-2024-04', beneficiary_name: 'Binod Sharma', contact: '9835012348', capacity: '5 HP', district: 'Patna', block: 'Danapur', village: 'Khagaul', status: 'Approved' },
-        { id: 5, unique_id: 'ULA-PAT-005', ca_no: 'CA-PAT-2024-05', beneficiary_name: 'Sunil Paswan', contact: '9835012349', capacity: '3 HP', district: 'Patna', block: 'Danapur', village: 'Khagaul', status: 'Approved' },
-      ],
-    },
-    {
-      id: 102,
-      vendor: 'Shakti Pumps Ltd',
-      assign_date: '18-10-2024',
-      state: 'Bihar',
-      district: 'Gaya',
-      block: 'Bodh Gaya',
-      village: 'Bakrour',
-      beneficiary_name: 'Satish Kumar',
-      deadline: '20-11-2024',
-      count: 4,
-      file: 'ula_allotment_102.pdf',
-      remarks: 'Deep bore solar pump installation',
-      status: 'Pending',
-      site_details: [
-        { id: 6, unique_id: 'ULA-GAY-001', ca_no: 'CA-GAY-2024-01', beneficiary_name: 'Satish Kumar', contact: '9835123450', capacity: '7.5 HP', district: 'Gaya', block: 'Bodh Gaya', village: 'Bakrour', status: 'Pending' },
-        { id: 7, unique_id: 'ULA-GAY-002', ca_no: 'CA-GAY-2024-02', beneficiary_name: 'Dinesh Manjhi', contact: '9835123451', capacity: '5 HP', district: 'Gaya', block: 'Bodh Gaya', village: 'Bakrour', status: 'Pending' },
-        { id: 8, unique_id: 'ULA-GAY-003', ca_no: 'CA-GAY-2024-03', beneficiary_name: 'Rameshwar Pandit', contact: '9835123452', capacity: '5 HP', district: 'Gaya', block: 'Bodh Gaya', village: 'Bakrour', status: 'Pending' },
-        { id: 9, unique_id: 'ULA-GAY-004', ca_no: 'CA-GAY-2024-04', beneficiary_name: 'Gopal Yadav', contact: '9835123453', capacity: '7.5 HP', district: 'Gaya', block: 'Bodh Gaya', village: 'Bakrour', status: 'Pending' },
-      ],
-    },
-    {
-      id: 103,
-      vendor: 'ETS Networks Pvt Ltd',
-      assign_date: '22-10-2024',
-      state: 'Bihar',
-      district: 'Nalanda',
-      block: 'Bihar Sharif',
-      village: 'Pawapuri',
-      beneficiary_name: 'Manoj Verma',
-      deadline: '25-11-2024',
-      count: 6,
-      file: 'ula_allotment_103.pdf',
-      remarks: 'Vegetable belt solar energization',
-      status: 'Approved',
-      site_details: [
-        { id: 10, unique_id: 'ULA-NAL-001', ca_no: 'CA-NAL-2024-01', beneficiary_name: 'Manoj Verma', contact: '9835234560', capacity: '5 HP', district: 'Nalanda', block: 'Bihar Sharif', village: 'Pawapuri', status: 'Approved' },
-        { id: 11, unique_id: 'ULA-NAL-002', ca_no: 'CA-NAL-2024-02', beneficiary_name: 'Ajay Kumar', contact: '9835234561', capacity: '5 HP', district: 'Nalanda', block: 'Bihar Sharif', village: 'Pawapuri', status: 'Approved' },
-        { id: 12, unique_id: 'ULA-NAL-003', ca_no: 'CA-NAL-2024-03', beneficiary_name: 'Pramod Sinha', contact: '9835234562', capacity: '7.5 HP', district: 'Nalanda', block: 'Bihar Sharif', village: 'Pawapuri', status: 'Approved' },
-        { id: 13, unique_id: 'ULA-NAL-004', ca_no: 'CA-NAL-2024-04', beneficiary_name: 'Vikash Kumar', contact: '9835234563', capacity: '5 HP', district: 'Nalanda', block: 'Bihar Sharif', village: 'Pawapuri', status: 'Approved' },
-        { id: 14, unique_id: 'ULA-NAL-005', ca_no: 'CA-NAL-2024-05', beneficiary_name: 'Santosh Mahto', contact: '9835234564', capacity: '3 HP', district: 'Nalanda', block: 'Bihar Sharif', village: 'Pawapuri', status: 'Approved' },
-        { id: 15, unique_id: 'ULA-NAL-006', ca_no: 'CA-NAL-2024-06', beneficiary_name: 'Devendra Prasad', contact: '9835234565', capacity: '5 HP', district: 'Nalanda', block: 'Bihar Sharif', village: 'Pawapuri', status: 'Approved' },
-      ],
-    },
-    {
-      id: 104,
-      vendor: 'Tata Power Solar Systems',
-      assign_date: '02-11-2024',
-      state: 'Bihar',
-      district: 'Muzaffarpur',
-      block: 'Kanti',
-      village: 'Damodarpur',
-      beneficiary_name: 'Umesh Choudhary',
-      deadline: '30-11-2024',
-      count: 5,
-      file: 'ula_allotment_104.pdf',
-      remarks: 'High discharge solar pump system',
-      status: 'Pending',
-      site_details: [
-        { id: 16, unique_id: 'ULA-MUZ-001', ca_no: 'CA-MUZ-2024-01', beneficiary_name: 'Umesh Choudhary', contact: '9835345670', capacity: '7.5 HP', district: 'Muzaffarpur', block: 'Kanti', village: 'Damodarpur', status: 'Pending' },
-        { id: 17, unique_id: 'ULA-MUZ-002', ca_no: 'CA-MUZ-2024-02', beneficiary_name: 'Laxman Sah', contact: '9835345671', capacity: '5 HP', district: 'Muzaffarpur', block: 'Kanti', village: 'Damodarpur', status: 'Pending' },
-        { id: 18, unique_id: 'ULA-MUZ-003', ca_no: 'CA-MUZ-2024-03', beneficiary_name: 'Bharat Ray', contact: '9835345672', capacity: '5 HP', district: 'Muzaffarpur', block: 'Kanti', village: 'Damodarpur', status: 'Pending' },
-        { id: 19, unique_id: 'ULA-MUZ-004', ca_no: 'CA-MUZ-2024-04', beneficiary_name: 'Satyanarayan Bhagat', contact: '9835345673', capacity: '7.5 HP', district: 'Muzaffarpur', block: 'Kanti', village: 'Damodarpur', status: 'Pending' },
-        { id: 20, unique_id: 'ULA-MUZ-005', ca_no: 'CA-MUZ-2024-05', beneficiary_name: 'Kishore Jha', contact: '9835345674', capacity: '5 HP', district: 'Muzaffarpur', block: 'Kanti', village: 'Damodarpur', status: 'Pending' },
-      ],
-    },
-    {
-      id: 105,
-      vendor: 'RenewSys Power Ltd',
-      assign_date: '05-11-2024',
-      state: 'Bihar',
-      district: 'Bhagalpur',
-      block: 'Naugachia',
-      village: 'Tetri',
-      beneficiary_name: 'Santosh Sahni',
-      deadline: '05-12-2024',
-      count: 5,
-      file: 'ula_allotment_105.pdf',
-      remarks: 'River basin agriculture quota',
-      status: 'Rejected',
-      site_details: [
-        { id: 21, unique_id: 'ULA-BHA-001', ca_no: 'CA-BHA-2024-01', beneficiary_name: 'Santosh Sahni', contact: '9835456780', capacity: '5 HP', district: 'Bhagalpur', block: 'Naugachia', village: 'Tetri', status: 'Rejected' },
-        { id: 22, unique_id: 'ULA-BHA-002', ca_no: 'CA-BHA-2024-02', beneficiary_name: 'Rambabu Sahni', contact: '9835456781', capacity: '5 HP', district: 'Bhagalpur', block: 'Naugachia', village: 'Tetri', status: 'Rejected' },
-        { id: 23, unique_id: 'ULA-BHA-003', ca_no: 'CA-BHA-2024-03', beneficiary_name: 'Kameshwar Mandal', contact: '9835456782', capacity: '7.5 HP', district: 'Bhagalpur', block: 'Naugachia', village: 'Tetri', status: 'Rejected' },
-        { id: 24, unique_id: 'ULA-BHA-004', ca_no: 'CA-BHA-2024-04', beneficiary_name: 'Shankar Das', contact: '9835456783', capacity: '5 HP', district: 'Bhagalpur', block: 'Naugachia', village: 'Tetri', status: 'Rejected' },
-        { id: 25, unique_id: 'ULA-BHA-005', ca_no: 'CA-BHA-2024-05', beneficiary_name: 'Mithilesh Ghosh', contact: '9835456784', capacity: '3 HP', district: 'Bhagalpur', block: 'Naugachia', village: 'Tetri', status: 'Rejected' },
-      ],
-    },
-  ]);
+  const [data, setData] = useState<UlaAssignItem[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -617,13 +506,13 @@ export function BiharULAInstallationViewAssignSites() {
 
   // Exact KPIs from user prompt & dashboard
   const [stats, setStats] = useState({
-    total: 47,
-    assigned: 25,
-    notAssigned: 21,
-    installationComplete: 11,
-    installationPending: 14,
-    verifyComplete: 6,
-    verifyPending: 5,
+    total: 0,
+    assigned: 0,
+    notAssigned: 0,
+    installationComplete: 0,
+    installationPending: 0,
+    verifyComplete: 0,
+    verifyPending: 0,
     verifyReject: 0,
   });
 
@@ -632,11 +521,16 @@ export function BiharULAInstallationViewAssignSites() {
     setLoading(true);
     setErrorMsg('');
     try {
-      // 1. Fetch ULA View Assign
+      // 1. Fetch ULA View Assign: GET /admin/bihar/ula/installation/view-assign
+      // Response: {success:true, data:{[session], assigns:[AssignUla rows with vendor], detail:{...}}}
       const res = await biharAdminService.getViewAssignUla();
       if (res && res.data) {
         const rawList = Array.isArray(res.data)
           ? res.data
+          : Array.isArray(res.data?.assigns)
+          ? res.data.assigns
+          : Array.isArray(res?.assigns)
+          ? res.assigns
           : Array.isArray(res.data?.assign_data)
           ? res.data.assign_data
           : Array.isArray(res.data?.data)
@@ -662,39 +556,28 @@ export function BiharULAInstallationViewAssignSites() {
                   beneficiary_name: s.beneficiary_name || s.farmer_name || item.beneficiary_name || 'Farmer Beneficiary',
                   contact: s.contact || s.phone || '—',
                   capacity: s.capacity || '5 HP',
-                  district: s.district || item.district || 'Patna',
-                  block: s.block || item.block || 'Danapur',
-                  village: s.village || item.village || 'Khagaul',
+                  district: s.district || item.district || '—',
+                  block: s.block || item.block || '—',
+                  village: s.village || item.village || '—',
                   status: statusText,
                 }))
-              : Array.from({ length: countNum }).map((_, sIdx) => ({
-                  id: sIdx + 1,
-                  unique_id: `ULA-${(item.district || 'BIH').substring(0, 3).toUpperCase()}-00${sIdx + 1}`,
-                  ca_no: `CA-${(item.district || 'BIH').substring(0, 3).toUpperCase()}-2024-0${sIdx + 1}`,
-                  beneficiary_name: sIdx === 0 ? (item.beneficiary_name || 'Primary Beneficiary') : `Beneficiary ${sIdx + 1}`,
-                  contact: '9835' + String(Math.floor(100000 + Math.random() * 900000)),
-                  capacity: '5 HP',
-                  district: item.district || 'Patna',
-                  block: item.block || 'Danapur',
-                  village: item.village || 'Khagaul',
-                  status: statusText,
-                }));
+              : [];
 
             return {
               id: item.id || i + 1,
               vendor: typeof item.vendor_name === 'string' && item.vendor_name
                 ? item.vendor_name
                 : typeof item.vendor === 'object' && item.vendor !== null
-                ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
-                : (item.vendor || 'ETS Networks Pvt Ltd'),
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+                : (item.vendor || '—'),
               vendor_id: typeof item.vendor === 'object' && item.vendor !== null ? item.vendor.id : (item.vendor_id || item.vendor),
-              assign_date: item.assign_date || item.created_at || '12-10-2024',
+              assign_date: item.assign_date || item.created_at || '—',
               state: item.state || 'Bihar',
-              district: item.district || 'Patna',
-              block: item.block || 'Danapur',
-              village: item.village || 'Khagaul',
-              beneficiary_name: item.beneficiary_name || 'Farmer Beneficiary',
-              deadline: item.deadline_date || item.deadline || '15-11-2024',
+              district: item.district || '—',
+              block: item.block || '—',
+              village: item.village || '—',
+              beneficiary_name: item.beneficiary_name || '—',
+              deadline: item.deadline_date || item.deadline || '—',
               count: countNum,
               file: item.file || item.document || '',
               remarks: item.remarks || '',
@@ -704,40 +587,30 @@ export function BiharULAInstallationViewAssignSites() {
           });
 
           setData(mapped);
+        } else {
+          setData([]);
         }
 
-        if (res.data?.total !== undefined || res.total !== undefined) {
-          const totalVal = Number(res.data?.total ?? res.total);
-          const assignedVal = Number(res.data?.assigned ?? res.assigned);
-          const notAssignedVal = Number(res.data?.notAssigned ?? res.not_assigned ?? res.data?.not_assigned);
-          setStats((prev) => ({
-            ...prev,
-            total: !isNaN(totalVal) && totalVal > 0 ? totalVal : prev.total,
-            assigned: !isNaN(assignedVal) ? assignedVal : prev.assigned,
-            notAssigned: !isNaN(notAssignedVal) ? notAssignedVal : prev.notAssigned,
-          }));
+        // Parse detail object
+        const det = res.data?.detail || res.data;
+        if (det) {
+          setStats({
+            total: Number(det.total ?? 0),
+            assigned: Number(det.assigned ?? 0),
+            notAssigned: Number(det.not_assigned ?? det.notAssigned ?? 0),
+            installationComplete: Number(det.install_complete ?? det.installationComplete ?? det.complete ?? 0),
+            installationPending: Number(det.install_pending ?? det.installationPending ?? det.pending ?? 0),
+            verifyComplete: Number(det.doc_approved ?? det.verifyComplete ?? 0),
+            verifyPending: Number(det.doc_pending ?? det.verifyPending ?? 0),
+            verifyReject: Number(det.doc_reject ?? det.verifyReject ?? 0),
+          });
         }
-      }
-
-      // 2. Sync with ULA Installation Dashboard for live installation/verify status if available
-      try {
-        const dashRes = await biharAdminService.getUlaInstallationDashboard();
-        const d = dashRes?.data ?? dashRes;
-        if (d) {
-          setStats((prev) => ({
-            ...prev,
-            installationComplete: Number(d.installed ?? d.complete_sites ?? prev.installationComplete),
-            installationPending: Number(d.pending_sites ?? prev.installationPending),
-            verifyComplete: Number(d.approved_sites ?? prev.verifyComplete),
-            verifyPending: Number(d.verify_pending ?? prev.verifyPending),
-            verifyReject: Number(d.rejected_sites ?? prev.verifyReject),
-          }));
-        }
-      } catch (dashErr) {
-        console.warn('[ViewAssignSites ULA] Dashboard sync fallback:', dashErr);
+      } else {
+        setData([]);
       }
     } catch (err: any) {
-      console.warn('[ViewAssignSites ULA] Fallback data active:', err);
+      console.warn('Bihar ULA view assign load error:', err);
+      setData([]);
     } finally {
       setLoading(false);
     }

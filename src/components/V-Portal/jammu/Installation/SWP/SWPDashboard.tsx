@@ -14,13 +14,13 @@ import {
 // Code-split ApexCharts so the shell and tables render instantly
 const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
 
-/* ───────── Colors ───────── */
+
 const LIGHT_BLUE = '#4992ff';
 const LIGHT_GREEN = '#86DDB2';
 const LIGHT_AMBER = '#F6D68A';
 const LIGHT_RED = '#ef6a6a';
 
-/* ───────── Types ───────── */
+
 interface SwpSummary {
   site_count: number;
   complete: number;
@@ -42,7 +42,7 @@ interface DistrictRow extends SwpSummary {
   district: string;
 }
 
-/* ───────── Helpers ───────── */
+
 const n = (v: unknown) => Number(v ?? 0) || 0;
 const num = (x: unknown) => n(x).toLocaleString('en-IN');
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
