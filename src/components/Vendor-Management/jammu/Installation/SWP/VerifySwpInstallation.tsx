@@ -720,9 +720,9 @@ export function VerifySwpInstallation() {
         if (Array.isArray(resp.sites) && resp.sites.length > 0) {
           verificationList = resp.sites.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) !== 1);
           verifiedList = resp.sites.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) === 1);
-        } else if (Array.isArray(resp.data) && resp.data.length > 0) {
-          verificationList = resp.data.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) !== 1);
-          verifiedList = resp.data.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) === 1);
+        } else if (Array.isArray((resp as any).data) && (resp as any).data.length > 0) {
+          verificationList = (resp as any).data.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) !== 1);
+          verifiedList = (resp as any).data.filter((x: any) => Number(x.inst_verify_status ?? x.verify_status ?? 0) === 1);
         }
       }
 

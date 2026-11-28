@@ -7,7 +7,7 @@ import {
   resolveJammuMediaUrl,
   getJammuMediaCandidates,
   type JammuRescoPaymentItem,
-  type JammuRescoSiteNameItem,
+  type JammuRescoClaimData,
 } from '../../jammu-services';
 import {
   Pagination,
@@ -519,7 +519,7 @@ export function RescoClaimRequest() {
   const [raiseModalOpen, setRaiseModalOpen] = useState<boolean>(false);
   const [submittingClaim, setSubmittingClaim] = useState<boolean>(false);
   const [sitesDropdown, setSitesDropdown] = useState<any[]>([]);
-  const [loadingSites, setLoadingSites] = useState<boolean>(false);
+  const loadingSites = false;
 
   const [claimPayType, setClaimPayType] = useState<number>(1);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
@@ -1073,20 +1073,20 @@ export function RescoClaimRequest() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuRescoPaymentItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'Date', accessor: (r) => txt(r, 'date') || txt(r, 'claim_date') || txt(r, 'created_at') },
-      { header: 'Claim', accessor: (r) => (r.is_site_record && !r.has_claim ? `Site ${r.site_id || r.id}` : `Claim ${r.id}`) },
-      { header: 'Milestone', accessor: (r) => (Number(r.pay_type) === 1 ? 'Payment 40 %' : Number(r.pay_type) === 2 ? 'Payment 30 %' : Number(r.pay_type) === 3 ? 'Payment 30 %' : 'Payment 40 %') },
-      { header: 'Sites', accessor: (r) => r.site_name || `Site ${r.site_id || r.id}` },
-      { header: 'District', accessor: (r) => r.district || DASH },
-      { header: 'Amount', accessor: (r) => (Number(r.amount || 0) > 0 ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : r.sanction_load ? `Load: ${r.sanction_load} kW` : DASH) },
-      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-      { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Approved' : Number(r.status) === 1 ? 'Raised (Pending Audit)' : Number(r.status) === 3 ? 'Rejected' : 'Not Raised') },
-      { header: 'Payment Amount', accessor: (r) => (r.payment_amount ? `₹ ${Number(r.payment_amount).toLocaleString('en-IN')}` : DASH) },
-      { header: 'Payment Balance', accessor: (r) => (r.payment_balance ? `₹ ${Number(r.payment_balance).toLocaleString('en-IN')}` : DASH) },
-      { header: 'Payment Date', accessor: (r) => txt(r, 'payment_date') || DASH },
-      { header: 'Payment Remarks', accessor: (r) => r.payment_remarks || DASH },
-      { header: 'Payment Status', accessor: (r) => (Number(r.payment_status) === 1 ? 'Disbursed' : 'Pending') },
+      { header: 'S.No.', accessor: (_r: JammuRescoPaymentItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Date', accessor: (r: JammuRescoPaymentItem) => txt(r, 'date') || txt(r, 'claim_date') || txt(r, 'created_at') },
+      { header: 'Claim', accessor: (r: JammuRescoPaymentItem) => (r.is_site_record && !r.has_claim ? `Site ${r.site_id || r.id}` : `Claim ${r.id}`) },
+      { header: 'Milestone', accessor: (r: JammuRescoPaymentItem) => (Number(r.pay_type) === 1 ? 'Payment 40 %' : Number(r.pay_type) === 2 ? 'Payment 30 %' : Number(r.pay_type) === 3 ? 'Payment 30 %' : 'Payment 40 %') },
+      { header: 'Sites', accessor: (r: JammuRescoPaymentItem) => r.site_name || `Site ${r.site_id || r.id}` },
+      { header: 'District', accessor: (r: JammuRescoPaymentItem) => r.district || DASH },
+      { header: 'Amount', accessor: (r: JammuRescoPaymentItem) => (Number(r.amount || 0) > 0 ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : r.sanction_load ? `Load: ${r.sanction_load} kW` : DASH) },
+      { header: 'Remarks', accessor: (r: JammuRescoPaymentItem) => r.remarks || DASH },
+      { header: 'Status', accessor: (r: JammuRescoPaymentItem) => (Number(r.status) === 2 ? 'Approved' : Number(r.status) === 1 ? 'Raised (Pending Audit)' : Number(r.status) === 3 ? 'Rejected' : 'Not Raised') },
+      { header: 'Payment Amount', accessor: (r: JammuRescoPaymentItem) => (r.payment_amount ? `₹ ${Number(r.payment_amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment Balance', accessor: (r: JammuRescoPaymentItem) => (r.payment_balance ? `₹ ${Number(r.payment_balance).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment Date', accessor: (r: JammuRescoPaymentItem) => txt(r, 'payment_date') || DASH },
+      { header: 'Payment Remarks', accessor: (r: JammuRescoPaymentItem) => r.payment_remarks || DASH },
+      { header: 'Payment Status', accessor: (r: JammuRescoPaymentItem) => (Number(r.payment_status) === 1 ? 'Disbursed' : 'Pending') },
     ],
     []
   );
@@ -1390,7 +1390,7 @@ export function RescoClaimRequest() {
                   a.click();
                 }}
                 onExportExcel={() => {
-                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                  const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${escapeHtml(c.header || '')}</th>`).join('')}</tr></thead><tbody>${filteredPayments.map((r, i) => `<tr>${exportCols.map((c) => `<td>${escapeHtml(String(typeof c.accessor === 'function' ? (c.accessor as any)(r, i) : r[c.accessor as keyof typeof r] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
                   const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
                   const blob = new Blob([`\ufeff${html}`], { type: 'application/vnd.ms-excel' });
                   const url = URL.createObjectURL(blob);
