@@ -1,0 +1,764 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   KLK VENTURES ERP — UNIFIED PORTAL RESPONSIVE ENGINE (V-Portal & Vendor Portal)
+   Clean, Professional Mobile View — Preserves Elegant Desktop Aesthetic
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. GLOBAL MOBILE RESETS & VIEWPORT SAFETY ───────────────────────────── */
+@media (max-width: 767.98px) {
+  /* Prevent horizontal screen blowout */
+  html, body, #root, .ax-layout, .ax-shell, .ax-main {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .ax-main > :not(.ax-footer) {
+    --ax-page-pad: var(--ax-space-3, 12px) !important;
+    padding-inline: var(--ax-page-pad) !important;
+    padding-block: var(--ax-space-3, 12px) !important;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus */
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    select,
+    textarea,
+    .ax-input,
+    .ax-float__input,
+    .ax-form-input
+  ) {
+    font-size: 16px !important;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ── 2. PAGE HEAD & BREADCRUMBS ─────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .ax-page-head {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-block-end: var(--ax-space-3, 12px) !important;
+  }
+
+  .ax-page-head__row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .ax-page-head__title {
+    font-size: 1.25rem !important;
+    line-height: 1.25 !important;
+    word-break: break-word !important;
+  }
+
+  .ax-page-head__subtitle {
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+    margin-top: 3px !important;
+  }
+
+  /* Breadcrumb: Clean single-line touch scroll */
+  .ax-breadcrumb {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    margin-block-end: 4px !important;
+  }
+
+  .ax-breadcrumb::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .ax-breadcrumb__list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+  }
+
+  /* Actions in PageHead: Clean single-line horizontal touch scroll strip (NO ugly multi-line wrapping!) */
+  .ax-page-head__actions {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding-bottom: 4px !important;
+    padding-top: 2px !important;
+  }
+
+  .ax-page-head__actions::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .ax-page-head__actions > div,
+  .ax-page-head__actions .ax-cluster {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: max-content !important;
+    min-width: 0 !important;
+  }
+
+  .ax-page-head__actions .ax-btn,
+  .ax-page-head__actions a.ax-btn,
+  .ax-page-head__actions .ax-badge {
+    flex: 0 0 auto !important;
+    min-height: 32px !important;
+    padding-inline: 12px !important;
+    font-size: 12px !important;
+    border-radius: var(--ax-radius-md, 8px) !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ── 3. CARD HEADER & TOOLBARS (CLEAN HORIZONTAL FLOW) ──────────────────── */
+@media (max-width: 767.98px) {
+  .solar-erp-page,
+  .swp-inst-form,
+  .up-single-card-form {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .solar-erp-page .ax-card,
+  .ax-card {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-radius: var(--ax-radius-lg, 12px) !important;
+    overflow: hidden !important;
+  }
+
+  /* Card Header: Title on top, toolbar below — NO awkward stretched blocks */
+  .solar-erp-page .ax-card__header,
+  .ax-card__header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .solar-erp-page .ax-card__titles,
+  .ax-card__titles {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .solar-erp-page .ax-card__title,
+  .ax-card__title {
+    font-size: 1rem !important;
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+  }
+
+  .solar-erp-page .ax-card__subtitle,
+  .ax-card__subtitle {
+    font-size: 0.78rem !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Card Actions: Search + Export + Filters in clean horizontal row */
+  .solar-erp-page .ax-card__actions,
+  .ax-card__actions {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+
+  .solar-erp-page .ax-card__actions .ax-cluster,
+  .ax-card__actions .ax-cluster {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Search input: Neat responsive width */
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"],
+  .solar-erp-page .ax-search-input,
+  .ax-search-input {
+    flex: 1 1 180px !important;
+    min-width: 140px !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  .solar-erp-page .ax-card__actions input,
+  .ax-search-input input {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding-inline-start: 32px !important;
+    font-size: 13.5px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Export Toolbar: Sleek horizontal icon-button bar */
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"],
+  .ax-export-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin-left: auto !important;
+    width: auto !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .ax-export-toolbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .ax-export-toolbar__button,
+  .solar-erp-page .ax-export-toolbar__button {
+    flex: 0 0 auto !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 8px !important;
+    font-size: 11.5px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Operations & Dashboard Filter Bars */
+  .dle-filter-item,
+  .ula-filter-item,
+  .asw-filter-item,
+  .srt-filter-item,
+  .ula-filter-scope {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 1 140px !important;
+    max-width: 100% !important;
+  }
+
+  .dle-filter-item select,
+  .ula-filter-item select,
+  .asw-filter-item select,
+  .srt-filter-item select,
+  .ula-filter-scope select {
+    flex: 1 1 auto !important;
+    min-height: 32px !important;
+    height: 32px !important;
+    font-size: 12.5px !important;
+    max-width: 100% !important;
+  }
+
+  .ax-card__body {
+    padding: 12px 14px !important;
+  }
+
+  .ax-card__footer {
+    padding: 10px 14px !important;
+  }
+}
+
+/* ── 4. DATA TABLES: HORIZONTAL TOUCH SCROLL ────────────────────────────── */
+@media (max-width: 767.98px) {
+  .solar-erp-page .ax-table-wrap,
+  .ax-table-wrap,
+  .table-responsive {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    position: relative !important;
+    margin-inline: 0 !important;
+    border-radius: var(--ax-radius-md, 8px) !important;
+  }
+
+  .ax-table-wrap::-webkit-scrollbar {
+    height: 4px !important;
+  }
+
+  .ax-table-wrap::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4) !important;
+    border-radius: 4px !important;
+  }
+
+  .ax-table {
+    min-width: 650px !important;
+    width: max-content !important;
+    border-collapse: collapse !important;
+  }
+
+  .ax-table__th,
+  .ax-table__td {
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
+    white-space: nowrap !important;
+  }
+
+  .ax-table__td .ax-btn,
+  .ax-table__td a.ax-btn {
+    padding: 3px 8px !important;
+    min-height: 28px !important;
+    font-size: 11.5px !important;
+  }
+}
+
+/* ── 5. PAGINATION: CLEAN, COMPACT & HORIZONTAL ─────────────────────────── */
+/* Fixes the vertical stacking bug where < 1 > stacked in a column */
+@media (max-width: 767.98px) {
+  /* Container footer */
+  .solar-erp-page .ax-card__footer,
+  .ax-card__footer {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    padding: 10px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-top: 1px solid var(--ax-border, #e2e8f0) !important;
+  }
+
+  /* Reset nested wrappers to prevent double border and double padding */
+  .solar-erp-page .ula-pagination-left,
+  .ula-pagination-left {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-top: none !important;
+    background: transparent !important;
+  }
+
+  .solar-erp-page .ax-card__footer .ax-pagination-mobile,
+  .ula-pagination-left .ax-pagination-mobile,
+  .ax-card__footer .ax-pagination-mobile {
+    padding: 0 !important;
+    border: none !important;
+    border-top: none !important;
+    width: 100% !important;
+    background: transparent !important;
+  }
+
+  /* Info row: "Showing 1 to 3 of 3" (left) and "Rows: 50" (right) in ONE neat line */
+  .ax-pagination-mobile-info,
+  .ax-cluster.ax-pagination-mobile-info {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .ax-pagination__summary,
+  .ax-pagination-mobile-info .ax-pagination__summary {
+    font-size: 12px !important;
+    color: var(--ax-text-muted, #64748b) !important;
+    white-space: nowrap !important;
+    order: 1 !important;
+    margin: 0 !important;
+    text-align: left !important;
+  }
+
+  .ax-pagination-mobile-size,
+  .ax-pagination-mobile-info .ax-pagination-mobile-size {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin-left: auto !important;
+    order: 2 !important;
+    white-space: nowrap !important;
+  }
+
+  .ax-pagination-mobile-size select {
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 12px !important;
+    padding: 0 6px !important;
+    border-radius: 6px !important;
+    background: var(--ax-surface, #ffffff) !important;
+    color: var(--ax-text, #334155) !important;
+    border: 1px solid var(--ax-border, #cbd5e1) !important;
+  }
+
+  /* Navigation row: MUST BE HORIZONTAL ROW ALWAYS */
+  .ax-pagination,
+  .ax-pagination-mobile-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin: 4px 0 0 0 !important;
+    padding: 0 !important;
+  }
+
+  .ax-pagination__pages,
+  .ax-pagination-mobile-pages {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: calc(100vw - 110px) !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .ax-pagination-mobile-pages::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Pagination Prev, Next and Page buttons: Clean rounded pills */
+  .ax-pagination__page,
+  .ax-pagination__prev,
+  .ax-pagination__next {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--ax-border, #e2e8f0) !important;
+    background: var(--ax-surface, #ffffff) !important;
+    color: var(--ax-text, #334155) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.15s ease !important;
+    flex-shrink: 0 !important;
+  }
+
+  .ax-pagination__page.is-active,
+  .ax-pagination__page[aria-current="page"] {
+    background: var(--ax-accent, #2563eb) !important;
+    color: #ffffff !important;
+    border-color: var(--ax-accent, #2563eb) !important;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25) !important;
+  }
+
+  .ax-pagination__prev:disabled,
+  .ax-pagination__next:disabled {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+  }
+
+  .ax-pagination__prev svg,
+  .ax-pagination__next svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+
+/* ── 6. DASHBOARDS, KPI CARDS & QUICK FILTER TABS ───────────────────────── */
+/* Quick Filter Status Tabs: Sleek single-line horizontal touch scroll across all viewports */
+.ax-quick-filter-strip,
+.solar-erp-page div[style*="dashed"]:has(> button),
+.solar-erp-page div[style*="dashed"]:has(> span),
+.solar-erp-page .ax-cluster[style*="dashed"],
+.solar-erp-page div[style*="border-top: 1px dashed"],
+.solar-erp-page div[style*="borderTop: 1px dashed"] {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-bottom: 8px !important;
+  padding-top: 8px !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+}
+
+.ax-quick-filter-strip::-webkit-scrollbar,
+.solar-erp-page div[style*="dashed"]::-webkit-scrollbar,
+.solar-erp-page .ax-cluster[style*="dashed"]::-webkit-scrollbar {
+  display: none !important;
+}
+
+.ax-quick-filter-strip > *,
+.solar-erp-page div[style*="dashed"] > *,
+.solar-erp-page .ax-cluster[style*="dashed"] > * {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+
+.ax-quick-filter-strip > span:first-child,
+.solar-erp-page div[style*="dashed"] > span:first-child {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--ax-text-muted, #64748b) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  margin-right: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.ax-quick-filter-strip button,
+.solar-erp-page div[style*="dashed"] button {
+  flex: 0 0 auto !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 14px !important;
+  font-size: 11.5px !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 992px) {
+  .solar-erp-page .asw-cards-row,
+  .asw-cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .users-dash-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .solar-erp-page .asw-cards-row,
+  .asw-cards-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .solar-erp-page .ax-welcome__stats,
+  .ax-welcome__stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .ax-statgroup {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .ax-kpi__value,
+  .ax-card__kpi-val {
+    font-size: 1.35rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .ax-kpi__icon,
+  .ax-card__kpi-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+
+/* ── 7. FORMS & INPUTS ──────────────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .up-form-grid,
+  .ax-form-grid,
+  .swp-inst-form .ax-form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .up-form-grid--3col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .up-section-pills,
+  .swp-section-pills,
+  .solar-erp-page [role="tablist"],
+  .ax-cluster[role="tablist"],
+  [role="tablist"] {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    gap: 6px !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 12px !important;
+    width: 100% !important;
+  }
+
+  .up-section-pills::-webkit-scrollbar,
+  .swp-section-pills::-webkit-scrollbar,
+  .solar-erp-page [role="tablist"]::-webkit-scrollbar,
+  .ax-cluster[role="tablist"]::-webkit-scrollbar,
+  [role="tablist"]::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .up-section-pill-btn,
+  .swp-section-pill-btn,
+  .solar-erp-page [role="tablist"] [role="tab"],
+  [role="tablist"] [role="tab"],
+  [role="tablist"] .ax-btn {
+    flex: 0 0 auto !important;
+    min-height: 32px !important;
+    padding: 4px 10px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+  }
+
+  .ax-float__input {
+    height: 46px !important;
+    padding: 14px 12px 4px 12px !important;
+    font-size: 16px !important;
+    border-radius: var(--ax-radius-md, 8px) !important;
+  }
+
+  /* Form Sticky Bottom Bar */
+  .up-form-sticky-bar {
+    position: sticky !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
+    margin-top: 16px !important;
+    padding: 10px 14px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    border-radius: var(--ax-radius-lg, 12px) !important;
+  }
+
+  .up-form-sticky-bar .ax-cluster {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+  }
+
+  .up-form-sticky-bar .ax-btn {
+    flex: 0 0 auto !important;
+    min-height: 38px !important;
+    padding-inline: 14px !important;
+  }
+}
+
+/* ── 8. MODALS & POPUPS ─────────────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .ax-modal {
+    padding: 12px !important;
+    padding-top: max(12px, env(safe-area-inset-top, 12px)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
+  }
+
+  .ax-modal__dialog,
+  .ax-modal__dialog--sm,
+  .ax-modal__dialog--lg,
+  .ax-modal__dialog--xl {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - 30px) !important;
+    border-radius: var(--ax-radius-lg, 12px) !important;
+  }
+
+  .ax-modal__header {
+    padding: 12px 14px !important;
+  }
+
+  .ax-modal__body {
+    padding: 14px !important;
+    max-height: calc(85dvh - 110px) !important;
+  }
+
+  .ax-modal__footer {
+    padding: 10px 14px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+}
+
+/* ── 9. SIDEBAR & MOBILE DRAWER ─────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .ax-sidebar {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: hidden !important;
+  }
+
+  .ax-sidebar__brand {
+    padding: 12px 14px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .ax-sidebar__search {
+    padding: 8px 12px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .ax-sidebar__nav {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 6px 8px !important;
+  }
+
+  .vp-sb__item-link,
+  .vp-sb__item-btn,
+  .vp-sb__leaf-link,
+  .ax-nav__item {
+    min-height: 42px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+}

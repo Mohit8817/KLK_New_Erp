@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -48,7 +48,7 @@ const useChartHeight = (desktop: number, mobile: number) => {
   return h;
 };
 
-/* ───────── Responsive page CSS (Exact Solar ERP reference) ───────── */
+/* --------- Responsive page CSS (Exact Solar ERP reference) --------- */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -64,7 +64,7 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* ───── Card header (desktop): prioritize title width, condense actions ───── */
+  /* ----- Card header (desktop): prioritize title width, condense actions ----- */
   .solar-erp-page .ax-card__header {
     display: flex;
     flex-wrap: nowrap;
@@ -161,7 +161,7 @@ const PAGE_CSS = `
     width: 100%;
   }
 
-  /* ───── Tablet (<=1100px) ───── */
+  /* ----- Tablet (<=1100px) ----- */
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
     .solar-erp-page .ax-col--6,
@@ -171,7 +171,7 @@ const PAGE_CSS = `
     }
   }
 
-  /* ───── Mobile (<=640px) ───── */
+  /* ----- Mobile (<=640px) ----- */
   @media (max-width: 640px) {
     .solar-erp-page .ax-card__header {
       flex-direction: column;
@@ -215,7 +215,7 @@ const PAGE_CSS = `
   }
 `;
 
-/* ───────── SVG Icons matching Solar ERP design language ───────── */
+/* --------- SVG Icons matching Solar ERP design language --------- */
 const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
@@ -234,7 +234,7 @@ const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
 
-/* ───────── KPI Card Component ───────── */
+/* --------- KPI Card Component --------- */
 interface KpiProps {
   icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -367,7 +367,7 @@ export function RescoDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // ── Status Drill-down Navigation to StatusView ──
+  // -- Status Drill-down Navigation to StatusView --
   const openDrillDown = (statusKey: string, _label?: string, district?: string, vendor?: string | number) => {
     const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
     const params = new URLSearchParams();
@@ -752,7 +752,7 @@ export function RescoDashboard() {
         subtitle={
           <span>
             Solar Rooftop (RESCO) Project Operations, Feasibility.
-            {updatedAt ? ` · Last updated ${updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
+            {updatedAt ? ` � Last updated ${updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
           </span>
         }
         breadcrumbs={[
@@ -901,7 +901,7 @@ export function RescoDashboard() {
           </div>
 
           {/* Quick Filter Status Tabs */}
-          <div className="ax-cluster" style={{ gap: 6, flexWrap: 'wrap', width: '100%', marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--ax-border, #e2e8f0)' }}>
+          <div className="ax-cluster ax-quick-filter-strip" style={{ gap: 6, flexWrap: 'wrap', width: '100%', marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--ax-border, #e2e8f0)' }}>
             <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quick Filter:</span>
             {[
               { key: 'All', label: 'All Operations' },
@@ -984,9 +984,9 @@ export function RescoDashboard() {
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════
+        {/* -----------------------------------------------------------
             4. COMPREHENSIVE KPI SECTION 1: SITE ALLOCATION & LOGISTICS
-            ═══════════════════════════════════════════════════════════ */}
+            ----------------------------------------------------------- */}
        
         <KpiCard
           icon={I_PIN}
@@ -1053,9 +1053,9 @@ export function RescoDashboard() {
           onClick={() => openDrillDown('complete', "Today's Installations")}
         />
 
-        {/* ═══════════════════════════════════════════════════════════
+        {/* -----------------------------------------------------------
             5. COMPREHENSIVE KPI SECTION 2: INSTALLATION & AUDIT
-            ═══════════════════════════════════════════════════════════ */}
+            ----------------------------------------------------------- */}
 
 
         <KpiCard
@@ -1125,9 +1125,9 @@ export function RescoDashboard() {
           onClick={() => openDrillDown('doc-approved', 'Documents Approved')}
         />
 
-        {/* ═══════════════════════════════════════════════════════════
+        {/* -----------------------------------------------------------
             6. COMPREHENSIVE KPI SECTION 3: COMMERCIAL CLAIMS & PAYMENTS
-            ═══════════════════════════════════════════════════════════ */}
+            ----------------------------------------------------------- */}
 
 
         <KpiCard
@@ -1196,11 +1196,11 @@ export function RescoDashboard() {
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>State Operations</span>
-              <h3 className="ax-card__title">Jammu · Solar Rooftop (RESCO) Operations</h3>
+              <h3 className="ax-card__title">Jammu � Solar Rooftop (RESCO) Operations</h3>
               <p className="ax-card__subtitle">{num(resco.complete)} rooftop installations across {districtOptions.length} districts in Jammu</p>
             </div>
             <Link to="/vendor-management/jammu/installation/resco/verify-installation" className="ax-btn ax-btn--sm ax-btn--primary">
-              View Installation Register →
+              View Installation Register ?
             </Link>
           </div>
           <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
@@ -1234,7 +1234,7 @@ export function RescoDashboard() {
             </div>
 
             <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-              <b>Verification & Compliance:</b> {num(resco.verify_approved)} sites approved by auditor ({pctVerified}%) · {num(resco.doc_approved)} documents verified ({pctDocApproved}%) · {num(resco.inst_claim1_approved)} Stage 1 claims approved · {num(resco.inst_pay1_complete)} Stage 1 payments settled.
+              <b>Verification & Compliance:</b> {num(resco.verify_approved)} sites approved by auditor ({pctVerified}%) � {num(resco.doc_approved)} documents verified ({pctDocApproved}%) � {num(resco.inst_claim1_approved)} Stage 1 claims approved � {num(resco.inst_pay1_complete)} Stage 1 payments settled.
             </div>
           </div>
         </section>
@@ -1468,7 +1468,7 @@ export function RescoDashboard() {
                 <SearchInput
                   value={tableQuery}
                   onChange={setTableQuery}
-                  placeholder="Search district…"
+                  placeholder="Search district�"
                   ariaLabel="Search districts"
                 />
                 <TableExportToolbar
@@ -1667,7 +1667,7 @@ export function RescoDashboard() {
                 <SearchInput
                   value={vendorTableQuery}
                   onChange={setVendorTableQuery}
-                  placeholder="Search vendor name…"
+                  placeholder="Search vendor name�"
                   ariaLabel="Search vendors"
                 />
                 <TableExportToolbar

@@ -24,6 +24,9 @@
 /* ── Surface schemes (sidebar/header chrome) ── */
 @import './schemes.css';
 
+/* ── Unified Portal Mobile & Tablet Responsive Engine ── */
+@import './portal-responsive.css';
+
 /*
  * Tailwind v4 @theme bridge — exposes --ax-* role/scale tokens as Tailwind
  * utilities (bg-surface, text-strong, rounded-xl, font-display, shadow-card…)

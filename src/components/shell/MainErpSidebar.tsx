@@ -1,6 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 
-export function MainErpSidebar({ filter = '' }: { filter?: string }) {
+export function MainErpSidebar({
+  filter = '',
+  onNavigate,
+}: {
+  filter?: string;
+  onNavigate?: () => void;
+}) {
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -158,6 +164,7 @@ export function MainErpSidebar({ filter = '' }: { filter?: string }) {
               <Link
                 key={item.title}
                 to={item.to}
+                onClick={onNavigate}
                 className={`ax-nav__item ${item.active ? 'ax-nav__item--active is-active' : ''}`}
                 role="treeitem"
                 aria-current={item.active ? 'page' : undefined}

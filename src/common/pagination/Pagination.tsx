@@ -87,32 +87,70 @@ export function Pagination({
     <>
       <style>
         {`
-          @media (max-width: 480px) {
+          @media (max-width: 767.98px) {
             .ax-pagination-mobile {
+              display: flex !important;
               flex-direction: column !important;
-              align-items: center !important;
-              justify-content: center !important;
+              align-items: stretch !important;
+              justify-content: flex-start !important;
               width: 100% !important;
               gap: 10px !important;
+              padding: 12px 14px !important;
+              box-sizing: border-box !important;
             }
 
             .ax-pagination-mobile-info {
+              display: flex !important;
+              flex-direction: row !important;
+              align-items: center !important;
+              justify-content: space-between !important;
               width: 100% !important;
-              justify-content: center !important;
-              text-align: center !important;
               gap: 8px !important;
+              flex-wrap: nowrap !important;
+            }
+
+            .ax-pagination-mobile-info .ax-pagination__summary {
+              font-size: 12px !important;
+              color: var(--ax-text-muted, #64748b) !important;
+              white-space: nowrap !important;
+            }
+
+            .ax-pagination-mobile-size {
+              display: inline-flex !important;
+              align-items: center !important;
+              gap: 4px !important;
+              margin-left: auto !important;
+            }
+
+            .ax-pagination-mobile-size select {
+              height: 28px !important;
+              min-height: 28px !important;
+              font-size: 12px !important;
+              padding: 0 6px !important;
+              border-radius: 6px !important;
             }
 
             .ax-pagination-mobile-nav {
-              width: 100% !important;
+              display: flex !important;
+              flex-direction: row !important;
+              align-items: center !important;
               justify-content: center !important;
+              width: 100% !important;
+              gap: 6px !important;
             }
 
             .ax-pagination-mobile-pages {
-              max-width: calc(100vw - 100px) !important;
+              display: flex !important;
+              flex-direction: row !important;
+              align-items: center !important;
+              justify-content: center !important;
+              gap: 4px !important;
+              max-width: calc(100vw - 110px) !important;
               overflow-x: auto !important;
-              justify-content: flex-start !important;
               scrollbar-width: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              list-style: none !important;
             }
 
             .ax-pagination-mobile-pages::-webkit-scrollbar {
@@ -122,36 +160,32 @@ export function Pagination({
             .ax-pagination-mobile .ax-pagination__page,
             .ax-pagination-mobile .ax-pagination__prev,
             .ax-pagination-mobile .ax-pagination__next {
+              display: inline-flex !important;
+              align-items: center !important;
+              justify-content: center !important;
               min-width: 34px !important;
               width: 34px !important;
               height: 34px !important;
               min-height: 34px !important;
               padding: 0 !important;
+              border-radius: 8px !important;
+              border: 1px solid var(--ax-border, #e2e8f0) !important;
+              background: var(--ax-surface, #ffffff) !important;
+              color: var(--ax-text, #334155) !important;
+              font-size: 13px !important;
+              font-weight: 600 !important;
+            }
+
+            .ax-pagination-mobile .ax-pagination__page.is-active {
+              background: var(--ax-accent, #2563eb) !important;
+              color: #ffffff !important;
+              border-color: var(--ax-accent, #2563eb) !important;
             }
 
             .ax-pagination-mobile .ax-pagination__prev svg,
             .ax-pagination-mobile .ax-pagination__next svg {
-              width: 17px !important;
-              height: 17px !important;
-            }
-
-            .ax-pagination-mobile-size {
-              justify-content: center !important;
-            }
-          }
-
-          @media (max-width: 360px) {
-            .ax-pagination-mobile-pages {
-              max-width: calc(100vw - 90px) !important;
-            }
-
-            .ax-pagination-mobile .ax-pagination__page,
-            .ax-pagination-mobile .ax-pagination__prev,
-            .ax-pagination-mobile .ax-pagination__next {
-              min-width: 32px !important;
-              width: 32px !important;
-              height: 32px !important;
-              min-height: 32px !important;
+              width: 16px !important;
+              height: 16px !important;
             }
           }
         `}
